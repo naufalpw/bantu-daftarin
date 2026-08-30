@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\PaymentGateway;
+use App\Enums\PaymentMethod;
 use App\Exceptions\PaymentGatewayException;
 use App\Models\Application;
 use App\Models\Payment;
@@ -12,7 +13,7 @@ use Xendit\Invoice\InvoiceApi;
 
 class XenditInvoiceGateway implements PaymentGateway
 {
-    public function createInvoice(Application $application, Payment $payment): array
+    public function createInvoice(Application $application, Payment $payment, PaymentMethod $method): array
     {
         $secret = config('services.xendit.secret_key');
         if (blank($secret)) {

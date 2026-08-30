@@ -2,9 +2,11 @@
 
 namespace App\Livewire;
 
+use App\Enums\BusinessType;
 use App\Models\Application;
 use App\Services\ApplicationWorkflowService;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class ApplicationDetailsForm extends Component
@@ -21,9 +23,12 @@ class ApplicationDetailsForm extends Component
 
     public string $saveState = '';
 
-    public function mount(Application $application): void
+    public string $variant = 'default';
+
+    public function mount(Application $application, string $variant = 'default'): void
     {
         Gate::authorize('update', $application);
+        $this->variant = $variant;
         $application->load(['service', 'personalDetails', 'businessDetails', 'representatives']);
         $this->applicationId = $application->public_id;
         $this->kind = $application->service->code;
@@ -31,6 +36,8 @@ class ApplicationDetailsForm extends Component
         if ($application->personalDetails) {
             $this->details = [
                 'name' => $application->personalDetails->name,
+                'nik' => $application->personalDetails->nik,
+                'family_card_number' => $application->personalDetails->family_card_number,
                 'email' => $application->personalDetails->email,
                 'marital_status' => $application->personalDetails->marital_status,
                 'family_status' => $application->personalDetails->family_status,
@@ -41,6 +48,7 @@ class ApplicationDetailsForm extends Component
             $this->details = [
                 'business_name' => $application->businessDetails?->business_name,
                 'business_type' => $application->businessDetails?->business_type,
+                'business_type_other' => $application->businessDetails?->business_type_other,
                 'purpose' => $application->businessDetails?->purpose,
             ];
             $primary = $application->representatives->firstWhere('is_primary', true);
@@ -88,9 +96,12 @@ class ApplicationDetailsForm extends Component
 
         if ($kind === 'NPWP_PERSONAL') {
             $rules['details.name'] = ['required', 'string', 'max:120'];
+            $rules['details.nik'] = ['nullable', 'digits:16'];
+            $rules['details.family_card_number'] = ['nullable', 'digits:16'];
         } else {
             $rules['details.business_name'] = ['required', 'string', 'max:190'];
-            $rules['details.business_type'] = ['nullable', 'string', 'max:128'];
+            $rules['details.business_type'] = ['nullable', 'string', Rule::in(BusinessType::values())];
+            $rules['details.business_type_other'] = ['nullable', 'required_if:details.business_type,OTHER', 'prohibited_unless:details.business_type,OTHER', 'string', 'max:128'];
             $rules['representative.name'] = ['required', 'string', 'max:120'];
             $rules['representative.relationship'] = ['required', 'in:OWNER,DIRECTOR,MANAGEMENT,EMPLOYEE,AUTHORIZED_REPRESENTATIVE,OTHER'];
             $rules['representative.email'] = ['nullable', 'email:rfc', 'max:190'];

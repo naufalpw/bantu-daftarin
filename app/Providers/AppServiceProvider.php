@@ -16,8 +16,10 @@ use App\Policies\PaymentPolicy;
 use App\Policies\ResultDocumentPolicy;
 use App\Services\ClamAvMalwareScanner;
 use App\Services\FakePaymentGateway;
+use App\Services\PayPalPaymentProvider;
+use App\Services\PaymentGatewayRouter;
 use App\Services\TestingMalwareScanner;
-use App\Services\XenditInvoiceGateway;
+use App\Services\XenditPaymentProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -30,7 +32,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(PaymentGateway::class, fn () => config('services.xendit.driver') === 'fake' ? new FakePaymentGateway : new XenditInvoiceGateway);
+        $this->app->bind(PaymentGateway::class, fn () => config('services.xendit.driver') === 'fake'
+            ? new FakePaymentGateway
+            : new PaymentGatewayRouter([
+                new XenditPaymentProvider,
+                new PayPalPaymentProvider,
+            ]));
         $this->app->bind(MalwareScanner::class, fn () => config('files.malware_scan_driver') === 'testing' ? new TestingMalwareScanner : new ClamAvMalwareScanner);
     }
 

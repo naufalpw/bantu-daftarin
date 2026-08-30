@@ -23,6 +23,16 @@ return [
         'secret_key' => env('XENDIT_SECRET_KEY'),
         'callback_token' => env('XENDIT_CALLBACK_TOKEN'),
         'invoice_duration' => (int) env('XENDIT_INVOICE_DURATION', 86400),
+        'api_base_url' => env('XENDIT_API_BASE_URL', 'https://api.xendit.co'),
+        'payment_api_version' => env('XENDIT_PAYMENT_API_VERSION', '2024-11-11'),
+        'timeout' => (int) env('XENDIT_TIMEOUT', 20),
+    ],
+
+    'paypal' => [
+        'driver' => env('PAYPAL_DRIVER', 'unavailable'),
+        'enabled' => (bool) env('PAYPAL_ENABLED', false),
+        'client_id' => env('PAYPAL_CLIENT_ID'),
+        'secret' => env('PAYPAL_SECRET'),
     ],
 
     'ses' => [

@@ -27,7 +27,11 @@ class ChatTest extends TestCase
         $other = User::factory()->create();
         $thread = $this->threadFor($owner);
 
-        $this->actingAs($owner)->get(route('client.chat.show', $thread->public_id))->assertOk();
+        $this->actingAs($owner)
+            ->get(route('client.chat.show', $thread->public_id))
+            ->assertOk()
+            ->assertSee('bd-chat-card')
+            ->assertSee('Customer Service');
         $this->actingAs($other)->get(route('client.chat.show', $thread->public_id))->assertForbidden();
     }
 

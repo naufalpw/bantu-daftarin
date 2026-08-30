@@ -70,6 +70,7 @@ class DatabaseSeeder extends Seeder
         $this->seedRequirements($personal, [
             ['code' => 'KTP', 'name' => 'KTP', 'required' => true, 'max' => 5],
             ['code' => 'KK', 'name' => 'Kartu Keluarga', 'required' => true, 'max' => 5],
+            ['code' => 'NPWP', 'name' => 'NPWP (Jika ada)', 'required' => false, 'max' => 5],
             ['code' => 'FOTO_WAJAH', 'name' => 'Foto wajah', 'required' => true, 'max' => 5],
         ]);
         $this->seedRequirements($business, [

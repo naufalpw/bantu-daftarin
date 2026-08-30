@@ -3,13 +3,23 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Client\RegistrationController;
 use App\Http\Controllers\Testing\FakePaymentController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route(auth()->check() ? (auth()->user()->isAdmin() ? 'admin.dashboard' : 'client.dashboard') : 'login'));
+Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route(auth()->user()->isAdmin() ? 'admin.dashboard' : 'client.dashboard');
+    }
+
+    return view('home');
+})->name('home');
+
+Route::view('/qna', 'qna')->name('qna');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+    Route::get('/daftar', [AuthController::class, 'showRegister'])->name('daftar');
     Route::post('/register', [AuthController::class, 'register'])->name('register.store');
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-login')->name('login.store');
@@ -31,6 +41,14 @@ Route::get('/admin/otp', [AuthController::class, 'showOtp'])->name('admin.otp');
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
+Route::middleware(['auth', 'verified', 'client'])->group(function (): void {
+    Route::get('/jenis-badan', [RegistrationController::class, 'businessTypes'])->name('npwp.business.types');
+    Route::get('/npwp-pribadi', [RegistrationController::class, 'personalEntry'])->name('npwp.personal');
+    Route::get('/npwp-pribadi/{publicId}', [RegistrationController::class, 'personal'])->name('npwp.personal.application');
+    Route::get('/npwp-badan', [RegistrationController::class, 'businessEntry'])->name('npwp.business');
+    Route::get('/npwp-badan/{publicId}', [RegistrationController::class, 'business'])->name('npwp.business.application');
+});
+
 require __DIR__.'/client.php';
 require __DIR__.'/admin.php';
 require __DIR__.'/webhooks.php';
@@ -42,5 +60,5 @@ if (in_array(app()->environment(), ['local', 'testing'], true) && config('servic
         ->group(function (): void {
             Route::get('/{paymentId}/checkout', [FakePaymentController::class, 'show'])->name('checkout');
             Route::post('/{paymentId}/complete', [FakePaymentController::class, 'complete'])->name('complete');
-        });
+    });
 }

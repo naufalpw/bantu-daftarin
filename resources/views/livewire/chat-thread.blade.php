@@ -1,1 +1,51 @@
-<section wire:poll.5s="markRead" class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200"><div class="max-h-[480px] space-y-3 overflow-y-auto" wire:key="messages-{{ $thread->public_id }}">@forelse($thread->messages as $message)<div class="flex {{ $message->sender_user_id === auth()->id() ? 'justify-end' : 'justify-start' }}"><div class="max-w-[80%] rounded-xl {{ $message->sender_user_id === auth()->id() ? 'bg-indigo-600 text-white' : 'bg-slate-100' }} px-4 py-3"><p class="whitespace-pre-wrap text-sm">{{ $message->body }}</p><p class="mt-1 text-[11px] opacity-70">{{ $message->created_at->format('d/m H:i') }}</p></div></div>@empty<p class="py-12 text-center text-sm text-slate-500">Belum ada pesan.</p>@endforelse</div><form wire:submit="send" class="mt-5 flex gap-2"><textarea wire:model="body" rows="2" placeholder="Tulis pesan..." class="flex-1 rounded-lg border-slate-300"></textarea><button class="self-end rounded-lg bg-indigo-600 px-4 py-2 text-white">Kirim</button></form>@error('body')<p class="mt-2 text-sm text-rose-700">{{ $message }}</p>@enderror</section>
+@php($isAdmin = auth()->user()->isAdmin())
+@php($isCurrentUser = fn ($message): bool => $message->sender_user_id === auth()->id())
+
+<section wire:poll.5s="markRead" class="bd-chat-card {{ $isAdmin ? 'bd-chat-card--admin' : '' }}" aria-label="Percakapan">
+    <header class="bd-chat-card__header">
+        <div class="bd-chat-card__identity">
+            <img src="{{ asset('images/figma/phase3/chat/avatar.svg') }}" alt="">
+            <div>
+                <strong>{{ $isAdmin ? ($thread->client?->name ?? 'Customer') : 'Customer Service' }}</strong>
+                @if($isAdmin)
+                    <span>{{ $thread->application?->service?->name ?? 'Layanan aplikasi' }}</span>
+                @endif
+            </div>
+        </div>
+        @if($isAdmin)
+            <span class="bd-chat-card__online">Online</span>
+        @endif
+    </header>
+
+    <div class="bd-chat-messages" wire:key="messages-{{ $thread->public_id }}" aria-live="polite">
+        @forelse($thread->messages as $message)
+            @php($outgoing = $isCurrentUser($message))
+            <div class="bd-chat-message {{ $outgoing ? 'bd-chat-message--outgoing' : 'bd-chat-message--incoming' }}">
+                <div class="bd-chat-bubble">
+                    <p>{{ $message->body }}</p>
+                    <span class="bd-chat-message__meta">
+                        {{ $message->created_at->format('H:i') }}
+                        @if($outgoing && $message->read_at)
+                            <img src="{{ asset('images/figma/phase3/chat/check-read.svg') }}" alt="Dibaca">
+                        @endif
+                    </span>
+                </div>
+            </div>
+        @empty
+            <p class="bd-chat-empty">Belum ada pesan.</p>
+        @endforelse
+    </div>
+
+    <form wire:submit="send" class="bd-chat-composer">
+        <button class="bd-chat-composer__plus" type="button" disabled aria-label="Lampiran belum tersedia">
+            <img src="{{ asset('images/figma/phase3/chat/plus.svg') }}" alt="">
+        </button>
+        <textarea wire:model="body" rows="1" placeholder="Tulis pesan..." aria-label="Tulis pesan"></textarea>
+        <button class="bd-chat-composer__send" type="submit" aria-label="Kirim pesan">
+            <img src="{{ asset('images/figma/phase3/chat/send.svg') }}" alt="">
+        </button>
+    </form>
+    @error('body')
+        <p class="bd-chat-error">{{ $message }}</p>
+    @enderror
+</section>

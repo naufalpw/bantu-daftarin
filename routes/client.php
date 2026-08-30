@@ -2,13 +2,17 @@
 
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\Client\ApplicationController;
+use App\Http\Controllers\Client\ActivityController;
 use App\Http\Controllers\Client\DocumentController;
+use App\Http\Controllers\Client\PaymentController;
 use App\Http\Controllers\Client\ResultDocumentController;
 use App\Http\Controllers\Client\ServiceCatalogController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'client'])->prefix('app')->name('client.')->group(function (): void {
     Route::get('/dashboard', [ApplicationController::class, 'index'])->name('dashboard');
+    Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
+    Route::get('/activity/{publicId}', [ActivityController::class, 'show'])->name('activity.show');
     Route::get('/services', [ServiceCatalogController::class, 'index'])->name('services.index');
     Route::get('/applications/create/{service}', [ApplicationController::class, 'create'])->name('applications.create');
     Route::post('/applications', [ApplicationController::class, 'store'])->name('applications.store');
@@ -16,6 +20,8 @@ Route::middleware(['auth', 'verified', 'client'])->prefix('app')->name('client.'
     Route::put('/applications/{publicId}', [ApplicationController::class, 'update'])->name('applications.update');
     Route::post('/applications/{publicId}/submit', [ApplicationController::class, 'submit'])->name('applications.submit');
     Route::post('/applications/{publicId}/payment', [ApplicationController::class, 'payment'])->name('applications.payment');
+    Route::get('/bayar/{publicId}', [PaymentController::class, 'show'])->name('payments.show');
+    Route::post('/bayar/{publicId}', [PaymentController::class, 'store'])->name('payments.store');
     Route::post('/applications/{publicId}/documents/submit', [ApplicationController::class, 'submitDocuments'])->name('applications.documents.submit');
     Route::post('/applications/{publicId}/revision/submit', [ApplicationController::class, 'submitRevision'])->name('applications.revision.submit');
     Route::post('/applications/{applicationId}/requirements/{requirementId}/documents', [DocumentController::class, 'store'])->name('documents.store');

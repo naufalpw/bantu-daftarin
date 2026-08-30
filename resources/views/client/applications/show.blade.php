@@ -88,7 +88,7 @@
                 @elseif($application->status->value === 'AWAITING_DOCUMENTS')
                     <p class="rounded-lg bg-amber-50 p-3 text-amber-800">Lengkapi seluruh dokumen wajib terlebih dahulu. Setelah itu tombol pembayaran akan tersedia.</p>
                 @elseif(in_array($application->status->value, ['DOCUMENTS_READY_FOR_PAYMENT', 'AWAITING_PAYMENT'], true))
-                    <form method="post" action="{{ route('client.applications.payment', $application->public_id) }}">@csrf<button class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white">Bayar {{ $application->currency }} {{ number_format((float) $application->price_amount_snapshot, 0, ',', '.') }}</button></form>
+                    <a href="{{ route('client.payments.show', $application->public_id) }}" class="block w-full rounded-lg bg-indigo-600 px-4 py-2 text-center text-white">Bayar {{ $application->currency }} {{ number_format((float) $application->price_amount_snapshot, 0, ',', '.') }}</a>
                 @elseif($application->status->value === 'PAYMENT_CONFIRMED')
                     <form method="post" action="{{ route('client.applications.documents.submit', $application->public_id) }}">@csrf<button class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white">Kirim dokumen untuk diperiksa</button></form>
                 @elseif($application->status->value === 'REVISION_REQUIRED')

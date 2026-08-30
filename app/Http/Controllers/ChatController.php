@@ -12,6 +12,6 @@ class ChatController extends Controller
         $thread = ChatThread::where('public_id', $publicId)->firstOrFail();
         $this->authorize('view', $thread);
 
-        return view('chat.show', ['thread' => $thread->load('application')]);
+        return view('chat.show', ['thread' => $thread->load(['application.service', 'client', 'assignedAdmin.user'])]);
     }
 }

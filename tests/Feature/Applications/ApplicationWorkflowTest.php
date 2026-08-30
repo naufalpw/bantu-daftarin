@@ -56,7 +56,7 @@ class ApplicationWorkflowTest extends TestCase
         ]);
 
         $application = Application::query()->where('user_id', $user->id)->firstOrFail();
-        $response->assertRedirect(route('client.applications.show', $application->public_id));
+        $response->assertRedirect(route('npwp.personal.application', $application->public_id));
         $this->assertSame(ApplicationStatus::DRAFT, $application->status);
         $this->assertSame('175000.00', $application->price_amount_snapshot);
         $this->assertSame('Synthetic Personal Client', $application->personalDetails->name);
@@ -82,7 +82,7 @@ class ApplicationWorkflowTest extends TestCase
             'kind' => 'NPWP_BUSINESS',
             'consent' => 1,
             'business_name' => 'PT Synthetic Nusantara',
-            'business_type' => 'Perseroan Terbatas',
+            'business_type' => 'PT',
             'representative' => [
                 'name' => 'Synthetic Director',
                 'relationship' => BusinessRelationship::DIRECTOR->value,
@@ -229,6 +229,8 @@ class ApplicationWorkflowTest extends TestCase
             'kind' => 'NPWP_PERSONAL',
             'consent' => 1,
             'name' => 'Synthetic Payment Client',
+            'nik' => '3173055501010001',
+            'family_card_number' => '3173055501010002',
         ])->assertRedirect();
         $application = Application::query()->where('user_id', $user->id)->latest('id')->firstOrFail();
 

@@ -43,7 +43,7 @@ class ChatThread extends Component
 
     public function render()
     {
-        return view('livewire.chat-thread', ['thread' => $this->thread()->load('messages.sender')]);
+        return view('livewire.chat-thread', ['thread' => $this->thread()->load(['messages.sender', 'client', 'assignedAdmin.user', 'application.service'])]);
     }
 
     private function thread(): ChatThreadModel
