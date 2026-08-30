@@ -1,0 +1,6 @@
+@extends('layouts.app')
+@section('content')
+<div class="flex flex-wrap items-end justify-between gap-4"><div><p class="text-sm text-indigo-700">Ruang client</p><h1 class="text-3xl font-semibold">Aplikasi Anda</h1><p class="mt-1 text-slate-600">Pantau data, dokumen, pembayaran, dan hasil dalam satu tempat.</p></div><a href="{{ route('client.services.index') }}" class="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white">Buat aplikasi</a></div>
+<div class="mt-8 grid gap-4">@forelse($applications as $application)<a href="{{ route('client.applications.show', $application->public_id) }}" class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200 hover:ring-indigo-300"><div class="flex flex-wrap justify-between gap-3"><div><p class="font-semibold">{{ $application->service->name }}</p><p class="mt-1 text-xs text-slate-500">{{ $application->public_id }}</p></div><span class="rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700">{{ $application->status->label() }}</span></div><p class="mt-4 text-sm text-slate-600">Dibuat {{ $application->created_at->translatedFormat('d M Y H:i') }}</p></a>@empty<div class="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-600">Belum ada aplikasi. Pilih layanan untuk memulai.</div>@endforelse</div>
+<div class="mt-6">{{ $applications->links() }}</div>
+@endsection
