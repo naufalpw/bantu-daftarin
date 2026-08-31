@@ -13,6 +13,7 @@ use App\Models\Service;
 use App\Models\User;
 use App\Notifications\ChatUnreadNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -90,6 +91,52 @@ class ChatTest extends TestCase
 
         $this->assertDatabaseHas('chat_messages', ['chat_thread_id' => $thread->id, 'sender_user_id' => $adminUser->id, 'body' => 'Balasan admin synthetic']);
         Notification::assertSentTo($client, ChatUnreadNotification::class);
+    }
+
+    public function test_typing_indicator_is_ephemeral_scoped_and_hidden_from_sender(): void
+    {
+        $client = User::factory()->create();
+        $adminUser = User::factory()->create(['role' => UserRole::SUPER_ADMIN]);
+        $admin = Admin::create(['user_id' => $adminUser->id, 'email' => $adminUser->email, 'role' => UserRole::SUPER_ADMIN, 'is_active' => true]);
+        $thread = $this->threadFor($client, $admin);
+
+        Livewire::actingAs($adminUser)
+            ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
+            ->set('body', 'Balasan sedang diketik')
+            ->call('typing')
+            ->assertSet('isOtherParticipantTyping', false);
+
+        Livewire::actingAs($client)
+            ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
+            ->assertSet('isOtherParticipantTyping', true)
+            ->assertSee('Sedang mengetik...');
+
+        Livewire::actingAs($adminUser)
+            ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
+            ->set('body', '')
+            ->call('typing');
+
+        Livewire::actingAs($client)
+            ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
+            ->call('markRead')
+            ->assertSet('isOtherParticipantTyping', false);
+
+        Livewire::actingAs($adminUser)
+            ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
+            ->set('body', 'Ketik sebentar')
+            ->call('typing');
+
+        $this->travel(6)->seconds();
+        try {
+            Livewire::actingAs($client)
+                ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
+                ->call('markRead')
+                ->assertSet('isOtherParticipantTyping', false);
+        } finally {
+            $this->travelBack();
+        }
+
+        $this->assertDatabaseCount('chat_messages', 0);
     }
 
     private function threadFor(User $client, ?Admin $admin = null): ChatThread

@@ -63,7 +63,7 @@
     <form wire:submit="save" class="bd-registration-panel bd-business-data-panel" data-node-id="208:20526">
         <div class="bd-registration-section-heading" data-node-id="208:20527">
             <div class="bd-registration-section-icon bd-registration-section-icon--blue">
-                <img src="{{ asset('images/figma/registration/business/business-header.svg') }}" alt="">
+                <img src="{{ asset('images/figma/registration/personal/personal-header.svg') }}" alt="">
             </div>
             <h2>Data Kuasa</h2>
         </div>
@@ -94,7 +94,7 @@
                 </div>
                 <div class="bd-registration-static-field">
                     <span>Masukan SK_AHU</span>
-                    <div>Masukan&nbsp; SK <img class="bd-registration-static-field__caret" src="{{ asset('images/figma/registration/business/business-caret-sk.svg') }}" alt=""></div>
+                    <div>Masukan&nbsp; SK <img class="bd-registration-static-field__caret" src="{{ asset('images/figma/registration/business/business-caret-akta.svg') }}" alt=""></div>
                 </div>
             </div>
         </div>

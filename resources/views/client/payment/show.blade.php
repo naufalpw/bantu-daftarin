@@ -24,7 +24,7 @@
 @if(in_array($state, ['selection', 'failure', 'waiting'], true))
     <main class="bd-payment-page" data-node-id="208:20682" data-name="/bayar">
         <a class="bd-payment-back" href="{{ route('client.applications.show', $application->public_id) }}">
-            <img src="{{ asset('images/figma/payment/back.svg') }}" alt="">
+            <img src="{{ asset('images/figma/register/back.svg') }}" alt="">
             <span>Kembali</span>
         </a>
 
@@ -108,10 +108,10 @@
                             <label class="bd-payment-method {{ $selectedMethod === $method ? 'is-selected' : '' }} {{ $isPaypal ? 'is-disabled' : '' }}">
                                 <input type="radio" name="payment_method" value="{{ $method->value }}" @checked($selectedMethod === $method) @disabled($isPaypal) required>
                                 <img class="bd-payment-method__logo bd-payment-method__logo--{{ strtolower($method->value) }}" src="{{ asset(match ($method) {
-                                    $paymentMethodClass::BCA => 'images/figma/payment/xendit.png',
+                                    $paymentMethodClass::BCA => 'images/figma/payment/bca.png',
                                     $paymentMethodClass::BRI => 'images/figma/payment/bri.png',
                                     $paymentMethodClass::QRIS => 'images/figma/payment/qris.png',
-                                    $paymentMethodClass::PAYPAL => 'images/figma/payment/bca.png',
+                                    $paymentMethodClass::PAYPAL => 'images/figma/payment/xendit.png',
                                 }) }}" alt="{{ $method->label() }}">
                                 <span class="bd-payment-method__name">{{ $method->label() }}</span>
                                 <img class="bd-payment-method__radio" src="{{ asset('images/figma/payment/radio-'.strtolower($method->value).'.svg') }}" alt="">
@@ -136,7 +136,7 @@
     <main class="bd-payment-state-page" data-node-id="208:20836" data-name="/bayar-2">
         <section class="bd-payment-state-card bd-payment-state-card--success" aria-labelledby="payment-success-title">
             <div class="bd-payment-state-logo-wrap bd-payment-state-logo-wrap--success">
-                <img class="bd-payment-state-logo" src="{{ asset('images/figma/payment/payment-logo.png') }}" alt="Bantudaftarin">
+                <img class="bd-payment-state-logo" src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantudaftarin">
             </div>
             <div class="bd-payment-success-summary">
                 <img class="bd-payment-success-icon" src="{{ asset('images/figma/payment/success-check.svg') }}" alt="">
@@ -150,7 +150,7 @@
     <main class="bd-payment-state-page" data-node-id="208:20859" data-name="/bayar-3">
         <section class="bd-payment-state-card bd-payment-state-card--submitted" aria-labelledby="payment-submitted-title">
             <div class="bd-payment-state-logo-wrap bd-payment-state-logo-wrap--submitted">
-                <img class="bd-payment-state-logo" src="{{ asset('images/figma/payment/payment-logo.png') }}" alt="Bantudaftarin">
+                <img class="bd-payment-state-logo" src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantudaftarin">
             </div>
             <h1 id="payment-submitted-title">Permohonan berhasil di ajukan</h1>
             <a class="bd-payment-confirm" href="{{ route('client.applications.show', $application->public_id) }}">Konfirmasi</a>
@@ -159,12 +159,12 @@
 @elseif($state === 'estimate')
     <main class="bd-payment-state-page bd-payment-state-page--with-back" data-node-id="208:20876" data-name="/bayar-4">
         <a class="bd-payment-back" href="{{ route('client.applications.show', $application->public_id) }}">
-            <img src="{{ asset('images/figma/payment/back.svg') }}" alt="">
+            <img src="{{ asset('images/figma/register/back.svg') }}" alt="">
             <span>Kembali</span>
         </a>
         <section class="bd-payment-state-card bd-payment-state-card--estimate" aria-labelledby="payment-estimate-title">
             <div class="bd-payment-state-logo-wrap bd-payment-state-logo-wrap--estimate">
-                <img class="bd-payment-state-logo" src="{{ asset('images/figma/payment/payment-logo.png') }}" alt="Bantudaftarin">
+                <img class="bd-payment-state-logo" src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantudaftarin">
             </div>
             <h1 id="payment-estimate-title">@if($application->estimated_completion_at) Estimasi Selesai Tanggal {{ $application->estimated_completion_at->locale('id')->translatedFormat('j F Y') }} @else Estimasi selesai sedang disiapkan @endif</h1>
             <a class="bd-payment-confirm" href="{{ route('client.applications.show', $application->public_id) }}">Konfirmasi</a>
@@ -173,12 +173,12 @@
 @else
     <main class="bd-payment-state-page bd-payment-state-page--with-back" data-node-id="208:20893" data-name="/bayar-5">
         <a class="bd-payment-back" href="{{ route('client.applications.show', $application->public_id) }}">
-            <img src="{{ asset('images/figma/payment/back.svg') }}" alt="">
+            <img src="{{ asset('images/figma/register/back.svg') }}" alt="">
             <span>Kembali</span>
         </a>
         <section class="bd-payment-state-card bd-payment-state-card--result" aria-labelledby="payment-result-title">
             <div class="bd-payment-state-logo-wrap bd-payment-state-logo-wrap--result">
-                <img class="bd-payment-state-logo" src="{{ asset('images/figma/payment/payment-logo.png') }}" alt="Bantudaftarin">
+                <img class="bd-payment-state-logo" src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantudaftarin">
             </div>
             <img class="bd-payment-result-image" src="{{ asset('images/figma/payment/payment-email.png') }}" alt="">
             <h1 id="payment-result-title">Hasil layanan tersedia di akun Anda</h1>

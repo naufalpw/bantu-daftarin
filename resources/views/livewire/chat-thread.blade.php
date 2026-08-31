@@ -34,13 +34,17 @@
         @empty
             <p class="bd-chat-empty">Belum ada pesan.</p>
         @endforelse
+
+        @if($isOtherParticipantTyping)
+            <p class="bd-chat-typing" role="status" aria-live="polite">Sedang mengetik...</p>
+        @endif
     </div>
 
     <form wire:submit="send" class="bd-chat-composer">
         <button class="bd-chat-composer__plus" type="button" disabled aria-label="Lampiran belum tersedia">
             <img src="{{ asset('images/figma/phase3/chat/plus.svg') }}" alt="">
         </button>
-        <textarea wire:model="body" rows="1" placeholder="Tulis pesan..." aria-label="Tulis pesan"></textarea>
+        <textarea wire:model.live.debounce.400ms="body" rows="1" placeholder="Tulis pesan..." aria-label="Tulis pesan"></textarea>
         <button class="bd-chat-composer__send" type="submit" aria-label="Kirim pesan">
             <img src="{{ asset('images/figma/phase3/chat/send.svg') }}" alt="">
         </button>

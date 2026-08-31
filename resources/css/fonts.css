@@ -1,0 +1,62 @@
+/*
+ * Reproducible Figma typography for the public/client surfaces.
+ *
+ * These files come from Fontsource 5.3.0 packages and are licensed under
+ * the SIL Open Font License 1.1. Only the normal variable Latin subsets are
+ * loaded because the current product copy is Indonesian/Latin text.
+ */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 900;
+    src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Open Sans';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 300 800;
+    src: url('@fontsource-variable/open-sans/files/open-sans-latin-wght-normal.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'DM Sans';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 1000;
+    src: url('@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Roboto';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 900;
+    src: url('@fontsource-variable/roboto/files/roboto-latin-wght-normal.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Nunito Sans';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 200 1000;
+    src: url('@fontsource-variable/nunito-sans/files/nunito-sans-latin-wght-normal.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Urbanist';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 900;
+    src: url('@fontsource-variable/urbanist/files/urbanist-latin-wght-normal.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Montserrat';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 900;
+    src: url('@fontsource-variable/montserrat/files/montserrat-latin-wght-normal.woff2') format('woff2');
+}

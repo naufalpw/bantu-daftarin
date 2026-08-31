@@ -37,7 +37,7 @@
                 <x-registration-document-card
                     :application="$application"
                     :requirement="$application->requirements->firstWhere('code', 'AKTA_NOTARIS')"
-                    icon="images/figma/registration/business/business-document.svg"
+                    icon="images/figma/registration/personal/personal-kk.svg"
                     title="Akta Notaris"
                     description="Upload foto Akta Notaris anda"
                     button-label="Upload Akta Notaris"
@@ -48,7 +48,7 @@
                 <x-registration-document-card
                     :application="$application"
                     :requirement="$application->requirements->firstWhere('code', 'SK_AHU')"
-                    icon="images/figma/registration/business/business-document.svg"
+                    icon="images/figma/registration/personal/personal-kk.svg"
                     title="SK-AHU"
                     description="Upload foto SK-AHU anda"
                     button-label="Upload SK-AHU"
@@ -73,7 +73,7 @@
                 <x-registration-document-card
                     :application="$application"
                     :requirement="$application->requirements->firstWhere('code', 'KTP_PENANGGUNG_JAWAB')"
-                    icon="images/figma/registration/business/business-document.svg"
+                    icon="images/figma/registration/personal/personal-kk.svg"
                     title="KTP Penanggung Jawab"
                     description="Upload foto KTP penanggung jawab"
                     button-label="Upload KTP"
@@ -84,7 +84,7 @@
                 <x-registration-document-card
                     :application="$application"
                     :requirement="$application->requirements->firstWhere('code', 'SURAT_KUASA')"
-                    icon="images/figma/registration/business/business-document.svg"
+                    icon="images/figma/registration/personal/personal-kk.svg"
                     title="Surat Kuasa"
                     description="Upload jika diwakilkan (opsional)"
                     button-label="Upload Surat Kuasa"
@@ -102,7 +102,7 @@
                     <button type="submit">Konfirmasi</button>
                 </form>
                 <div class="bd-confirm-security">
-                    <img src="{{ asset('images/figma/registration/business/lock.svg') }}" alt="">
+                    <img src="{{ asset('images/figma/registration/personal/lock.svg') }}" alt="">
                     <p>Data Anda aman dan hanya digunakan untuk keperluan pendaftaran NPWP</p>
                 </div>
             </div>

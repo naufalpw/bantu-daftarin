@@ -6,13 +6,18 @@ use App\Models\ChatThread as ChatThreadModel;
 use App\Notifications\ChatUnreadNotification;
 use App\Services\AuditService;
 use App\Services\NotificationService;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class ChatThread extends Component
 {
+    private const TYPING_TTL_SECONDS = 5;
+
     public string $threadId;
 
     public string $body = '';
+
+    public bool $isOtherParticipantTyping = false;
 
     public function mount(string $threadId): void
     {
@@ -33,17 +38,42 @@ class ChatThread extends Component
         }
         app(AuditService::class)->record('chat.message_sent', $message, ['thread_id' => $thread->public_id], auth()->user());
         $this->body = '';
+        Cache::forget($this->typingCacheKey($thread, (int) auth()->id()));
+        $this->syncTypingState($thread);
+    }
+
+    public function typing(): void
+    {
+        $thread = $this->thread();
+        $key = $this->typingCacheKey($thread, (int) auth()->id());
+
+        if (blank(trim($this->body))) {
+            Cache::forget($key);
+        } else {
+            Cache::put($key, true, now()->addSeconds(self::TYPING_TTL_SECONDS));
+        }
+
+        $this->syncTypingState($thread);
+    }
+
+    public function updatedBody(): void
+    {
+        $this->typing();
     }
 
     public function markRead(): void
     {
         $thread = $this->thread();
         $thread->messages()->whereNull('read_at')->where('sender_user_id', '!=', auth()->id())->update(['read_at' => now(), 'read_by_user_id' => auth()->id()]);
+        $this->syncTypingState($thread);
     }
 
     public function render()
     {
-        return view('livewire.chat-thread', ['thread' => $this->thread()->load(['messages.sender', 'client', 'assignedAdmin.user', 'application.service'])]);
+        $thread = $this->thread();
+        $this->syncTypingState($thread);
+
+        return view('livewire.chat-thread', ['thread' => $thread->load(['messages.sender', 'client', 'assignedAdmin.user', 'application.service'])]);
     }
 
     private function thread(): ChatThreadModel
@@ -52,5 +82,20 @@ class ChatThread extends Component
         abort_unless(auth()->user() && (auth()->user()->isAdmin() || $thread->client_user_id === auth()->id()), 403);
 
         return $thread;
+    }
+
+    private function syncTypingState(ChatThreadModel $thread): void
+    {
+        $otherParticipantId = auth()->user()->isAdmin()
+            ? $thread->client_user_id
+            : $thread->assignedAdmin?->user_id;
+
+        $this->isOtherParticipantTyping = $otherParticipantId !== null
+            && Cache::has($this->typingCacheKey($thread, (int) $otherParticipantId));
+    }
+
+    private function typingCacheKey(ChatThreadModel $thread, int $userId): string
+    {
+        return 'chat-typing:'.$thread->public_id.':'.$userId;
     }
 }

@@ -7,7 +7,7 @@
 
     <main class="bd-phase3-main bd-qna-page" data-node-id="219:11171">
         <a class="bd-phase3-back" href="{{ route('home') }}">
-            <img src="{{ asset('images/figma/phase3/qna/back.svg') }}" alt="">
+            <img src="{{ asset('images/figma/register/back.svg') }}" alt="">
             <span>Kembali</span>
         </a>
 

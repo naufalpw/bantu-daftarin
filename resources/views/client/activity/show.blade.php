@@ -26,7 +26,7 @@
 
     <main class="bd-phase3-main bd-activity-detail-page" data-node-id="261:12462">
         <a class="bd-phase3-back" href="{{ route('client.activity.index') }}">
-            <img src="{{ asset('images/figma/phase3/qna/back.svg') }}" alt="">
+            <img src="{{ asset('images/figma/register/back.svg') }}" alt="">
             <span>Kembali ke aktivitas</span>
         </a>
 
