@@ -31,7 +31,7 @@ class ApplicationController extends Controller
     public function index(): View
     {
         return view('client.dashboard', [
-            'applications' => Application::with(['service'])->where('user_id', request()->user()->getKey())->latest()->paginate(10),
+            'applications' => Application::with(['service', 'chatThread'])->where('user_id', request()->user()->getKey())->latest()->paginate(10),
         ]);
     }
 
@@ -52,7 +52,7 @@ class ApplicationController extends Controller
         $application = $this->find($publicId);
         $this->authorize('view', $application);
 
-        return view('client.applications.show', ['application' => $application->load(['service', 'requirements.documents', 'personalDetails', 'businessDetails', 'representatives', 'payments', 'statusHistories', 'estimateHistories', 'resultDocuments'])]);
+        return view('client.applications.show', ['application' => $application->load(['service', 'requirements.documents', 'personalDetails', 'businessDetails', 'representatives', 'payments', 'statusHistories', 'estimateHistories', 'resultDocuments', 'chatThread'])]);
     }
 
     public function update(UpdateApplicationRequest $request, string $publicId): RedirectResponse

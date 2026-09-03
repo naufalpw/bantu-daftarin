@@ -1,60 +1,141 @@
-<form wire:submit="save" class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-    <div class="flex items-start justify-between gap-4">
+<form wire:submit="save" class="bd-client-card bd-application-details-form">
+    <div class="bd-client-card__heading">
         <div>
-            <h2 class="font-semibold">Data aplikasi</h2>
-            <p class="mt-1 text-sm text-slate-500">Perubahan disimpan otomatis saat Anda berpindah dari kolom.</p>
+            <span class="bd-client-eyebrow">Data aplikasi</span>
+            <h2>Lengkapi informasi Anda</h2>
+            <p>Perubahan disimpan otomatis saat Anda berpindah dari kolom.</p>
         </div>
-        @if($saveState)<span class="text-xs text-emerald-700">{{ $saveState }}</span>@endif
+        @if($saveState)
+            <span class="bd-client-form-save-state" role="status">{{ $saveState }}</span>
+        @endif
     </div>
-    <div class="mt-4 grid gap-4 md:grid-cols-2">
+
+    <div class="bd-client-form-grid">
         @if($kind === 'NPWP_PERSONAL')
-            <label class="text-sm font-medium md:col-span-2">Nama
-                <input wire:model.blur="details.name" wire:blur="save" name="name" required class="mt-1 w-full rounded-lg border-slate-300">
-                @error('details.name')<span class="text-xs text-rose-700">{{ $message }}</span>@enderror
+            <label class="bd-client-field bd-client-field--wide">
+                <span>Nama lengkap <b>*</b></span>
+                <input wire:model.blur="details.name" wire:blur="save" name="name" required autocomplete="name">
+                @error('details.name')<small class="bd-client-field__error">{{ $message }}</small>@enderror
             </label>
-            <label class="text-sm font-medium">Email
-                <input wire:model.blur="details.email" wire:blur="save" name="email" type="email" class="mt-1 w-full rounded-lg border-slate-300">
+            <label class="bd-client-field">
+                <span>Email</span>
+                <input wire:model.blur="details.email" wire:blur="save" name="email" type="email" autocomplete="email">
+                @error('details.email')<small class="bd-client-field__error">{{ $message }}</small>@enderror
             </label>
-            <label class="text-sm font-medium">Jenis kelamin
-                <input wire:model.blur="details.gender" wire:blur="save" name="gender" class="mt-1 w-full rounded-lg border-slate-300">
+            <label class="bd-client-field">
+                <span>Jenis kelamin</span>
+                <input wire:model.blur="details.gender" wire:blur="save" name="gender">
+                @error('details.gender')<small class="bd-client-field__error">{{ $message }}</small>@enderror
             </label>
-            <label class="text-sm font-medium">Status pernikahan
-                <input wire:model.blur="details.marital_status" wire:blur="save" name="marital_status" class="mt-1 w-full rounded-lg border-slate-300">
+            <label class="bd-client-field">
+                <span>Status pernikahan</span>
+                <input wire:model.blur="details.marital_status" wire:blur="save" name="marital_status">
+                @error('details.marital_status')<small class="bd-client-field__error">{{ $message }}</small>@enderror
             </label>
-            <label class="text-sm font-medium">Status keluarga
-                <input wire:model.blur="details.family_status" wire:blur="save" name="family_status" class="mt-1 w-full rounded-lg border-slate-300">
+            <label class="bd-client-field">
+                <span>Status dalam keluarga</span>
+                <input wire:model.blur="details.family_status" wire:blur="save" name="family_status">
+                @error('details.family_status')<small class="bd-client-field__error">{{ $message }}</small>@enderror
             </label>
-            <label class="text-sm font-medium md:col-span-2">Keperluan
-                <input wire:model.blur="details.purpose" wire:blur="save" name="purpose" class="mt-1 w-full rounded-lg border-slate-300">
+            <label class="bd-client-field">
+                <span>NIK</span>
+                <input wire:model.blur="details.nik" wire:blur="save" name="nik" inputmode="numeric" maxlength="16" autocomplete="off">
+                @error('details.nik')<small class="bd-client-field__error">{{ $message }}</small>@enderror
+            </label>
+            <label class="bd-client-field">
+                <span>Nomor KK</span>
+                <input wire:model.blur="details.family_card_number" wire:blur="save" name="family_card_number" inputmode="numeric" maxlength="16" autocomplete="off">
+                @error('details.family_card_number')<small class="bd-client-field__error">{{ $message }}</small>@enderror
+            </label>
+            <label class="bd-client-field bd-client-field--wide">
+                <span>Keperluan NPWP</span>
+                <input wire:model.blur="details.purpose" wire:blur="save" name="purpose">
+                @error('details.purpose')<small class="bd-client-field__error">{{ $message }}</small>@enderror
             </label>
         @else
-            <label class="text-sm font-medium md:col-span-2">Nama badan usaha
-                <input wire:model.blur="details.business_name" wire:blur="save" name="business_name" required class="mt-1 w-full rounded-lg border-slate-300">
-                @error('details.business_name')<span class="text-xs text-rose-700">{{ $message }}</span>@enderror
+            <label class="bd-client-field bd-client-field--wide">
+                <span>Nama badan usaha <b>*</b></span>
+                <input wire:model.blur="details.business_name" wire:blur="save" name="business_name" required>
+                @error('details.business_name')<small class="bd-client-field__error">{{ $message }}</small>@enderror
             </label>
-            <label class="text-sm font-medium">Jenis badan usaha
-                <input wire:model.blur="details.business_type" wire:blur="save" name="business_type" class="mt-1 w-full rounded-lg border-slate-300">
+            <label class="bd-client-field">
+                <span>Jenis badan usaha</span>
+                <input wire:model.blur="details.business_type" wire:blur="save" name="business_type">
+                @error('details.business_type')<small class="bd-client-field__error">{{ $message }}</small>@enderror
             </label>
-            <label class="text-sm font-medium">Keperluan
-                <input wire:model.blur="details.purpose" wire:blur="save" name="purpose" class="mt-1 w-full rounded-lg border-slate-300">
+            <label class="bd-client-field">
+                <span>Jenis badan usaha lainnya</span>
+                <input wire:model.blur="details.business_type_other" wire:blur="save" name="business_type_other" placeholder="Isi jika memilih OTHER">
+                @error('details.business_type_other')<small class="bd-client-field__error">{{ $message }}</small>@enderror
             </label>
-            <div class="md:col-span-2 border-t pt-4">
-                <h3 class="font-medium">Penanggung jawab utama</h3>
-                <div class="mt-3 grid gap-4 md:grid-cols-3">
-                    <label class="text-sm font-medium">Nama<input wire:model.blur="representative.name" wire:blur="save" class="mt-1 w-full rounded-lg border-slate-300"></label>
-                    <label class="text-sm font-medium">Hubungan<select wire:model.blur="representative.relationship" wire:blur="save" class="mt-1 w-full rounded-lg border-slate-300"><option value="">Pilih hubungan</option>@foreach(['OWNER','DIRECTOR','MANAGEMENT','EMPLOYEE','AUTHORIZED_REPRESENTATIVE','OTHER'] as $relationship)<option value="{{ $relationship }}">{{ str_replace('_', ' ', $relationship) }}</option>@endforeach</select></label>
-                    <label class="text-sm font-medium">Email<input wire:model.blur="representative.email" wire:blur="save" type="email" class="mt-1 w-full rounded-lg border-slate-300"></label>
+            <label class="bd-client-field bd-client-field--wide">
+                <span>Keperluan NPWP</span>
+                <input wire:model.blur="details.purpose" wire:blur="save" name="purpose">
+                @error('details.purpose')<small class="bd-client-field__error">{{ $message }}</small>@enderror
+            </label>
+
+            <div class="bd-client-form-subsection">
+                <div class="bd-client-form-subsection__heading">
+                    <div>
+                        <h3>Penanggung jawab utama</h3>
+                        <p>Primary representative aplikasi.</p>
+                    </div>
+                </div>
+                <div class="bd-client-form-grid bd-client-form-grid--three">
+                    <label class="bd-client-field">
+                        <span>Nama <b>*</b></span>
+                        <input wire:model.blur="representative.name" wire:blur="save" name="representative[name]" required>
+                        @error('representative.name')<small class="bd-client-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="bd-client-field">
+                        <span>Hubungan <b>*</b></span>
+                        <select wire:model.blur="representative.relationship" wire:blur="save" name="representative[relationship]" required>
+                            <option value="">Pilih hubungan</option>
+                            @foreach(['OWNER','DIRECTOR','MANAGEMENT','EMPLOYEE','AUTHORIZED_REPRESENTATIVE','OTHER'] as $relationship)
+                                <option value="{{ $relationship }}">{{ str_replace('_', ' ', $relationship) }}</option>
+                            @endforeach
+                        </select>
+                        @error('representative.relationship')<small class="bd-client-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="bd-client-field">
+                        <span>Email</span>
+                        <input wire:model.blur="representative.email" wire:blur="save" name="representative[email]" type="email" autocomplete="email">
+                        @error('representative.email')<small class="bd-client-field__error">{{ $message }}</small>@enderror
+                    </label>
                 </div>
             </div>
-            <div class="md:col-span-2 border-t pt-4">
-                <h3 class="font-medium">Representative tambahan (opsional)</h3>
-                <div class="mt-3 grid gap-4 md:grid-cols-3">
-                    <label class="text-sm font-medium">Nama<input wire:model.blur="additionalRepresentative.name" wire:blur="save" class="mt-1 w-full rounded-lg border-slate-300"></label>
-                    <label class="text-sm font-medium">Hubungan<select wire:model.blur="additionalRepresentative.relationship" wire:blur="save" class="mt-1 w-full rounded-lg border-slate-300"><option value="">Pilih bila ada</option>@foreach(['OWNER','DIRECTOR','MANAGEMENT','EMPLOYEE','AUTHORIZED_REPRESENTATIVE','OTHER'] as $relationship)<option value="{{ $relationship }}">{{ str_replace('_', ' ', $relationship) }}</option>@endforeach</select></label>
-                    <label class="text-sm font-medium">Email<input wire:model.blur="additionalRepresentative.email" wire:blur="save" type="email" class="mt-1 w-full rounded-lg border-slate-300"></label>
+
+            <div class="bd-client-form-subsection">
+                <div class="bd-client-form-subsection__heading">
+                    <div>
+                        <h3>Representative tambahan</h3>
+                        <p>Isi seluruh data jika representative tambahan digunakan.</p>
+                    </div>
+                    <span class="bd-client-form-section__optional">Opsional</span>
+                </div>
+                <div class="bd-client-form-grid bd-client-form-grid--three">
+                    <label class="bd-client-field">
+                        <span>Nama</span>
+                        <input wire:model.blur="additionalRepresentative.name" wire:blur="save" name="additional_representative[name]">
+                        @error('additionalRepresentative.name')<small class="bd-client-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="bd-client-field">
+                        <span>Hubungan</span>
+                        <select wire:model.blur="additionalRepresentative.relationship" wire:blur="save" name="additional_representative[relationship]"><option value="">Pilih bila ada</option>@foreach(['OWNER','DIRECTOR','MANAGEMENT','EMPLOYEE','AUTHORIZED_REPRESENTATIVE','OTHER'] as $relationship)<option value="{{ $relationship }}">{{ str_replace('_', ' ', $relationship) }}</option>@endforeach</select>
+                        @error('additionalRepresentative.relationship')<small class="bd-client-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="bd-client-field">
+                        <span>Email</span>
+                        <input wire:model.blur="additionalRepresentative.email" wire:blur="save" name="additional_representative[email]" type="email" autocomplete="email">
+                        @error('additionalRepresentative.email')<small class="bd-client-field__error">{{ $message }}</small>@enderror
+                    </label>
                 </div>
             </div>
         @endif
     </div>
-    <button type="submit" class="mt-5 rounded-lg border px-4 py-2 text-sm">Simpan sekarang</button>
+
+    <div class="bd-client-form-card__footer">
+        <span>Data tetap tersimpan pada draft aplikasi Anda.</span>
+        <button type="submit" class="bd-client-button bd-client-button--secondary">Simpan sekarang</button>
+    </div>
 </form>

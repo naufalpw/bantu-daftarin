@@ -13,6 +13,7 @@ use App\Notifications\PasswordResetNotification;
 use App\Notifications\VerifyEmailNotification;
 use App\Services\AuthOtpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -181,6 +182,83 @@ class OtpTest extends TestCase
 
         $this->expectException(OtpChallengeException::class);
         $service->issue($user, AuthChallengeType::CLIENT_LOGIN);
+    }
+
+    public function test_otp_cooldown_reports_remaining_seconds_and_expires_after_sixty_seconds(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $service = app(AuthOtpService::class);
+        $issuedAt = Carbon::create(2026, 8, 31, 10, 0, 0, 'Asia/Jakarta');
+
+        Carbon::setTestNow($issuedAt);
+        try {
+            $service->issue($user, AuthChallengeType::CLIENT_LOGIN);
+
+            Carbon::setTestNow($issuedAt->copy()->addSeconds(59));
+            try {
+                $service->issue($user, AuthChallengeType::CLIENT_LOGIN);
+                $this->fail('The OTP cooldown should still be active after 59 seconds.');
+            } catch (OtpChallengeException $exception) {
+                $this->assertSame(1, $exception->retryAfterSeconds);
+                $this->assertStringContainsString('1 detik', $exception->getMessage());
+            }
+
+            Carbon::setTestNow($issuedAt->copy()->addSeconds(60));
+            $newChallenge = $service->issue($user, AuthChallengeType::CLIENT_LOGIN);
+
+            $this->assertNotNull($newChallenge->getKey());
+            $this->assertSame(2, AuthChallenge::query()->where('user_id', $user->id)->where('type', AuthChallengeType::CLIENT_LOGIN->value)->count());
+            $this->assertSame(60, $service->resendCooldownRemaining($user, AuthChallengeType::CLIENT_LOGIN));
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_otp_page_displays_server_calculated_resend_countdown(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $service = app(AuthOtpService::class);
+        $challenge = $service->issue($user, AuthChallengeType::CLIENT_LOGIN);
+
+        $response = $this->withSession([
+            'pending_auth_user_id' => $user->id,
+            'pending_auth_challenge_id' => $challenge->public_id,
+            'pending_auth_type' => AuthChallengeType::CLIENT_LOGIN->value,
+        ])->get(route('auth.otp'));
+
+        $response->assertOk()
+            ->assertSee('data-otp-resend-remaining="60"', false)
+            ->assertSee('Kirim ulang OTP tersedia dalam', false)
+            ->assertSee('data-otp-resend-button', false)
+            ->assertSee('disabled', false);
+    }
+
+    public function test_login_cooldown_error_reports_remaining_seconds(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $issuedAt = Carbon::create(2026, 8, 31, 10, 0, 0, 'Asia/Jakarta');
+
+        Carbon::setTestNow($issuedAt);
+        try {
+            $this->post(route('login.store'), [
+                'email' => $user->email,
+                'password' => 'password',
+            ])->assertRedirect(route('auth.otp'));
+
+            Carbon::setTestNow($issuedAt->copy()->addSeconds(30));
+            $response = $this->from(route('login'))->post(route('login.store'), [
+                'email' => $user->email,
+                'password' => 'password',
+            ]);
+
+            $response->assertRedirect(route('login'));
+            $this->assertStringContainsString('30 detik', session('errors')->get('email')[0]);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_used_otp_does_not_block_a_new_login_after_logout(): void

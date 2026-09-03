@@ -80,7 +80,14 @@ class AuthController extends Controller
             return redirect()->route('login');
         }
 
-        return view('auth.otp', ['isAdmin' => $request->session()->get('pending_auth_type') === AuthChallengeType::ADMIN_LOGIN->value]);
+        $type = AuthChallengeType::tryFrom((string) $request->session()->get('pending_auth_type'));
+        $user = User::find($request->session()->get('pending_auth_user_id'));
+        $resendCooldownSeconds = $user && $type ? $this->otp->resendCooldownRemaining($user, $type) : 0;
+
+        return view('auth.otp', [
+            'isAdmin' => $type === AuthChallengeType::ADMIN_LOGIN,
+            'resendCooldownSeconds' => $resendCooldownSeconds,
+        ]);
     }
 
     public function verifyOtp(OtpRequest $request): RedirectResponse

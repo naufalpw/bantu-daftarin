@@ -1,5 +1,63 @@
-@extends('layouts.app')
+@extends('layouts.client')
+
+@section('body_class', 'bd-client-body bd-client-services-body')
+
 @section('content')
-<div><p class="text-sm text-indigo-700">Layanan</p><h1 class="text-3xl font-semibold">Pilih kebutuhan Anda</h1><p class="mt-1 text-slate-600">Bantu Daftarin membantu proses administrasi. Proses eksternal dilakukan manual oleh admin.</p></div>
-<div class="mt-8 grid gap-5 md:grid-cols-2">@foreach($services as $service)<article class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200"><div class="flex items-start justify-between gap-3"><h2 class="text-xl font-semibold">{{ $service->name }}</h2>@if($service->status->value === 'COMING_SOON')<span class="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">Segera hadir</span>@endif</div><p class="mt-3 text-sm text-slate-600">{{ $service->description }}</p>@if($service->price_amount)<p class="mt-5 text-lg font-semibold">{{ $service->currency }} {{ number_format((float) $service->price_amount, 0, ',', '.') }}</p>@endif@if($service->isBookable())<a href="{{ $service->code === 'NPWP_PERSONAL' ? route('npwp.personal') : ($service->code === 'NPWP_BUSINESS' ? route('npwp.business.types') : route('client.applications.create', $service->public_id)) }}" class="mt-5 inline-block rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white">Mulai aplikasi</a>@else<span class="mt-5 inline-block rounded-lg bg-slate-100 px-4 py-2 text-sm text-slate-500">Belum tersedia</span>@endif</article>@endforeach</div>
+    <div class="bd-client-page bd-services-page">
+        <section class="bd-client-hero bd-services-hero">
+            <div class="bd-services-hero__copy">
+                <span class="bd-client-eyebrow">Layanan Bantu Daftarin</span>
+                <h1>Pilih kebutuhan Anda</h1>
+                <p>Bantu Daftarin membantu proses administrasi NPWP dengan alur yang mudah dipantau.</p>
+            </div>
+            <div class="bd-services-hero__badge" aria-hidden="true">
+                <img src="{{ asset('images/figma/home/tax-icon.svg') }}" alt="">
+            </div>
+        </section>
+
+        <section class="bd-client-section" aria-labelledby="available-services-title">
+            <div class="bd-client-section__heading">
+                <div>
+                    <span class="bd-client-eyebrow">Mulai dari sini</span>
+                    <h2 id="available-services-title">Layanan yang tersedia</h2>
+                </div>
+            </div>
+
+            <div class="bd-services-grid">
+                @foreach($services as $service)
+                    @php($bookable = $service->isBookable())
+                    <article class="bd-client-card bd-service-card {{ $service->status->value === 'COMING_SOON' ? 'bd-service-card--coming-soon' : '' }}">
+                        <div class="bd-service-card__topline">
+                            <span class="bd-service-card__icon" aria-hidden="true">
+                                <img src="{{ asset($service->code === 'NPWP_BUSINESS' ? 'images/figma/home/process-icon.svg' : 'images/figma/home/personal-icon.svg') }}" alt="">
+                            </span>
+                            @if($service->status->value === 'COMING_SOON')
+                                <span class="bd-client-status bd-client-status--warning">Segera hadir</span>
+                            @else
+                                <span class="bd-service-card__available">Tersedia</span>
+                            @endif
+                        </div>
+
+                        <h3>{{ $service->name }}</h3>
+                        <p>{{ $service->description }}</p>
+
+                        @if($service->price_amount !== null)
+                            <div class="bd-service-card__price">
+                                <span>Mulai dari</span>
+                                <strong>{{ $service->currency }} {{ number_format((float) $service->price_amount, 0, ',', '.') }}</strong>
+                            </div>
+                        @endif
+
+                        <div class="bd-service-card__action">
+                            @if($bookable)
+                                <a class="bd-client-button bd-client-button--primary" href="{{ $service->code === 'NPWP_PERSONAL' ? route('npwp.personal') : ($service->code === 'NPWP_BUSINESS' ? route('npwp.business.types') : route('client.applications.create', $service->public_id)) }}">Mulai aplikasi</a>
+                            @else
+                                <span class="bd-client-button bd-client-button--disabled">Belum tersedia</span>
+                            @endif
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+    </div>
 @endsection
