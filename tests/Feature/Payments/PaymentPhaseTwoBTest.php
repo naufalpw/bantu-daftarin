@@ -289,7 +289,7 @@ class PaymentPhaseTwoBTest extends TestCase
             ->get(route('client.payments.show', $application->public_id).'?qr_string=attacker-controlled-payload')
             ->assertOk()
             ->assertSee('QRIS')
-            ->assertSee('bd-payment-qr-code', false)
+            ->assertSee('pb-payment-qr-code', false)
             ->assertSee($expectedQrImage, false);
 
         $this->assertStringNotContainsString('attacker-controlled-payload', $response->getContent());
@@ -321,7 +321,7 @@ class PaymentPhaseTwoBTest extends TestCase
             ->get(route('client.payments.show', $application->public_id))
             ->assertOk()
             ->assertSee('data-payment-state="waiting"', false)
-            ->assertSee('bd-payment-qr-code', false);
+            ->assertSee('pb-payment-qr-code', false);
 
         preg_match('/src="(data:image\/svg\+xml;base64,[^"]+)"/', $response->getContent(), $matches);
         $this->assertNotEmpty($matches[1] ?? null);
@@ -356,7 +356,7 @@ class PaymentPhaseTwoBTest extends TestCase
             ->get(route('client.payments.show', $application->public_id))
             ->assertOk()
             ->assertSee('Pembayaran kedaluwarsa')
-            ->assertDontSee('bd-payment-qr-code', false)
+            ->assertDontSee('pb-payment-qr-code', false)
             ->assertDontSee('data-payment-state="waiting"', false);
 
         $this->assertSame(PaymentStatus::PENDING, $payment->fresh()->status);
@@ -385,12 +385,12 @@ class PaymentPhaseTwoBTest extends TestCase
         $this->actingAs($owner)
             ->get(route('client.payments.show', $application->public_id))
             ->assertOk()
-            ->assertSee('bd-payment-qr-code', false);
+            ->assertSee('pb-payment-qr-code', false);
 
         $this->actingAs($otherClient)
             ->get(route('client.payments.show', $application->public_id))
             ->assertNotFound()
-            ->assertDontSee('bd-payment-qr-code', false);
+            ->assertDontSee('pb-payment-qr-code', false);
     }
 
     public function test_payment_state_frames_render_from_backend_lifecycle_state(): void
@@ -411,27 +411,49 @@ class PaymentPhaseTwoBTest extends TestCase
 
         $this->actingAs($user)->get(route('client.payments.show', $success->public_id))
             ->assertOk()
-            ->assertSee('data-name="/bayar-2"', false)
-            ->assertSee('Pembayaran berhasil');
+            ->assertSee('Pembayaran berhasil')
+            ->assertSee('Kembali ke ruang pengajuan');
 
         $submitted = $this->makeApplication($user, status: ApplicationStatus::DOCUMENTS_SUBMITTED);
         $this->actingAs($user)->get(route('client.payments.show', $submitted->public_id))
             ->assertOk()
-            ->assertSee('data-name="/bayar-3"', false)
-            ->assertSee('Permohonan berhasil di ajukan');
+            ->assertSee('Pembayaran berhasil')
+            ->assertDontSee('Permohonan berhasil di ajukan');
 
         $estimate = $this->makeApplication($user, status: ApplicationStatus::ESTIMATE_PENDING);
         $estimate->forceFill(['estimated_completion_at' => now()->addWeek()])->save();
         $this->actingAs($user)->get(route('client.payments.show', $estimate->public_id))
             ->assertOk()
-            ->assertSee('data-name="/bayar-4"', false)
-            ->assertSee('Estimasi Selesai Tanggal');
+            ->assertSee('Pembayaran berhasil')
+            ->assertDontSee('Estimasi Selesai Tanggal');
 
         $result = $this->makeApplication($user, status: ApplicationStatus::COMPLETED);
         $this->actingAs($user)->get(route('client.payments.show', $result->public_id))
             ->assertOk()
-            ->assertSee('data-name="/bayar-5"', false)
-            ->assertSee('Hasil layanan tersedia di akun Anda');
+            ->assertSee('Pembayaran berhasil')
+            ->assertDontSee('Hasil layanan tersedia di akun Anda');
+    }
+
+    public function test_refund_lifecycle_uses_payment_status_without_reopening_payment_selection(): void
+    {
+        $user = User::factory()->create();
+        $application = $this->makeApplication($user, status: ApplicationStatus::DOCUMENTS_SUBMITTED);
+        Payment::create([
+            'application_id' => $application->id,
+            'provider' => 'xendit',
+            'payment_method' => PaymentMethod::BCA,
+            'external_id' => 'pr-refunding-frame',
+            'reference_id' => 'BD-refunding-frame',
+            'amount' => $application->price_amount_snapshot,
+            'currency' => 'IDR',
+            'status' => PaymentStatus::REFUNDING,
+        ]);
+
+        $this->actingAs($user)->get(route('client.payments.show', $application->public_id))
+            ->assertOk()
+            ->assertSee('Pengembalian diproses')
+            ->assertSee('Kembali ke ruang pengajuan')
+            ->assertDontSee('Buat instruksi pembayaran');
     }
 
     private function makeApplication(User $user, int $amount = 100000, ApplicationStatus $status = ApplicationStatus::AWAITING_PAYMENT): Application

@@ -38,15 +38,17 @@ class AuthenticatedClientUiTest extends TestCase
 
         foreach ($responses as $response) {
             $response->assertOk()
-                ->assertSee('bd-client-header')
+                ->assertSee('pb-header')
+                ->assertSee(route('client.applications.index'), false)
+                ->assertSee('pb-bottom-nav')
                 ->assertDontSee('class="border-b bg-white"');
         }
 
-        $responses[0]->assertSee('Aplikasi Anda');
-        $responses[1]->assertSee('Layanan yang tersedia');
-        $responses[2]->assertSee('Data perseorangan');
-        $responses[3]->assertSee('Penanggung jawab utama');
-        $responses[4]->assertSee('Checklist dokumen');
+        $responses[0]->assertSee('Langkah berikutnya');
+        $responses[1]->assertSee('Pilih layanan sesuai kebutuhan Anda');
+        $responses[2]->assertSee('Persyaratan &amp; mulai', false);
+        $responses[3]->assertSee('Jenis badan usaha');
+        $responses[4]->assertSee('Data &amp; Dokumen', false);
     }
 
     public function test_personal_entry_keeps_existing_draft_redirect_to_final_registration(): void
@@ -63,7 +65,7 @@ class AuthenticatedClientUiTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('npwp.personal'))
-            ->assertRedirect(route('npwp.personal.application', $application->public_id));
+            ->assertRedirect(route('client.applications.show', $application->public_id).'#data-dokumen');
     }
 
     private function bookableService(string $code, string $name): Service

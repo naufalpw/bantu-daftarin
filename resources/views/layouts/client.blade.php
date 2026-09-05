@@ -3,28 +3,23 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#031a5a">
     <title>{{ $title ?? 'Bantu Daftarin' }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/css/phase-b.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="@yield('body_class', 'bd-client-body')">
-    @php
-        $clientChatUrl = null;
-        if (isset($thread) && $thread?->public_id) {
-            $clientChatUrl = route('client.chat.show', $thread->public_id);
-        } elseif (isset($application) && $application?->chatThread?->public_id) {
-            $clientChatUrl = route('client.chat.show', $application->chatThread->public_id);
-        }
-    @endphp
-    <x-client-header :chat-url="$clientChatUrl" />
+<body class="phase-b pb-client-body @yield('body_class')">
+    <a class="pb-skip-link" href="#main-content">Lewati ke konten utama</a>
+    <x-client-header :context-title="trim($__env->yieldContent('context_title'))" />
 
-    <div class="bd-client-feedback" aria-live="polite">
+    <div class="pb-feedback" aria-live="polite">
         @if(session('status'))
-            <div class="bd-client-feedback__status" role="status">{{ session('status') }}</div>
+            <div class="pb-alert pb-alert--success" role="status">{{ session('status') }}</div>
         @endif
 
         @if(isset($errors) && $errors->any())
-            <div class="bd-client-feedback__errors" role="alert">
+            <div class="pb-alert pb-alert--danger" role="alert">
+                <strong>Periksa kembali informasi berikut:</strong>
                 <ul>
                     @foreach($errors->all() as $error)
                         <li>{{ $error }}</li>
@@ -34,10 +29,12 @@
         @endif
     </div>
 
-    <main class="bd-client-main">
+    <main id="main-content" class="pb-main" tabindex="-1">
         @yield('content')
     </main>
 
+    <x-mobile-bottom-nav />
     @livewireScripts
+    @stack('scripts')
 </body>
 </html>

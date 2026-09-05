@@ -2,12 +2,16 @@
 
 use App\Http\Controllers\Admin\ApplicationController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\SupportController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\Client\DocumentController;
 use App\Http\Controllers\Client\ResultDocumentController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/support', [SupportController::class, 'index'])->name('support.index');
+    Route::get('/chat/{publicId}', [ChatController::class, 'show'])->name('chat.show');
     Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
     Route::get('/applications/{publicId}', [ApplicationController::class, 'show'])->name('applications.show');
     Route::post('/applications/{publicId}/review/start', [ApplicationController::class, 'beginReview'])->name('applications.review.start');

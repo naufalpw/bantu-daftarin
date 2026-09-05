@@ -1,41 +1,54 @@
 @extends('layouts.marketing')
 
-@section('body_class', 'bd-register-body')
+@section('body_class', 'pb-auth-body pb-register-body')
 @section('content')
-<main class="bd-register-page" data-node-id="208:21025" data-name="Desktop">
-    <a class="bd-register-back" href="{{ route('login') }}">
-        <img src="{{ asset('images/figma/register/back.svg') }}" alt="">
-        <span>Kembali</span>
-    </a>
+<main id="main-content" class="pb-register-page">
+    <a class="pb-register-back" href="{{ route('login') }}"><span aria-hidden="true">←</span> Kembali ke login</a>
 
-    <section class="bd-register-intro" aria-labelledby="register-title">
-        <span class="bd-register-intro__icon">
-            <img src="{{ asset('images/figma/register/user-add.svg') }}" alt="">
-        </span>
-        <h1 id="register-title">Buat AKun baru</h1>
-        <p>Daftar untuk membuat akun dan mulai proses pendaftaran NPWP anda</p>
+    <section class="pb-register-intro" aria-labelledby="register-page-title">
+        <span class="pb-register-intro__icon" aria-hidden="true"><img src="{{ asset('images/figma/register/user-add.svg') }}" alt=""></span>
+        <h1 id="register-page-title">Buat Akun Baru</h1>
+        <p>Daftar untuk membuat akun dan memulai pengajuan NPWP. Setelah mendaftar, verifikasi email Anda sebelum masuk.</p>
     </section>
 
-    <section class="bd-register-card" aria-labelledby="register-form-title">
-        @if(session('status') || $errors->any())
-            <div class="bd-form-feedback">
-                @if(session('status'))
-                    <div class="bd-feedback-status">{{ session('status') }}</div>
-                @endif
-                @if($errors->any())
-                    <div class="bd-feedback-errors"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
-                @endif
-            </div>
+    <section class="pb-register-card" aria-labelledby="register-title">
+        <h2 id="register-title">Form Pendaftaran</h2>
+
+        @if($errors->any())
+            <div class="pb-alert pb-alert--danger" role="alert">Periksa kembali data yang ditandai di bawah.</div>
         @endif
-        <form method="post" action="{{ route('register.store') }}" class="bd-register-form">
+
+        <form method="post" action="{{ route('register.store') }}" class="pb-register-form">
             @csrf
-            <h2 id="register-form-title" class="bd-register-form__intro">From Pendaftaran</h2>
-            <x-form-input field-class="bd-register-field" name="name" label="Nama Lengkap" value="{{ old('name') }}" placeholder="Masukan nama lengkap anda" autocomplete="name" required />
-            <x-form-input field-class="bd-register-field" name="email" label="Email" type="email" value="{{ old('email') }}" placeholder="Masukan Email anda" autocomplete="email" required />
-            <x-form-input field-class="bd-register-field" name="password" label="Kata Sandi" type="password" placeholder="Masukan kata sandi anda" autocomplete="new-password" required />
-            <x-form-input field-class="bd-register-field" name="password_confirmation" label="Konfirmasi Kata Sandi" type="password" placeholder="Masukan ulang kata sandi anda" autocomplete="new-password" required />
-            <x-button type="submit" variant="primary" class="bd-register-submit">Daftar Sekarang</x-button>
+            <label class="pb-field">
+                <span>Nama lengkap</span>
+                <input name="name" type="text" value="{{ old('name') }}" required autocomplete="name" placeholder="Masukkan nama lengkap Anda" aria-invalid="{{ $errors->has('name') ? 'true' : 'false' }}" @error('name') aria-describedby="name-error" @enderror>
+                @error('name')<small id="name-error" class="pb-field__error">{{ $message }}</small>@enderror
+            </label>
+
+            <label class="pb-field">
+                <span>Email</span>
+                <input name="email" type="email" value="{{ old('email') }}" required autocomplete="email" placeholder="Masukkan email Anda" aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}" @error('email') aria-describedby="email-error" @enderror>
+                @error('email')<small id="email-error" class="pb-field__error">{{ $message }}</small>@enderror
+            </label>
+
+            <label class="pb-field">
+                <span>Kata sandi</span>
+                <input name="password" type="password" required autocomplete="new-password" placeholder="Masukkan kata sandi Anda" aria-describedby="password-help @error('password') password-error @enderror" aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}">
+                <small id="password-help">Gunakan minimal 12 karakter.</small>
+                @error('password')<small id="password-error" class="pb-field__error">{{ $message }}</small>@enderror
+            </label>
+
+            <label class="pb-field">
+                <span>Konfirmasi kata sandi</span>
+                <input name="password_confirmation" type="password" required autocomplete="new-password" placeholder="Masukkan ulang kata sandi Anda" aria-invalid="{{ $errors->has('password_confirmation') ? 'true' : 'false' }}" @error('password_confirmation') aria-describedby="password-confirmation-error" @enderror>
+                @error('password_confirmation')<small id="password-confirmation-error" class="pb-field__error">{{ $message }}</small>@enderror
+            </label>
+
+            <button class="pb-button pb-button--primary pb-button--wide" type="submit">Daftar dan kirim verifikasi</button>
         </form>
     </section>
+
+    <p class="pb-register-login">Sudah memiliki akun? <a href="{{ route('login') }}">Masuk</a></p>
 </main>
 @endsection

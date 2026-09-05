@@ -14,7 +14,9 @@ class ExampleTest extends TestCase
         $response = $this->get('/');
 
         $response->assertOk();
-        $response->assertSee('BantuUrusanPajakJadiMudah');
+        $response->assertSee('Urusan NPWP jadi lebih terarah');
+        $response->assertDontSee('pb-home-hero__note', false);
+        $response->assertDontSee('100% online');
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
         $response->assertHeader('X-Frame-Options', 'DENY');
     }

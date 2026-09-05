@@ -1,12 +1,14 @@
 @extends('layouts.guest')
 @php($resendCooldownSeconds = max(0, (int) ($resendCooldownSeconds ?? 0)))
 @section('content')
-<h1 class="text-2xl font-semibold">Verifikasi login</h1>
+<div @class(['pb-flow-content' => !($isAdmin ?? false)])>
+<p @class(['pb-kicker' => !($isAdmin ?? false), 'hidden' => ($isAdmin ?? false)])>Verifikasi login</p>
+<h1 class="text-2xl font-bold">Masukkan kode OTP</h1>
 <p class="mt-2 text-sm text-slate-600">Masukkan 6 digit OTP yang dikirim ke email terdaftar. Satu OTP hanya dapat dipakai sekali.</p>
-<form method="post" action="{{ route('auth.otp.verify') }}" class="mt-6 space-y-4">
+<form method="post" action="{{ route('auth.otp.verify') }}" class="mt-6 space-y-4 pb-auth-form">
     @csrf
     <label class="block text-sm font-medium">Kode OTP<input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus class="mt-1 w-full rounded-lg border-slate-300 text-center text-2xl tracking-[0.4em]"></label>
-    <button class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white">Verifikasi</button>
+    <button class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white pb-button pb-button--primary pb-button--wide">Verifikasi kode</button>
 </form>
 <div class="mt-4 text-center text-sm text-slate-600" data-otp-resend data-otp-resend-remaining="{{ $resendCooldownSeconds }}">
     <p data-otp-resend-waiting aria-live="polite" @if($resendCooldownSeconds === 0) hidden @endif>
@@ -19,6 +21,7 @@
         @csrf
         <button type="submit" data-otp-resend-button @disabled($resendCooldownSeconds > 0) class="text-indigo-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-400" aria-disabled="{{ $resendCooldownSeconds > 0 ? 'true' : 'false' }}">Kirim ulang OTP</button>
     </form>
+</div>
 </div>
 <script>
     (() => {

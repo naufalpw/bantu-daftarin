@@ -1,39 +1,42 @@
-@props(['variant' => 'default', 'chatUrl' => null])
+@php
+    $isHome = request()->routeIs('home');
+    $homeAnchor = fn (string $anchor): string => $isHome ? '#'.$anchor : route('home').'#'.$anchor;
+@endphp
 
-<header class="bd-site-header {{ $variant === 'payment' ? 'bd-site-header--payment' : '' }}" data-node-id="208:10635" data-name="Component 14">
-    <a href="{{ route('home') }}" aria-label="Bantu Daftarin">
-        <img class="bd-site-header__logo" src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantudaftarin">
-    </a>
+<header class="pb-public-header">
+    <div class="pb-public-header__inner">
+        <a class="pb-brand" href="{{ $homeAnchor('beranda') }}" aria-label="Bantu Daftarin, buka Beranda">
+            <img src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantu Daftarin">
+        </a>
 
-    <nav class="bd-site-header__nav" aria-label="Navigasi utama">
-        <a class="bd-site-header__nav-link" href="#cara-mudah">
-            <span>Cara Buat NPWP</span>
-            <img src="{{ asset('images/figma/home/caret.svg') }}" alt="">
-        </a>
-        <a class="bd-site-header__nav-link" href="{{ route('qna') }}" aria-label="QnA">
-            <span>QnA</span>
-            <img src="{{ asset('images/figma/home/caret.svg') }}" alt="">
-        </a>
-        <a class="bd-site-header__nav-link" href="#testimoni">
-            <span>Testimoni</span>
-            <img src="{{ asset('images/figma/home/caret.svg') }}" alt="">
-        </a>
-    </nav>
+        <nav class="pb-public-nav" aria-label="Navigasi publik">
+            <a href="{{ $homeAnchor('beranda') }}" @if($isHome) aria-current="page" class="is-active" @endif>Beranda</a>
+            <a href="{{ $homeAnchor('layanan') }}">Layanan</a>
+            <a href="{{ $homeAnchor('cara-kerja') }}">Cara Kerja</a>
+            <a href="{{ $homeAnchor('qna') }}">FAQ</a>
+        </nav>
 
-    <div class="bd-site-header__actions">
-        <a class="bd-site-header__chat" href="{{ $chatUrl ?? route('login') }}">
-            <img src="{{ asset('images/figma/home/header-subtract.svg') }}" alt="">
-            <span>Live Chat</span>
-        </a>
-        @if($variant === 'payment')
-            <a class="bd-site-header__login" href="{{ auth()->check() ? route('client.dashboard') : route('login') }}">Login</a>
-        @else
-            <a class="bd-site-header__cart" href="{{ route('login') }}" aria-label="Masuk untuk melihat pesanan">
-                <img src="{{ asset('images/figma/home/live-chat.svg') }}" alt="">
-            </a>
-            <a class="bd-site-header__user" href="{{ route('login') }}" aria-label="Masuk">
-                <img src="{{ asset('images/figma/home/header-user.svg') }}" alt="">
-            </a>
-        @endif
+        <div class="pb-public-header__actions">
+            <a class="pb-button pb-button--text" href="{{ route('login') }}">Masuk</a>
+            <a class="pb-button pb-button--primary" href="{{ route('register') }}">Daftar</a>
+        </div>
+
+        <button class="pb-public-menu-button" type="button" data-public-menu-button aria-expanded="false" aria-controls="public-menu">
+            <span class="sr-only">Buka menu</span>
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+        </button>
     </div>
+
+    <nav id="public-menu" class="pb-public-menu" data-public-menu aria-label="Menu publik" hidden>
+        <div class="pb-public-menu__inner">
+            <a href="{{ $homeAnchor('beranda') }}">Beranda</a>
+            <a href="{{ $homeAnchor('layanan') }}">Layanan</a>
+            <a href="{{ $homeAnchor('cara-kerja') }}">Cara Kerja</a>
+            <a href="{{ $homeAnchor('qna') }}">FAQ</a>
+            <a href="{{ route('login') }}">Masuk</a>
+            <a class="pb-button pb-button--primary" href="{{ route('register') }}">Daftar</a>
+        </div>
+    </nav>
 </header>

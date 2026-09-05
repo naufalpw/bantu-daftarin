@@ -52,36 +52,36 @@ class PaymentController extends Controller
 
         return redirect()->route('client.payments.show', $application->public_id)
             ->with('status', $payment->checkout_url
-                ? 'Payment request dibuat. Lanjutkan pembayaran melalui halaman provider.'
+                ? 'Instruksi pembayaran dibuat. Lanjutkan melalui halaman pembayaran yang tersedia.'
                 : 'Instruksi pembayaran sudah tersedia di halaman ini.');
     }
 
     private function state(Application $application, ?Payment $payment): string
     {
-        if ($payment?->status === PaymentStatus::PAID || $application->status === ApplicationStatus::PAYMENT_CONFIRMED) {
-            return 'success';
+        if (in_array($payment?->status, [
+            PaymentStatus::REFUND_REQUESTED,
+            PaymentStatus::REFUNDING,
+            PaymentStatus::REFUNDED,
+        ], true)) {
+            return 'refund';
         }
 
-        if ($application->status === ApplicationStatus::DOCUMENTS_SUBMITTED) {
-            return 'submitted';
-        }
-
-        if (in_array($application->status, [
+        if ($payment?->status === PaymentStatus::PAID || in_array($application->status, [
+            ApplicationStatus::PAYMENT_CONFIRMED,
+            ApplicationStatus::DOCUMENTS_SUBMITTED,
+            ApplicationStatus::UNDER_REVIEW,
+            ApplicationStatus::REVISION_REQUIRED,
+            ApplicationStatus::REVISION_SUBMITTED,
             ApplicationStatus::DOCUMENTS_ACCEPTED,
             ApplicationStatus::ESTIMATE_PENDING,
             ApplicationStatus::IN_PROGRESS,
             ApplicationStatus::WAITING_EXTERNAL_PROCESS,
-        ], true)) {
-            return 'estimate';
-        }
-
-        if (in_array($application->status, [
             ApplicationStatus::RESULT_UPLOADED,
             ApplicationStatus::RESULT_REVIEW,
             ApplicationStatus::COMPLETED,
             ApplicationStatus::ARCHIVED,
         ], true)) {
-            return 'result';
+            return 'success';
         }
 
         if (in_array($payment?->status, [PaymentStatus::FAILED, PaymentStatus::EXPIRED], true)) {

@@ -1,5 +1,5 @@
 @extends('layouts.app')
 @section('content')
-<div><p class="text-sm text-indigo-700">Panel admin</p><h1 class="text-3xl font-semibold">Semua aplikasi</h1></div>
+<div><p class="text-sm text-indigo-700">Panel admin</p><h1 class="text-3xl font-bold">Semua aplikasi</h1></div>
 <div class="mt-8 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200"><div class="overflow-x-auto"><table class="min-w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500"><tr><th class="px-5 py-3">Client</th><th class="px-5 py-3">Layanan</th><th class="px-5 py-3">Status</th><th class="px-5 py-3">Dibuat</th></tr></thead><tbody class="divide-y">@foreach($applications as $application)<tr class="hover:bg-slate-50"><td class="px-5 py-4"><a class="font-medium text-indigo-700" href="{{ route('admin.applications.show', $application->public_id) }}">{{ $application->user->email }}</a></td><td class="px-5 py-4">{{ $application->service->name }}</td><td class="px-5 py-4">{{ $application->status->label() }}</td><td class="px-5 py-4 text-slate-500">{{ $application->created_at->translatedFormat('d M Y H:i') }}</td></tr>@endforeach</tbody></table></div><div class="p-5">{{ $applications->links() }}</div></div>
 @endsection

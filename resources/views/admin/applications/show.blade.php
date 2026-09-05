@@ -26,7 +26,7 @@
 <div class="flex flex-wrap items-start justify-between gap-4">
     <div>
         <a href="{{ route('admin.applications.index') }}" class="text-sm text-indigo-700">Kembali ke semua aplikasi</a>
-        <h1 class="mt-3 text-3xl font-semibold">{{ $application->service->name }}</h1>
+        <h1 class="mt-3 text-3xl font-bold">{{ $application->service->name }}</h1>
         <p class="mt-1 text-sm text-slate-500">{{ $application->user->email }} · {{ $application->public_id }}</p>
     </div>
     <span class="rounded-full bg-indigo-50 px-4 py-2 text-sm text-indigo-700">{{ $application->status->label() }}</span>
@@ -137,7 +137,7 @@
         </section>
 
         @if($application->chatThread)
-            <a href="{{ route('client.chat.show', $application->chatThread->public_id) }}" class="block rounded-xl bg-indigo-700 p-5 text-white"><p class="font-semibold">Chat client</p></a>
+            <a href="{{ route('admin.chat.show', $application->chatThread->public_id) }}" class="block rounded-xl bg-indigo-700 p-5 text-white"><p class="font-semibold">Chat client</p></a>
         @endif
     </aside>
 </div>

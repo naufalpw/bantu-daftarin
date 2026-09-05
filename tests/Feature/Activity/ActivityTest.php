@@ -54,11 +54,14 @@ class ActivityTest extends TestCase
 
         $this->actingAs($owner)
             ->get(route('client.activity.index'))
+            ->assertRedirect(route('client.applications.index'));
+
+        $this->actingAs($owner)
+            ->get(route('client.applications.show', $application->public_id).'#proses')
             ->assertOk()
-            ->assertSee('Status Trasnsaksi')
             ->assertSee($payment->reference_id)
-            ->assertSee('Berhasil')
-            ->assertSee('Sedang diperiksa')
+            ->assertSee('Pembayaran berhasil')
+            ->assertSee('Dokumen sedang diperiksa')
             ->assertSee($application->service->name)
             ->assertDontSee('BD-ACTIVITY-OTHER')
             ->assertDontSee('999.000');
@@ -80,9 +83,13 @@ class ActivityTest extends TestCase
 
         $this->actingAs($owner)
             ->get(route('client.activity.index', ['status' => 'PAID']))
+            ->assertRedirect(route('client.applications.index'));
+
+        $this->actingAs($owner)
+            ->get(route('client.applications.show', $application->public_id).'#pembayaran')
             ->assertOk()
             ->assertSee('Menunggu pembayaran')
-            ->assertDontSee('Berhasil');
+            ->assertDontSee('Pembayaran berhasil');
     }
 
     public function test_client_can_open_own_activity_detail_but_not_another_clients_detail(): void
@@ -94,10 +101,7 @@ class ActivityTest extends TestCase
 
         $this->actingAs($owner)
             ->get(route('client.activity.show', $application->public_id))
-            ->assertOk()
-            ->assertSee('Detail Pembayaran')
-            ->assertSee('Status Pengerjaan')
-            ->assertSee('Selesai');
+            ->assertRedirect(route('client.applications.show', $application->public_id).'#proses');
 
         $this->actingAs($owner)
             ->get(route('client.activity.show', $otherApplication->public_id))
@@ -123,9 +127,13 @@ class ActivityTest extends TestCase
 
         $this->actingAs($owner)
             ->get(route('client.activity.index'))
+            ->assertRedirect(route('client.applications.index'));
+
+        $this->actingAs($owner)
+            ->get(route('client.applications.show', $application->public_id).'#proses')
             ->assertOk()
-            ->assertSee('Gagal')
-            ->assertSee('Kedaluwarsa');
+            ->assertSee('Pembayaran gagal')
+            ->assertSee('Pembayaran kedaluwarsa');
     }
 
     private function applicationFor(User $user, ApplicationStatus $status = ApplicationStatus::DRAFT): Application

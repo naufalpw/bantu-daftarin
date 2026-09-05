@@ -13,7 +13,6 @@ use App\Models\Service;
 use App\Models\User;
 use App\Notifications\ChatUnreadNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -32,7 +31,9 @@ class ChatTest extends TestCase
             ->get(route('client.chat.show', $thread->public_id))
             ->assertOk()
             ->assertSee('bd-chat-card')
-            ->assertSee('Customer Service');
+            ->assertSee('Tim Bantu Daftarin')
+            ->assertSee('pb-client-body')
+            ->assertDontSee('class="border-b bg-white"', false);
         $this->actingAs($other)->get(route('client.chat.show', $thread->public_id))->assertForbidden();
     }
 

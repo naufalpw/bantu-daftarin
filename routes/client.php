@@ -1,9 +1,10 @@
 <?php
 
 use App\Http\Controllers\ChatController;
-use App\Http\Controllers\Client\ApplicationController;
 use App\Http\Controllers\Client\ActivityController;
+use App\Http\Controllers\Client\ApplicationController;
 use App\Http\Controllers\Client\DocumentController;
+use App\Http\Controllers\Client\GeneralSupportController;
 use App\Http\Controllers\Client\PaymentController;
 use App\Http\Controllers\Client\ResultDocumentController;
 use App\Http\Controllers\Client\ServiceCatalogController;
@@ -14,6 +15,7 @@ Route::middleware(['auth', 'verified', 'client'])->prefix('app')->name('client.'
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
     Route::get('/activity/{publicId}', [ActivityController::class, 'show'])->name('activity.show');
     Route::get('/services', [ServiceCatalogController::class, 'index'])->name('services.index');
+    Route::get('/applications', [ApplicationController::class, 'applicationsIndex'])->name('applications.index');
     Route::get('/applications/create/{service}', [ApplicationController::class, 'create'])->name('applications.create');
     Route::post('/applications', [ApplicationController::class, 'store'])->name('applications.store');
     Route::get('/applications/{publicId}', [ApplicationController::class, 'show'])->name('applications.show');
@@ -31,4 +33,5 @@ Route::middleware(['auth', 'verified', 'client'])->prefix('app')->name('client.'
     Route::get('/results/{resultId}/view', [ResultDocumentController::class, 'preview'])->name('results.view');
     Route::get('/results/{resultId}/download', [ResultDocumentController::class, 'download'])->name('results.download');
     Route::get('/chat/{publicId}', [ChatController::class, 'show'])->name('chat.show');
+    Route::post('/bantuan/chat', [GeneralSupportController::class, 'store'])->name('help.chat.store');
 });

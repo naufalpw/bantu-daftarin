@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers\Client;
 
-use App\Http\Controllers\Controller;
 use App\Enums\PaymentMethod;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Client\StoreApplicationRequest;
 use App\Http\Requests\Client\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Models\Service;
 use App\Services\ApplicationWorkflowService;
+use App\Support\ApplicationStatusPresenter;
+use App\Support\ApplicationTimelinePresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -19,7 +21,9 @@ class ApplicationController extends Controller
 
     public function create(Request $request, string $service): View
     {
-        $serviceModel = Service::where('public_id', $service)->firstOrFail();
+        $serviceModel = Service::with(['requirements' => fn ($query) => $query->where('active', true)])
+            ->where('public_id', $service)
+            ->firstOrFail();
         abort_unless($serviceModel->isBookable(), 404, 'Layanan belum tersedia.');
 
         return view('client.applications.create', [
@@ -30,8 +34,51 @@ class ApplicationController extends Controller
 
     public function index(): View
     {
+        $applications = Application::query()
+            ->with(['service', 'chatThread', 'payments', 'statusHistories'])
+            ->where('user_id', request()->user()->getKey())
+            ->latest('updated_at')
+            ->get();
+        $activeApplications = $applications
+            ->reject(fn (Application $application): bool => ApplicationStatusPresenter::category($application->status) === ApplicationStatusPresenter::CATEGORY_COMPLETED);
+        $priorityApplication = $activeApplications->first(fn (Application $application): bool => ApplicationStatusPresenter::category($application->status) === ApplicationStatusPresenter::CATEGORY_ACTION)
+            ?? $activeApplications->first();
+        $recentUpdates = $applications
+            ->flatMap(fn (Application $application) => $application->statusHistories->map(fn ($history) => ['application' => $application, 'history' => $history]))
+            ->sortByDesc(fn (array $item) => $item['history']->created_at)
+            ->take(3)
+            ->values();
+
         return view('client.dashboard', [
-            'applications' => Application::with(['service', 'chatThread'])->where('user_id', request()->user()->getKey())->latest()->paginate(10),
+            'applications' => $applications,
+            'activeApplications' => $activeApplications,
+            'dashboardApplications' => $applications->take(3),
+            'priorityApplication' => $priorityApplication,
+            'priorityPresentation' => $priorityApplication ? ApplicationStatusPresenter::for($priorityApplication) : null,
+            'recentUpdates' => $recentUpdates,
+            'services' => Service::query()->whereIn('status', ['ACTIVE', 'COMING_SOON'])->orderBy('sort_order')->get(),
+        ]);
+    }
+
+    public function applicationsIndex(Request $request): View
+    {
+        $applications = Application::query()
+            ->with(['service', 'chatThread'])
+            ->where('user_id', request()->user()->getKey())
+            ->latest('updated_at')
+            ->get();
+        $groups = [
+            ApplicationStatusPresenter::CATEGORY_ACTION => $applications->filter(fn (Application $application): bool => ApplicationStatusPresenter::category($application->status) === ApplicationStatusPresenter::CATEGORY_ACTION)->values(),
+            ApplicationStatusPresenter::CATEGORY_PROCESSING => $applications->filter(fn (Application $application): bool => ApplicationStatusPresenter::category($application->status) === ApplicationStatusPresenter::CATEGORY_PROCESSING)->values(),
+            ApplicationStatusPresenter::CATEGORY_COMPLETED => $applications->filter(fn (Application $application): bool => ApplicationStatusPresenter::category($application->status) === ApplicationStatusPresenter::CATEGORY_COMPLETED)->values(),
+        ];
+        $filter = $request->string('status')->toString();
+        $filter = in_array($filter, array_keys($groups), true) ? $filter : 'all';
+
+        return view('client.applications.index', [
+            'applications' => $filter === 'all' ? $applications : $groups[$filter],
+            'counts' => collect($groups)->map->count(),
+            'filter' => $filter,
         ]);
     }
 
@@ -44,7 +91,8 @@ class ApplicationController extends Controller
         $details = $request->only(['name', 'nik', 'family_card_number', 'email', 'marital_status', 'family_status', 'gender', 'business_name', 'business_type', 'business_type_other', 'purpose']);
         $application = $this->workflow->createDraft($request->user(), $service, $details, $request->input('representative'), $request->input('additional_representative'));
 
-        return redirect()->route($service->code === 'NPWP_PERSONAL' ? 'npwp.personal.application' : 'npwp.business.application', $application->public_id)->with('status', 'Draft aplikasi berhasil dibuat.');
+        return redirect()->route('client.applications.show', $application->public_id)
+            ->with('status', 'Draft pengajuan berhasil dibuat. Lanjutkan data dan dokumen Anda.');
     }
 
     public function show(string $publicId): View
@@ -52,7 +100,13 @@ class ApplicationController extends Controller
         $application = $this->find($publicId);
         $this->authorize('view', $application);
 
-        return view('client.applications.show', ['application' => $application->load(['service', 'requirements.documents', 'personalDetails', 'businessDetails', 'representatives', 'payments', 'statusHistories', 'estimateHistories', 'resultDocuments', 'chatThread'])]);
+        $application->load(['service', 'requirements.documents', 'personalDetails', 'businessDetails', 'representatives', 'payments', 'statusHistories', 'estimateHistories', 'resultDocuments', 'chatThread']);
+
+        return view('client.applications.show', [
+            'application' => $application,
+            'statusPresentation' => ApplicationStatusPresenter::for($application),
+            'timeline' => ApplicationTimelinePresenter::for($application),
+        ]);
     }
 
     public function update(UpdateApplicationRequest $request, string $publicId): RedirectResponse

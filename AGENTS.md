@@ -38,3 +38,14 @@ Saat MariaDB XAMPP tidak tersedia, laporkan dengan jelas dan jangan menyamarkan 
 ## Change discipline
 
 Jaga patch tetap terarah. Jangan melakukan reset/checkout destruktif. Perubahan yang belum dapat diverifikasi diberi status `NOT VERIFIED` atau `[BUSINESS CONFIRMATION REQUIRED]` dalam dokumentasi dan laporan.
+
+<!-- antislop:start -->
+## UI/UX task routing
+
+For every UI/UX, visual design, copy-in-interface, responsive, or Figma-to-code task, read these files in this order before planning or changing anything:
+
+1. `DESIGN.md` first. It is the product-specific source of design direction and controls intentional Bantu Daftarin UX choices.
+2. `ANTISLOP.md` second. It is a quality filter for generic, dishonest, inaccessible, or unfinished output. It is not a style guide and must not replace `DESIGN.md`.
+
+When visual reference is needed, use Figma MCP to inspect the verified Bantu Daftarin file and the relevant route/node. Use Figma for visual language, components, measurements, and approved assets. Do not let Figma invent routes, information architecture, product capabilities, lifecycle transitions, or security behavior. Follow the product scope and `docs/` when visual reference conflicts with them.
+<!-- antislop:end -->

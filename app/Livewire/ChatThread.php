@@ -29,6 +29,7 @@ class ChatThread extends Component
     {
         $this->validate(['body' => ['required', 'string', 'max:2000']]);
         $thread = $this->thread();
+        $this->assignCurrentAdmin($thread);
         $recipient = auth()->user()->isAdmin() ? $thread->client : $thread->assignedAdmin?->user;
         $message = $thread->messages()->create(['sender_user_id' => auth()->id(), 'body' => $this->body]);
         $thread->forceFill(['last_message_at' => now()])->save();
@@ -97,5 +98,18 @@ class ChatThread extends Component
     private function typingCacheKey(ChatThreadModel $thread, int $userId): string
     {
         return 'chat-typing:'.$thread->public_id.':'.$userId;
+    }
+
+    private function assignCurrentAdmin(ChatThreadModel $thread): void
+    {
+        if (! auth()->user()->isAdmin() || $thread->assigned_admin_id !== null) {
+            return;
+        }
+
+        $admin = auth()->user()->admin;
+        if ($admin?->is_active) {
+            $thread->forceFill(['assigned_admin_id' => $admin->getKey()])->save();
+            $thread->setRelation('assignedAdmin', $admin);
+        }
     }
 }

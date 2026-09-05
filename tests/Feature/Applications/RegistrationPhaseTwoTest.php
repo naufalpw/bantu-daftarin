@@ -10,7 +10,6 @@ use App\Models\PersonalApplicationDetail;
 use App\Models\Service;
 use App\Models\ServiceRequirement;
 use App\Models\User;
-use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -19,17 +18,21 @@ class RegistrationPhaseTwoTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_business_type_screen_exposes_all_figma_choices_and_other(): void
+    public function test_legacy_business_type_route_redirects_to_start_flow_with_all_canonical_choices(): void
     {
-        Service::factory()->create(['code' => 'NPWP_BUSINESS']);
+        $service = Service::factory()->create(['code' => 'NPWP_BUSINESS']);
+        ServiceRequirement::factory()->create(['service_id' => $service->id, 'code' => 'AKTA_NOTARIS']);
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)->get(route('npwp.business.types'));
 
-        $response->assertOk();
-        $response->assertSee('Badan Internasional');
-        $response->assertSee('Perseroan Komanditer (CV)');
-        $response->assertSee('LAINNYA');
+        $response->assertRedirect(route('client.applications.create', $service->public_id));
+        $this->actingAs($user)
+            ->get(route('client.applications.create', $service->public_id))
+            ->assertOk()
+            ->assertSee('Badan Internasional')
+            ->assertSee('Perseroan Komanditer (CV)')
+            ->assertSee('LAINNYA');
         $this->assertCount(25, BusinessType::cases());
     }
 
@@ -51,7 +54,7 @@ class RegistrationPhaseTwoTest extends TestCase
         ]);
 
         $application = Application::query()->where('user_id', $user->id)->firstOrFail();
-        $response->assertRedirect(route('npwp.business.application', $application->public_id));
+        $response->assertRedirect(route('client.applications.show', $application->public_id));
         $this->assertSame(BusinessType::LIMITED_LIABILITY_COMPANY->value, $application->businessDetails->business_type);
         $this->assertNull($application->businessDetails->business_type_other);
     }
@@ -169,9 +172,9 @@ class RegistrationPhaseTwoTest extends TestCase
         $user = User::factory()->create();
         $service = $this->businessService();
         foreach ([
-            ['code' => 'KTP_PENANGGUNG_JAWAB', 'is_required' => true],
-            ['code' => 'SK_AHU', 'is_required' => true],
-            ['code' => 'SURAT_KUASA', 'is_required' => false, 'condition' => 'jika diwakilkan'],
+            ['code' => 'KTP_PENANGGUNG_JAWAB', 'name' => 'KTP Penanggung Jawab', 'is_required' => true],
+            ['code' => 'SK_AHU', 'name' => 'SK AHU', 'is_required' => true],
+            ['code' => 'SURAT_KUASA', 'name' => 'Surat Kuasa', 'is_required' => false, 'condition' => 'jika diwakilkan'],
         ] as $item) {
             ServiceRequirement::factory()->create(['service_id' => $service->id] + $item);
         }
@@ -193,10 +196,10 @@ class RegistrationPhaseTwoTest extends TestCase
         ])->assertSessionHasNoErrors();
         $application = Application::query()->where('user_id', $user->id)->firstOrFail();
 
-        $this->actingAs($user)->get(route('npwp.business.application', $application->public_id))
+        $this->actingAs($user)->get(route('client.applications.show', $application->public_id))
             ->assertOk()
-            ->assertSee('Nama 1')
-            ->assertSee('Nama 2')
+            ->assertSee('Penanggung jawab utama')
+            ->assertSee('Penanggung jawab tambahan')
             ->assertSee('KTP Penanggung Jawab')
             ->assertSee('Surat Kuasa');
         $this->assertSame('Synthetic Primary Representative', $application->representatives->firstWhere('is_primary', true)->name);

@@ -1,45 +1,47 @@
-@props(['chatUrl' => null])
+@props(['contextTitle' => null])
 
 @php
-    $resolvedChatUrl = $chatUrl;
-
-    if (! $resolvedChatUrl && isset($thread) && $thread?->public_id) {
-        $resolvedChatUrl = route('client.chat.show', $thread->public_id);
-    }
-
-    if (! $resolvedChatUrl && isset($application) && $application?->chatThread?->public_id) {
-        $resolvedChatUrl = route('client.chat.show', $application->chatThread->public_id);
-    }
-
-    $resolvedChatUrl ??= route('client.dashboard').'#client-applications';
+    $isDashboard = request()->routeIs('client.dashboard');
+    $isServices = request()->routeIs('client.services.*', 'client.applications.create', 'npwp.*');
+    $isGeneralSupportChat = (bool) request()->attributes->get('is_general_support_chat', false);
+    $isApplications = request()->routeIs('client.applications.index', 'client.applications.show', 'client.payments.*', 'client.activity.*') || (request()->routeIs('client.chat.*') && ! $isGeneralSupportChat);
+    $isHelp = request()->routeIs('qna') || $isGeneralSupportChat;
 @endphp
 
-<header class="bd-client-header" data-node-id="208:10635" data-name="Authenticated client header">
-    <a class="bd-client-header__brand" href="{{ route('client.dashboard') }}" aria-label="Bantu Daftarin - dashboard">
-        <img src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantudaftarin">
-    </a>
-
-    <nav class="bd-client-header__nav" aria-label="Navigasi client">
-        <a href="{{ route('client.services.index') }}">Layanan</a>
-        <a href="{{ route('client.activity.index') }}">Aktivitas</a>
-        <a href="{{ route('qna') }}">QnA</a>
-    </nav>
-
-    <div class="bd-client-header__actions">
-        <a class="bd-client-header__chat" href="{{ $resolvedChatUrl }}">
-            <img src="{{ asset('images/figma/home/header-subtract.svg') }}" alt="">
-            <span>Live Chat</span>
+<header class="pb-header">
+    <div class="pb-header__inner">
+        <a class="pb-brand" href="{{ route('client.dashboard') }}" aria-label="Bantu Daftarin, buka Beranda">
+            <img src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantu Daftarin">
         </a>
 
-        <div class="bd-client-header__profile">
-            <span class="bd-client-header__avatar" aria-hidden="true">
-                <img src="{{ asset('images/figma/home/header-user.svg') }}" alt="">
-            </span>
-            <span class="bd-client-header__name" title="{{ auth()->user()->name }}">{{ auth()->user()->name }}</span>
-            <form method="post" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" class="bd-client-header__logout">Keluar</button>
-            </form>
-        </div>
+        @if($contextTitle)
+            <span class="pb-header__context">{{ $contextTitle }}</span>
+        @endif
+
+        <nav class="pb-desktop-nav" aria-label="Navigasi utama klien">
+            <a href="{{ route('client.dashboard') }}" @class(['is-active' => $isDashboard]) @if($isDashboard) aria-current="page" @endif>Beranda</a>
+            <a href="{{ route('client.services.index') }}" @class(['is-active' => $isServices]) @if($isServices) aria-current="page" @endif>Layanan</a>
+            <a href="{{ route('client.applications.index') }}" @class(['is-active' => $isApplications]) @if($isApplications) aria-current="page" @endif>Pengajuan</a>
+            <a href="{{ route('qna') }}" @class(['is-active' => $isHelp]) @if($isHelp) aria-current="page" @endif>Bantuan</a>
+        </nav>
+
+        <details class="pb-account" data-account-menu>
+            <summary aria-expanded="false" aria-label="Buka menu akun">
+                <span class="pb-account__initial" aria-hidden="true">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>
+                <span class="pb-account__label">Akun</span>
+                <span class="pb-account__caret" aria-hidden="true"></span>
+            </summary>
+            <div class="pb-account__menu">
+                <div class="pb-account__identity">
+                    <strong>{{ auth()->user()->name }}</strong>
+                    <span>{{ auth()->user()->email }}</span>
+                </div>
+                <a href="{{ route('qna') }}">Bantuan</a>
+                <form method="post" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit">Keluar</button>
+                </form>
+            </div>
+        </details>
     </div>
 </header>

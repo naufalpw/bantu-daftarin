@@ -23,6 +23,6 @@ class ChatUnreadNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)->subject('Pesan baru di Bantu Daftarin')->greeting('Halo '.$notifiable->name.',')->line('Ada pesan baru terkait aplikasi Anda.')->line('Buka aplikasi Bantu Daftarin untuk membacanya.');
+        return (new MailMessage)->subject('Pesan baru di Bantu Daftarin')->greeting('Halo '.$notifiable->name.',')->line('Ada pesan baru pada percakapan bantuan Anda.')->line('Buka aplikasi Bantu Daftarin untuk membacanya.');
     }
 }

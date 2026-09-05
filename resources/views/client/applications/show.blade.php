@@ -1,207 +1,427 @@
 @extends('layouts.client')
 
-@section('body_class', 'bd-client-body bd-client-application-body')
+@section('context_title', 'Ruang pengajuan')
+@section('body_class', 'pb-workspace-body')
 
 @section('content')
-    @php
-        $isEditable = in_array($application->status->value, ['DRAFT', 'AWAITING_DOCUMENTS'], true);
-        $statusTone = match ($application->status->value) {
-            'COMPLETED', 'ARCHIVED' => 'success',
-            'REVISION_REQUIRED' => 'danger',
-            'AWAITING_PAYMENT', 'DOCUMENTS_READY_FOR_PAYMENT' => 'warning',
-            default => 'primary',
-        };
-        $documentIcon = $application->service->code === 'NPWP_BUSINESS'
-            ? 'images/figma/registration/business/business-folder.svg'
-            : 'images/figma/registration/personal/personal-document.svg';
-        $verifiedResults = $application->resultDocuments->filter(fn ($result) => $result->verification_status->value === 'VERIFIED');
-    @endphp
+@php
+    $canEditDetails = in_array($application->status->value, ['DRAFT', 'AWAITING_DOCUMENTS'], true);
+    $canUploadGenerally = in_array($application->status->value, ['DRAFT', 'AWAITING_DOCUMENTS', 'DOCUMENTS_READY_FOR_PAYMENT', 'AWAITING_PAYMENT'], true);
+    $requiredRequirements = $application->requirements->where('active', true)->where('is_required', true);
+    $completeRequired = $requiredRequirements->filter(fn ($requirement) => $requirement->documents->contains(fn ($document) => $document->active && $document->scan_status->value === 'PASSED'));
+    $latestPayment = $application->payments->sortByDesc('id')->first();
+    $paymentPresentation = \App\Support\PaymentStatusPresenter::for($latestPayment?->status, $latestPayment?->status?->value === 'PENDING' && $latestPayment?->expires_at?->isPast());
+    $verifiedResults = $application->resultDocuments->filter(fn ($result) => $result->deleted_at === null && $result->verification_status->value === 'VERIFIED');
+    $shortId = strtoupper(substr($application->public_id, -4));
+    $isPersonalWorkspace = $application->service->code === 'NPWP_PERSONAL';
+    $showPaymentSection = in_array($application->status->value, ['DOCUMENTS_READY_FOR_PAYMENT', 'AWAITING_PAYMENT', 'PAYMENT_CONFIRMED'], true);
+    $showProcessSection = in_array($application->status->value, ['DOCUMENTS_SUBMITTED', 'UNDER_REVIEW', 'REVISION_SUBMITTED', 'DOCUMENTS_ACCEPTED', 'ESTIMATE_PENDING', 'IN_PROGRESS', 'WAITING_EXTERNAL_PROCESS', 'RESULT_UPLOADED', 'RESULT_REVIEW', 'COMPLETED', 'ARCHIVED'], true);
+    $showResultSection = in_array($application->status->value, ['RESULT_UPLOADED', 'RESULT_REVIEW', 'COMPLETED', 'ARCHIVED'], true);
+@endphp
 
-    <div class="bd-client-page bd-application-page">
-        <a class="bd-client-back" href="{{ route('client.dashboard') }}">
-            <img src="{{ asset('images/figma/register/back.svg') }}" alt="">
-            <span>Kembali ke aplikasi</span>
-        </a>
+<div class="pb-page pb-workspace{{ $isPersonalWorkspace ? ' pb-workspace--personal' : '' }}">
+    <a class="pb-back-link" href="{{ route('client.applications.index') }}"><span aria-hidden="true">←</span> Semua pengajuan</a>
 
-        <header class="bd-application-header">
-            <div class="bd-application-header__copy">
-                <span class="bd-client-eyebrow">Detail aplikasi</span>
-                <h1>{{ $application->service->name }}</h1>
-                <p><span>Nomor aplikasi</span><code>{{ $application->public_id }}</code></p>
+    <header class="pb-workspace-header">
+        <div class="pb-workspace-header__context">
+            <p class="pb-kicker pb-kicker--inverse">Ruang pengajuan</p>
+            <h1>{{ $application->service->name }}</h1>
+            <div class="pb-reference">
+                <span>ID Pengajuan: …{{ $shortId }}</span>
+                <button type="button" data-copy-value="{{ $application->public_id }}" aria-label="Salin ID pengajuan lengkap">Salin ID</button>
             </div>
-            <span class="bd-client-status bd-client-status--{{ $statusTone }}">{{ $application->status->label() }}</span>
-        </header>
+        </div>
+        <div class="pb-workspace-header__status">
+            <span class="pb-status pb-status--{{ $statusPresentation['tone'] }}">{{ $statusPresentation['label'] }}</span>
+            <p>{{ $statusPresentation['description'] }}</p>
+            @if($application->estimated_completion_at)
+                <span>Estimasi yang tercatat: {{ $application->estimated_completion_at->translatedFormat('d M Y') }}</span>
+            @endif
+        </div>
+        <div class="pb-workspace-header__progress">
+            @include('components.application-progress', ['status' => $application->status, 'presentation' => $statusPresentation])
+        </div>
+        <div class="pb-workspace-header__next">
+            <span>Langkah berikutnya</span>
+            <strong>{{ $statusPresentation['next_action'] }}</strong>
+            @if($statusPresentation['cta_label'])
+                @if($statusPresentation['cta_method'] === 'post')
+                    <form method="post" action="{{ route('client.applications.documents.submit', $application->public_id) }}">
+                        @csrf
+                        <button class="pb-button pb-button--light" type="submit">{{ $statusPresentation['cta_label'] }}</button>
+                    </form>
+                @else
+                    <a class="pb-button pb-button--light" href="{{ $statusPresentation['cta_url'] }}">{{ $statusPresentation['cta_label'] }}</a>
+                @endif
+            @endif
+        </div>
+    </header>
 
-        <div class="bd-application-layout">
-            <div class="bd-application-main">
-                <section class="bd-client-card bd-application-progress-card" aria-labelledby="application-progress-title">
-                    <div class="bd-client-card__heading">
-                        <div>
-                            <span class="bd-client-eyebrow">Perjalanan aplikasi</span>
-                            <h2 id="application-progress-title">Pantau proses pendaftaran</h2>
-                        </div>
-                        <span class="bd-client-card__hint">Status diperbarui dari sistem</span>
+    @unless($isPersonalWorkspace)
+        <nav class="pb-section-nav" aria-label="Bagian pengajuan">
+            <a href="#ringkasan">Ringkasan</a>
+            <a href="#data-dokumen">Data &amp; Dokumen</a>
+            <a href="#pembayaran">Pembayaran</a>
+            <a href="#proses">Proses</a>
+            <a href="#hasil">Hasil</a>
+        </nav>
+        <label class="pb-section-select">
+            <span>Bagian pengajuan</span>
+            <select data-section-select>
+                <option value="ringkasan">Ringkasan</option>
+                <option value="data-dokumen">Data &amp; Dokumen</option>
+                <option value="pembayaran">Pembayaran</option>
+                <option value="proses">Proses</option>
+                <option value="hasil">Hasil</option>
+            </select>
+        </label>
+    @endunless
+
+    <div class="pb-workspace-layout">
+        <div class="pb-workspace-main">
+            @unless($isPersonalWorkspace)
+            <section id="ringkasan" class="pb-workspace-section" tabindex="-1" aria-labelledby="summary-title">
+                <div class="pb-section-heading">
+                    <div><p class="pb-kicker">Ringkasan</p><h2 id="summary-title">Yang perlu Anda ketahui sekarang</h2></div>
+                </div>
+                <div class="pb-summary-grid">
+                    <dl class="pb-summary-list">
+                        <div><dt>Status pengajuan</dt><dd>{{ $statusPresentation['label'] }}</dd></div>
+                        <div><dt>Dokumen wajib</dt><dd>{{ $completeRequired->count() }} dari {{ $requiredRequirements->count() }} tersedia</dd></div>
+                        <div><dt>Pembayaran</dt><dd>{{ $paymentPresentation['label'] }}</dd></div>
+                        @if($application->estimated_completion_at)
+                            <div><dt>Estimasi tercatat</dt><dd>{{ $application->estimated_completion_at->translatedFormat('d M Y') }}</dd></div>
+                        @endif
+                    </dl>
+                    <div class="pb-summary-update">
+                        <span>Pembaruan terakhir</span>
+                        @if($timeline->first())
+                            <strong>{{ $timeline->first()['label'] }}</strong>
+                            <p>{{ $timeline->first()['description'] }}</p>
+                            <time datetime="{{ $timeline->first()['timestamp']->toAtomString() }}">{{ $timeline->first()['timestamp']->translatedFormat('d M Y, H:i') }}</time>
+                        @else
+                            <p>Belum ada pembaruan proses.</p>
+                        @endif
                     </div>
-                    @include('components.application-progress', ['status' => $application->status])
-                </section>
+                </div>
+            </section>
+            @endunless
 
-                @if($isEditable)
+            <section id="data-dokumen" class="pb-workspace-section" tabindex="-1" aria-labelledby="documents-title">
+                <div class="pb-section-heading">
+                    <div><p class="pb-kicker">Data &amp; Dokumen</p><h2 id="documents-title">Lengkapi informasi dan persyaratan</h2></div>
+                    <span class="pb-section-note">File disimpan secara private</span>
+                </div>
+
+                @if($canEditDetails)
                     <livewire:application-details-form :application="$application" />
+                @else
+                    <div class="pb-locked-summary">
+                        <strong>Data pengajuan sudah dikunci pada tahap ini.</strong>
+                        <p>Informasi sensitif tidak ditampilkan ulang. Hubungi tim melalui chat pengajuan jika ada data yang perlu diklarifikasi.</p>
+                    </div>
                 @endif
 
-                <section class="bd-client-card bd-application-documents" aria-labelledby="application-documents-title">
-                    <div class="bd-client-card__heading">
-                        <div class="bd-application-card-title">
-                            <span class="bd-application-card-title__icon">
-                                <img src="{{ asset($documentIcon) }}" alt="">
-                            </span>
-                            <div>
-                                <span class="bd-client-eyebrow">Data &amp; dokumen</span>
-                                <h2 id="application-documents-title">Checklist dokumen</h2>
-                            </div>
+                @if($application->service->code === 'NPWP_PERSONAL')
+                    @php($faceRequirement = $application->requirements->first(fn ($requirement) => $requirement->code === 'FOTO_WAJAH' || str_ends_with($requirement->code, '_FOTO_WAJAH')))
+                    <section class="pb-personal-documents" aria-labelledby="personal-documents-title">
+                        <div class="pb-personal-documents__heading">
+                            <div><p class="pb-kicker">Dokumen Pengajuan</p><h3 id="personal-documents-title">Siapkan dokumen pendukung</h3></div>
+                            <p>Pastikan dokumen terlihat jelas dan sesuai persyaratan.</p>
                         </div>
-                        <span class="bd-client-card__hint">File disimpan secara private</span>
-                    </div>
-                    <p class="bd-application-card-intro">Pastikan dokumen yang diunggah jelas dan dapat dibaca. Akses dokumen dibatasi sesuai izin aplikasi.</p>
-
-                    <div class="bd-application-requirements">
-                        @foreach($application->requirements as $requirement)
-                            @php($activeDocument = $requirement->documents->where('active', true)->first())
-                            @php($requirementTone = match ($requirement->status) {
-                                'ACCEPTED' => 'success',
-                                'REVISION_REQUIRED', 'REJECTED' => 'danger',
-                                default => 'muted',
-                            })
-                            <article class="bd-application-requirement">
-                                <div class="bd-application-requirement__header">
-                                    <div>
-                                        <h3>{{ $requirement->name }} @if($requirement->is_required)<b aria-label="wajib">*</b>@endif</h3>
-                                        <p>{{ strtoupper(implode(', ', $requirement->allowed_extensions)) }} <span aria-hidden="true">·</span> maksimal {{ number_format($requirement->max_size_bytes / 1048576, 0) }} MB</p>
-                                    </div>
-                                    <span class="bd-client-status bd-client-status--{{ $requirementTone }}">{{ $requirement->statusLabel() }}</span>
+                        <div class="pb-personal-document-grid">
+                            @forelse($application->requirements->reject(fn ($requirement) => $faceRequirement && $requirement->is($faceRequirement)) as $requirement)
+                                @php($activeDocument = $requirement->documents->where('active', true)->sortByDesc('version_number')->first())
+                                @php($canUpload = $canUploadGenerally || ($application->status->value === 'REVISION_REQUIRED' && $requirement->status === 'REVISION_REQUIRED'))
+                                @php($canAccessFile = $activeDocument && $activeDocument->scan_status->value === 'PASSED')
+                                @php($documentStatus = $activeDocument ? match ($activeDocument->review_status->value) {
+                                    'LOCKED' => ['Diterima', 'success'],
+                                    'REVISION_REQUIRED', 'REJECTED' => ['Perlu perbaikan', 'danger'],
+                                    default => [$activeDocument->scan_status->value === 'PASSED' ? 'Menunggu pemeriksaan' : 'Pemeriksaan keamanan', 'waiting'],
+                                } : ['Belum diunggah', $requirement->is_required ? 'action' : 'neutral'])
+                                @php($documentKind = match (true) {
+                                    $requirement->code === 'KTP' || str_ends_with($requirement->code, '_KTP') => 'ktp',
+                                    $requirement->code === 'KK' || str_ends_with($requirement->code, '_KK') => 'kk',
+                                    $requirement->code === 'NPWP' || str_ends_with($requirement->code, '_NPWP') => 'npwp',
+                                    default => 'document',
+                                })
+                                <x-personal-document-card
+                                    :application="$application" :requirement="$requirement" :active-document="$activeDocument" :can-upload="$canUpload" :can-access-file="$canAccessFile" :document-status="$documentStatus"
+                                    :icon="match($documentKind) { 'ktp' => 'images/figma/registration/personal/personal-ktp.svg', 'kk' => 'images/figma/registration/personal/personal-kk.svg', 'npwp' => 'images/figma/registration/personal/personal-npwp.svg', default => 'images/figma/registration/personal/personal-document.svg' }"
+                                    :title="match($documentKind) { 'ktp' => 'KTP', 'kk' => 'Kartu Keluarga', 'npwp' => 'NPWP (Jika ada)', default => $requirement->name }"
+                                    :description="match($documentKind) { 'ktp' => 'Unggah foto atau salinan KTP.', 'kk' => 'Unggah Kartu Keluarga.', 'npwp' => 'Unggah NPWP jika tersedia.', default => 'Unggah dokumen sesuai persyaratan.' }"
+                                    :action-label="match($documentKind) { 'ktp' => 'Unggah KTP', 'kk' => 'Unggah KK', 'npwp' => 'Unggah NPWP', default => 'Unggah dokumen' }"
+                                />
+                            @empty
+                                <div class="pb-inline-empty">Belum ada persyaratan dokumen untuk pengajuan ini.</div>
+                            @endforelse
+                        </div>
+                        @if($faceRequirement)
+                            @php($faceDocument = $faceRequirement->documents->where('active', true)->sortByDesc('version_number')->first())
+                            @php($faceCanUpload = $canUploadGenerally || ($application->status->value === 'REVISION_REQUIRED' && $faceRequirement->status === 'REVISION_REQUIRED'))
+                            @php($faceCanAccess = $faceDocument && $faceDocument->scan_status->value === 'PASSED')
+                            @php($faceStatus = $faceDocument ? match ($faceDocument->review_status->value) { 'LOCKED' => ['Diterima', 'success'], 'REVISION_REQUIRED', 'REJECTED' => ['Perlu perbaikan', 'danger'], default => [$faceDocument->scan_status->value === 'PASSED' ? 'Menunggu pemeriksaan' : 'Pemeriksaan keamanan', 'waiting'], } : ['Belum diunggah', $faceRequirement->is_required ? 'action' : 'neutral'])
+                            <x-personal-face-document :application="$application" :requirement="$faceRequirement" :active-document="$faceDocument" :can-upload="$faceCanUpload" :can-access-file="$faceCanAccess" :document-status="$faceStatus" />
+                        @endif
+                    </section>
+                @else
+                    <div class="pb-document-list">
+                    @forelse($application->requirements as $requirement)
+                        @php($activeDocument = $requirement->documents->where('active', true)->sortByDesc('version_number')->first())
+                        @php($canUpload = $canUploadGenerally || ($application->status->value === 'REVISION_REQUIRED' && $requirement->status === 'REVISION_REQUIRED'))
+                        @php($canAccessFile = $activeDocument && $activeDocument->scan_status->value === 'PASSED')
+                        @php($documentStatus = $activeDocument ? match ($activeDocument->review_status->value) {
+                            'LOCKED' => ['Diterima', 'success'],
+                            'REVISION_REQUIRED', 'REJECTED' => ['Perlu perbaikan', 'danger'],
+                            default => [$activeDocument->scan_status->value === 'PASSED' ? 'Menunggu pemeriksaan' : 'Pemeriksaan keamanan', 'waiting'],
+                        } : ['Belum diunggah', $requirement->is_required ? 'action' : 'neutral'])
+                        <article class="pb-document-row">
+                            <div class="pb-document-row__main">
+                                <div>
+                                    <h3>{{ $requirement->name }}</h3>
+                                    <span>{{ $requirement->is_required ? 'Wajib' : 'Opsional' }}@if($requirement->condition), {{ $requirement->condition }}@endif</span>
                                 </div>
+                                <span class="pb-status pb-status--{{ $documentStatus[1] }}">{{ $documentStatus[0] }}</span>
+                            </div>
 
-                                @if($activeDocument)
-                                    <div class="bd-application-document-row">
-                                        <div>
-                                            <strong>Versi {{ $activeDocument->version_number }}</strong>
-                                            <span>{{ $activeDocument->review_status->label() }}</span>
-                                        </div>
-                                        <div class="bd-application-document-actions">
-                                            <a class="bd-client-link" target="_blank" rel="noopener" href="{{ route('client.documents.view', $activeDocument->public_id) }}">Lihat</a>
-                                            <a class="bd-client-link" href="{{ route('client.documents.download', $activeDocument->public_id) }}">Unduh</a>
-                                            @if($isEditable || ($application->status->value === 'REVISION_REQUIRED' && $requirement->status === 'REVISION_REQUIRED'))
-                                                <form method="post" action="{{ route('client.documents.destroy', $activeDocument->public_id) }}">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button class="bd-client-link bd-client-link--danger" type="submit" onclick="return confirm('Hapus versi aktif ini?')">Hapus</button>
-                                                </form>
-                                            @endif
-                                        </div>
+                            @if($activeDocument)
+                                <div class="pb-document-row__file">
+                                    <span>Versi {{ $activeDocument->version_number }}</span>
+                                    <span>Scan: {{ match ($activeDocument->scan_status->value) { 'PASSED' => 'Lolos', 'FAILED' => 'Ditolak', 'UNAVAILABLE' => 'Tidak tersedia', default => 'Sedang diperiksa' } }}</span>
+                                    <span>Review: {{ $activeDocument->review_status->label() }}</span>
+                                </div>
+                                @if($activeDocument->rejection_reason || $activeDocument->revision_instruction)
+                                    <div class="pb-revision-note" role="note">
+                                        <strong>Dokumen perlu diperbaiki</strong>
+                                        @if($activeDocument->rejection_reason)<p>Alasan: {{ $activeDocument->rejection_reason }}</p>@endif
+                                        @if($activeDocument->revision_instruction)<p>Instruksi: {{ $activeDocument->revision_instruction }}</p>@endif
                                     </div>
                                 @endif
+                            @endif
 
-                                @if(in_array($application->status->value, ['DRAFT', 'AWAITING_DOCUMENTS', 'DOCUMENTS_READY_FOR_PAYMENT', 'AWAITING_PAYMENT'], true) || ($application->status->value === 'REVISION_REQUIRED' && $requirement->status === 'REVISION_REQUIRED'))
-                                    <form method="post" enctype="multipart/form-data" action="{{ route('client.documents.store', [$application->public_id, $requirement->public_id]) }}" class="bd-application-upload-form">
+                            <div class="pb-document-row__actions">
+                                @if($canUpload)
+                                    <form method="post" enctype="multipart/form-data" action="{{ route('client.documents.store', [$application->public_id, $requirement->public_id]) }}" class="pb-upload-form">
                                         @csrf
-                                        <label class="bd-client-file-input">
-                                            <span>Pilih file</span>
+                                        <label>
+                                            <span class="sr-only">Pilih file untuk {{ $requirement->name }}</span>
                                             <input type="file" name="file" required accept=".jpg,.jpeg,.png,.pdf">
                                         </label>
-                                        <button class="bd-client-button bd-client-button--secondary" type="submit">{{ $activeDocument ? 'Unggah versi baru' : 'Unggah dokumen' }}</button>
+                                        <button class="pb-button pb-button--primary" type="submit">{{ $activeDocument ? 'Unggah versi baru' : 'Unggah dokumen' }}</button>
                                     </form>
                                 @endif
+                                @if($canAccessFile)
+                                    <div class="pb-file-actions">
+                                        <a href="{{ route('client.documents.view', $activeDocument->public_id) }}" target="_blank" rel="noopener">Lihat</a>
+                                        <a href="{{ route('client.documents.download', $activeDocument->public_id) }}">Unduh</a>
+                                        @if($canUpload)
+                                            <form method="post" action="{{ route('client.documents.destroy', $activeDocument->public_id) }}" data-confirm="Hapus versi aktif dokumen ini?">
+                                                @csrf @method('DELETE')
+                                                <button type="submit">Hapus</button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+                        </article>
+                    @empty
+                        <div class="pb-inline-empty">Belum ada persyaratan dokumen untuk pengajuan ini.</div>
+                    @endforelse
+                    </div>
+                @endif
+
+                @if($application->status->value === 'DRAFT')
+                    <form class="pb-section-submit" method="post" action="{{ route('client.applications.submit', $application->public_id) }}">
+                        @csrf
+                        <div><strong>Data awal sudah lengkap?</strong><p>Lanjutkan untuk membuka tahap pengumpulan dokumen.</p></div>
+                        <button class="pb-button pb-button--primary" type="submit">Lanjut ke dokumen</button>
+                    </form>
+                @elseif($application->status->value === 'REVISION_REQUIRED')
+                    <form class="pb-section-submit" method="post" action="{{ route('client.applications.revision.submit', $application->public_id) }}">
+                        @csrf
+                        <div><strong>Semua perbaikan sudah diunggah?</strong><p>Kirim perbaikan setelah seluruh instruksi ditindaklanjuti.</p></div>
+                        <button class="pb-button pb-button--primary" type="submit">Kirim perbaikan</button>
+                    </form>
+                @endif
+            </section>
+
+            @if(!$isPersonalWorkspace || $showPaymentSection)
+            <section id="pembayaran" class="pb-workspace-section" tabindex="-1" aria-labelledby="payment-section-title">
+                <div class="pb-section-heading"><div><p class="pb-kicker">Pembayaran</p><h2 id="payment-section-title">Status dan rincian pembayaran</h2></div></div>
+                <div class="pb-payment-summary">
+                    <dl>
+                        <div><dt>Biaya layanan</dt><dd>{{ $application->currency }} {{ number_format((float) $application->price_amount_snapshot, 0, ',', '.') }}</dd></div>
+                        <div><dt>Status</dt><dd><span class="pb-status pb-status--{{ $paymentPresentation['tone'] }}">{{ $paymentPresentation['label'] }}</span></dd></div>
+                        @if($latestPayment)
+                            <div><dt>Metode</dt><dd>{{ $latestPayment->payment_method?->label() ?? 'Belum dipilih' }}</dd></div>
+                            <div><dt>Referensi</dt><dd>{{ $latestPayment->reference_id }}</dd></div>
+                            @if($latestPayment->expires_at)<div><dt>Berlaku sampai</dt><dd>{{ $latestPayment->expires_at->translatedFormat('d M Y, H:i') }} WIB</dd></div>@endif
+                        @endif
+                    </dl>
+                    @if(in_array($application->status->value, ['DOCUMENTS_READY_FOR_PAYMENT', 'AWAITING_PAYMENT'], true))
+                        <a class="pb-button pb-button--primary" href="{{ route('client.payments.show', $application->public_id) }}">{{ $latestPayment ? 'Lihat pembayaran' : 'Pilih metode pembayaran' }}</a>
+                    @elseif(!$latestPayment)
+                        <p>Pembayaran belum dibuka. Lengkapi data dan dokumen wajib terlebih dahulu.</p>
+                    @endif
+                </div>
+            </section>
+            @endif
+
+            @if(!$isPersonalWorkspace || $showProcessSection)
+            <section id="proses" class="pb-workspace-section" tabindex="-1" aria-labelledby="process-title">
+                <div class="pb-section-heading"><div><p class="pb-kicker">Proses</p><h2 id="process-title">Riwayat pengajuan</h2></div></div>
+                <ol class="pb-timeline">
+                    @forelse($timeline as $event)
+                        <li>
+                            <span class="pb-timeline__marker pb-timeline__marker--{{ $event['tone'] }}" aria-hidden="true"></span>
+                            <div>
+                                <strong>{{ $event['label'] }}</strong>
+                                <p>{{ $event['description'] }}</p>
+                                <time datetime="{{ $event['timestamp']->toAtomString() }}">{{ $event['timestamp']->translatedFormat('d M Y, H:i') }}</time>
+                            </div>
+                        </li>
+                    @empty
+                        <li class="pb-inline-empty">Belum ada riwayat proses.</li>
+                    @endforelse
+                </ol>
+            </section>
+            @endif
+
+            @if(!$isPersonalWorkspace || $showResultSection)
+            <section id="hasil" class="pb-workspace-section" tabindex="-1" aria-labelledby="result-title">
+                <div class="pb-section-heading"><div><p class="pb-kicker">Hasil</p><h2 id="result-title">Dokumen hasil terverifikasi</h2></div></div>
+                @if($verifiedResults->isNotEmpty())
+                    <div class="pb-result-list">
+                        @foreach($verifiedResults as $result)
+                            <article class="pb-result-row">
+                                <div><strong>{{ $result->type->value === 'PRIMARY_RESULT' ? 'Hasil utama' : 'Dokumen pendukung' }}</strong><span>Diverifikasi {{ $result->verified_at?->translatedFormat('d M Y, H:i') }}</span></div>
+                                <div><a href="{{ route('client.results.view', $result->public_id) }}" target="_blank" rel="noopener">Lihat</a><a href="{{ route('client.results.download', $result->public_id) }}">Unduh</a></div>
                             </article>
                         @endforeach
                     </div>
-                </section>
-
-                @if($verifiedResults->isNotEmpty())
-                    <section class="bd-client-card bd-application-results" aria-labelledby="application-results-title">
-                        <div class="bd-client-card__heading">
-                            <div>
-                                <span class="bd-client-eyebrow">Hasil layanan</span>
-                                <h2 id="application-results-title">Hasil layanan tersedia</h2>
-                            </div>
-                            <span class="bd-client-status bd-client-status--success">Terverifikasi</span>
-                        </div>
-                        <div class="bd-application-results__list">
-                            @foreach($verifiedResults as $result)
-                                <div class="bd-application-result-row">
-                                    <div>
-                                        <strong>{{ str_replace('_', ' ', $result->type->value) }}</strong>
-                                        <span>Dokumen hasil telah diverifikasi</span>
-                                    </div>
-                                    <div class="bd-application-document-actions">
-                                        <a class="bd-client-link" target="_blank" rel="noopener" href="{{ route('client.results.view', $result->public_id) }}">Lihat</a>
-                                        <a class="bd-client-link" href="{{ route('client.results.download', $result->public_id) }}">Unduh hasil</a>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </section>
+                @elseif(in_array($application->status->value, ['RESULT_UPLOADED', 'RESULT_REVIEW'], true))
+                    <div class="pb-locked-summary"><strong>{{ $statusPresentation['label'] }}</strong><p>Hasil belum dapat dilihat atau diunduh sampai verifikasi selesai.</p></div>
+                @else
+                    <div class="pb-inline-empty"><strong>Hasil belum tersedia.</strong><span>Dokumen hasil akan muncul di sini setelah proses selesai dan hasil diverifikasi.</span></div>
                 @endif
-            </div>
+            </section>
+            @endif
+        </div>
 
-            <aside class="bd-application-sidebar">
-                <section class="bd-client-card bd-application-next-action" aria-labelledby="next-action-title">
-                    <span class="bd-client-eyebrow">Berikutnya</span>
-                    <h2 id="next-action-title">Langkah berikutnya</h2>
-                    <div class="bd-application-next-action__body">
-                        @if($application->status->value === 'DRAFT')
-                            <p>Periksa data aplikasi Anda sebelum melanjutkan ke pengumpulan dokumen.</p>
-                            <form method="post" action="{{ route('client.applications.submit', $application->public_id) }}">@csrf<button class="bd-client-button bd-client-button--primary" type="submit">Lanjut ke dokumen</button></form>
-                        @elseif($application->status->value === 'AWAITING_DOCUMENTS')
-                            <p class="bd-client-notice bd-client-notice--warning">Lengkapi seluruh dokumen wajib terlebih dahulu. Setelah itu tombol pembayaran akan tersedia.</p>
-                        @elseif(in_array($application->status->value, ['DOCUMENTS_READY_FOR_PAYMENT', 'AWAITING_PAYMENT'], true))
-                            <p>Dokumen siap diproses. Lanjutkan pembayaran untuk meneruskan aplikasi.</p>
-                            <a href="{{ route('client.payments.show', $application->public_id) }}" class="bd-client-button bd-client-button--primary">Bayar {{ $application->currency }} {{ number_format((float) $application->price_amount_snapshot, 0, ',', '.') }}</a>
-                        @elseif($application->status->value === 'PAYMENT_CONFIRMED')
-                            <p>Pembayaran telah terkonfirmasi. Kirim dokumen untuk pemeriksaan admin.</p>
-                            <form method="post" action="{{ route('client.applications.documents.submit', $application->public_id) }}">@csrf<button class="bd-client-button bd-client-button--primary" type="submit">Kirim dokumen untuk diperiksa</button></form>
-                        @elseif($application->status->value === 'REVISION_REQUIRED')
-                            <p class="bd-client-notice bd-client-notice--danger">Beberapa dokumen perlu diperbaiki sebelum dapat diperiksa kembali.</p>
-                            <form method="post" action="{{ route('client.applications.revision.submit', $application->public_id) }}">@csrf<button class="bd-client-button bd-client-button--primary" type="submit">Kirim perbaikan</button></form>
+        <aside class="pb-workspace-aside" aria-label="Tindakan dan bantuan pengajuan">
+            @if($isPersonalWorkspace)
+                <section class="pb-sidebar-summary" aria-labelledby="summary-title">
+                    <p class="pb-kicker">Ringkasan</p>
+                    <h2 id="summary-title" class="sr-only">Ringkasan pengajuan</h2>
+                    <dl>
+                        <div><dt>Status pengajuan</dt><dd>{{ $statusPresentation['label'] }}</dd></div>
+                        <div><dt>Dokumen wajib</dt><dd>{{ $completeRequired->count() }} dari {{ $requiredRequirements->count() }} tersedia</dd></div>
+                        <div><dt>Pembayaran</dt><dd>{{ $paymentPresentation['label'] }}</dd></div>
+                        @if($application->estimated_completion_at)
+                            <div><dt>Estimasi tercatat</dt><dd>{{ $application->estimated_completion_at->translatedFormat('d M Y') }}</dd></div>
+                        @endif
+                    </dl>
+                    <div class="pb-sidebar-summary__update">
+                        <span>Pembaruan terakhir</span>
+                        @if($timeline->first())
+                            <strong>{{ $timeline->first()['label'] }}</strong>
+                            <p>{{ $timeline->first()['description'] }}</p>
+                            <time datetime="{{ $timeline->first()['timestamp']->toAtomString() }}">{{ $timeline->first()['timestamp']->translatedFormat('d M Y, H:i') }}</time>
                         @else
-                            <p>Aplikasi sedang diproses. Perubahan status akan tampil pada aktivitas Anda.</p>
-                            <a class="bd-client-button bd-client-button--secondary" href="{{ route('client.activity.show', $application->public_id) }}">Lihat aktivitas</a>
+                            <strong>{{ $statusPresentation['label'] }}</strong>
+                            <p>{{ $statusPresentation['description'] }}</p>
                         @endif
                     </div>
                 </section>
-
-                <section class="bd-client-card bd-application-history" aria-labelledby="application-history-title">
-                    <div class="bd-client-card__heading">
-                        <div>
-                            <span class="bd-client-eyebrow">Pembaruan aplikasi</span>
-                            <h2 id="application-history-title">Riwayat status</h2>
-                        </div>
-                    </div>
-                    <ol class="bd-application-history__list">
-                        @forelse($application->statusHistories->sortByDesc('created_at') as $history)
-                            <li>
-                                <span class="bd-application-history__dot" aria-hidden="true"></span>
-                                <div>
-                                    <strong>{{ $history->to_status->label() }}</strong>
-                                    <span>{{ $history->created_at->translatedFormat('d M Y H:i') }}</span>
-                                </div>
-                            </li>
-                        @empty
-                            <li class="bd-application-history__empty">Belum ada pembaruan status.</li>
-                        @endforelse
-                    </ol>
-                    <a class="bd-client-link bd-application-history__link" href="{{ route('client.activity.show', $application->public_id) }}">Lihat detail aktivitas</a>
-                </section>
-
+            @endif
+            <section class="pb-help-panel">
+                <h2>Butuh bantuan?</h2>
+                <p>Bantuan umum tersedia di QnA. Pertanyaan khusus pengajuan ini dapat dikirim melalui chat.</p>
                 @if($application->chatThread)
-                    <a class="bd-application-chat" href="{{ route('client.chat.show', $application->chatThread->public_id) }}">
-                        <span class="bd-application-chat__icon" aria-hidden="true">↗</span>
-                        <span>
-                            <strong>Chat dengan admin</strong>
-                            <small>Tanyakan hal terkait aplikasi ini.</small>
-                        </span>
-                    </a>
+                    <a class="pb-button pb-button--secondary" href="{{ route('client.chat.show', $application->chatThread->public_id) }}">Tanya tentang pengajuan ini</a>
                 @endif
-            </aside>
-        </div>
+                <a href="{{ route('qna') }}">Buka Bantuan</a>
+            </section>
+        </aside>
     </div>
+</div>
 @endsection
+
+@push('scripts')
+<script>
+(() => {
+    document.querySelectorAll('[data-file-input]').forEach((input) => {
+        input.addEventListener('change', () => {
+            const target = document.getElementById(input.dataset.fileNameTarget);
+            if (target) target.textContent = input.files?.[0]?.name || 'Belum ada file dipilih.';
+            if (input.files?.length && input.dataset.autoSubmit !== undefined) input.form?.submit();
+        });
+    });
+
+    document.querySelectorAll('[data-face-upload]').forEach((surface) => {
+        const form = surface.querySelector('[data-face-form]');
+        if (!form) return;
+
+        const cameraInput = surface.querySelector('[data-face-camera-input]');
+        const fileInput = surface.querySelector('[data-face-file-input]');
+        const preview = surface.querySelector('[data-face-preview]');
+        const guide = surface.querySelector('[data-face-guide]');
+        const start = surface.querySelector('[data-face-start]');
+        const capture = surface.querySelector('[data-face-capture]');
+        const message = surface.querySelector('[data-face-message]');
+        let stream = null;
+
+        const stopCamera = () => {
+            stream?.getTracks().forEach((track) => track.stop());
+            stream = null;
+        };
+
+        fileInput.addEventListener('change', () => {
+            const target = document.getElementById(fileInput.dataset.fileNameTarget);
+            if (target) target.textContent = fileInput.files?.[0]?.name || 'Belum ada file dipilih.';
+            if (fileInput.files?.length) form.submit();
+        });
+
+        start.addEventListener('click', async () => {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                message.textContent = 'Kamera tidak tersedia di browser ini. Pilih file foto sebagai alternatif.';
+                fileInput.click();
+                return;
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                preview.srcObject = stream;
+                preview.hidden = false;
+                guide.hidden = true;
+                capture.hidden = false;
+                message.textContent = '';
+                await preview.play();
+            } catch (error) {
+                message.textContent = 'Izin kamera tidak tersedia. Anda tetap dapat mengunggah file foto.';
+                fileInput.click();
+            }
+        });
+
+        capture.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = preview.videoWidth || 640;
+            canvas.height = preview.videoHeight || 480;
+            canvas.getContext('2d').drawImage(preview, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([blob], 'foto-wajah.jpg', { type: 'image/jpeg' }));
+                cameraInput.files = transfer.files;
+                cameraInput.name = 'file';
+                fileInput.removeAttribute('name');
+                stopCamera();
+                form.submit();
+            }, 'image/jpeg', 0.9);
+        });
+
+        window.addEventListener('pagehide', stopCamera);
+    });
+})();
+</script>
+@endpush

@@ -11,6 +11,25 @@ use Livewire\Component;
 
 class ApplicationDetailsForm extends Component
 {
+    private const PERSONAL_SELECT_VALUES = [
+        'gender' => ['Pria', 'Wanita'],
+        'marital_status' => ['Lajang', 'Kawin', 'Cerai Hidup', 'Cerai Mati'],
+        'family_status' => ['Suami', 'Istri', 'Anak'],
+    ];
+
+    private const LEGACY_PERSONAL_SELECT_VALUES = [
+        'gender' => [
+            'Laki-Laki' => 'Pria',
+            'Laki-laki' => 'Pria',
+            'Perempuan' => 'Wanita',
+        ],
+        'marital_status' => [
+            'Belum Menikah' => 'Lajang',
+            'Menikah' => 'Kawin',
+        ],
+        'family_status' => [],
+    ];
+
     public string $applicationId;
 
     public string $kind = '';
@@ -34,7 +53,7 @@ class ApplicationDetailsForm extends Component
         $this->kind = $application->service->code;
 
         if ($application->personalDetails) {
-            $this->details = [
+            $this->details = $this->normalizeLegacyPersonalSelectValues([
                 'name' => $application->personalDetails->name,
                 'nik' => $application->personalDetails->nik,
                 'family_card_number' => $application->personalDetails->family_card_number,
@@ -43,7 +62,7 @@ class ApplicationDetailsForm extends Component
                 'family_status' => $application->personalDetails->family_status,
                 'purpose' => $application->personalDetails->purpose,
                 'gender' => $application->personalDetails->gender,
-            ];
+            ]);
         } else {
             $this->details = [
                 'business_name' => $application->businessDetails?->business_name,
@@ -71,6 +90,9 @@ class ApplicationDetailsForm extends Component
             ->firstOrFail();
         Gate::authorize('update', $application);
         $kind = $application->service->code;
+        if ($kind === 'NPWP_PERSONAL') {
+            $this->details = $this->normalizeLegacyPersonalSelectValues($this->details);
+        }
         $validated = $this->validate($this->rules($kind));
 
         app(ApplicationWorkflowService::class)->saveDetails(
@@ -88,9 +110,9 @@ class ApplicationDetailsForm extends Component
     {
         $rules = [
             'details.email' => ['nullable', 'email:rfc', 'max:190'],
-            'details.marital_status' => ['nullable', 'string', 'max:64'],
-            'details.family_status' => ['nullable', 'string', 'max:64'],
-            'details.gender' => ['nullable', 'string', 'max:32'],
+            'details.marital_status' => ['nullable', 'string', Rule::in(self::PERSONAL_SELECT_VALUES['marital_status'])],
+            'details.family_status' => ['nullable', 'string', Rule::in(self::PERSONAL_SELECT_VALUES['family_status'])],
+            'details.gender' => ['nullable', 'string', Rule::in(self::PERSONAL_SELECT_VALUES['gender'])],
             'details.purpose' => ['nullable', 'string', 'max:255'],
         ];
 
@@ -116,5 +138,18 @@ class ApplicationDetailsForm extends Component
     public function render()
     {
         return view('livewire.application-details-form');
+    }
+
+    private function normalizeLegacyPersonalSelectValues(array $details): array
+    {
+        foreach (self::LEGACY_PERSONAL_SELECT_VALUES as $field => $aliases) {
+            $value = $details[$field] ?? null;
+
+            if (is_string($value) && array_key_exists($value, $aliases)) {
+                $details[$field] = $aliases[$value];
+            }
+        }
+
+        return $details;
     }
 }

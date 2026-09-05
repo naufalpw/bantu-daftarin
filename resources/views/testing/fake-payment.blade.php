@@ -3,7 +3,7 @@
 @section('content')
 <div class="mx-auto max-w-xl rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
     <p class="text-sm font-medium uppercase tracking-wide text-indigo-700">Checkout lokal</p>
-    <h1 class="mt-2 text-2xl font-semibold">Simulasi pembayaran</h1>
+    <h1 class="mt-2 text-2xl font-bold">Simulasi pembayaran</h1>
     <p class="mt-2 text-sm text-slate-600">Halaman ini hanya tersedia untuk pengujian lokal dan tidak terhubung ke Xendit.</p>
 
     <dl class="mt-6 space-y-3 rounded-lg bg-slate-50 p-4 text-sm">

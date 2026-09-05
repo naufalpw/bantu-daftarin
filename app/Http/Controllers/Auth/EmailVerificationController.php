@@ -31,6 +31,8 @@ class EmailVerificationController extends Controller
             $user->sendEmailVerificationNotification();
         }
 
-        return back()->with('status', 'Jika email terdaftar dan belum diverifikasi, tautan verifikasi akan dikirim.');
+        return back()
+            ->with('status', 'Jika email terdaftar dan belum diverifikasi, tautan verifikasi akan dikirim.')
+            ->with('verification_email', $email);
     }
 }

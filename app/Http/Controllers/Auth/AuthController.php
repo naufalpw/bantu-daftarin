@@ -35,7 +35,9 @@ class AuthController extends Controller
         ]);
         $user->sendEmailVerificationNotification();
 
-        return redirect()->route('login')->with('status', 'Pendaftaran berhasil. Periksa email Anda untuk verifikasi sebelum login.');
+        return redirect()->route('login')
+            ->with('status', 'Pendaftaran berhasil. Periksa email Anda untuk verifikasi sebelum login.')
+            ->with('verification_email', $user->email);
     }
 
     public function showLogin(): View

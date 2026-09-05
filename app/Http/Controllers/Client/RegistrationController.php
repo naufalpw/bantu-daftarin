@@ -3,28 +3,25 @@
 namespace App\Http\Controllers\Client;
 
 use App\Enums\ApplicationStatus;
-use App\Enums\BusinessType;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\Service;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
 
 class RegistrationController extends Controller
 {
-    public function businessTypes(): View
+    public function businessTypes(): RedirectResponse
     {
-        return view('client.registration.business-type', [
-            'businessService' => Service::query()->where('code', 'NPWP_BUSINESS')->firstOrFail(),
-            'businessTypes' => BusinessType::cases(),
-        ]);
+        $service = Service::query()->where('code', 'NPWP_BUSINESS')->firstOrFail();
+
+        return redirect()->route('client.applications.create', $service->public_id);
     }
 
     public function personalEntry(): RedirectResponse
     {
         $application = $this->openApplication('NPWP_PERSONAL');
         if ($application) {
-            return redirect()->route('npwp.personal.application', $application->public_id);
+            return redirect()->to(route('client.applications.show', $application->public_id).'#data-dokumen');
         }
 
         $service = Service::query()->where('code', 'NPWP_PERSONAL')->firstOrFail();
@@ -34,23 +31,30 @@ class RegistrationController extends Controller
 
     public function businessEntry(): RedirectResponse
     {
-        return redirect()->route('npwp.business.types');
+        $application = $this->openApplication('NPWP_BUSINESS');
+        if ($application) {
+            return redirect()->to(route('client.applications.show', $application->public_id).'#data-dokumen');
+        }
+
+        $service = Service::query()->where('code', 'NPWP_BUSINESS')->firstOrFail();
+
+        return redirect()->route('client.applications.create', $service->public_id);
     }
 
-    public function personal(string $publicId): View
+    public function personal(string $publicId): RedirectResponse
     {
         $application = $this->application($publicId, 'NPWP_PERSONAL');
-        $this->authorize('update', $application);
+        $this->authorize('view', $application);
 
-        return view('client.registration.personal', ['application' => $application]);
+        return redirect()->to(route('client.applications.show', $application->public_id).'#data-dokumen');
     }
 
-    public function business(string $publicId): View
+    public function business(string $publicId): RedirectResponse
     {
         $application = $this->application($publicId, 'NPWP_BUSINESS');
-        $this->authorize('update', $application);
+        $this->authorize('view', $application);
 
-        return view('client.registration.business', ['application' => $application]);
+        return redirect()->to(route('client.applications.show', $application->public_id).'#data-dokumen');
     }
 
     private function application(string $publicId, string $serviceCode): Application
@@ -58,7 +62,7 @@ class RegistrationController extends Controller
         $application = Application::query()
             ->where('public_id', $publicId)
             ->where('user_id', request()->user()->getKey())
-            ->with(['service', 'requirements.documents', 'personalDetails', 'businessDetails', 'representatives'])
+            ->with('service')
             ->firstOrFail();
 
         abort_unless($application->service->code === $serviceCode, 404);
@@ -71,7 +75,7 @@ class RegistrationController extends Controller
         return Application::query()
             ->where('user_id', request()->user()->getKey())
             ->whereHas('service', fn ($query) => $query->where('code', $serviceCode))
-            ->whereIn('status', [ApplicationStatus::DRAFT->value, ApplicationStatus::AWAITING_DOCUMENTS->value])
+            ->whereNotIn('status', [ApplicationStatus::COMPLETED->value, ApplicationStatus::ARCHIVED->value])
             ->latest('id')
             ->first();
     }

@@ -1,189 +1,115 @@
+@extends('layouts.client')
+
+@section('context_title', 'Pembayaran')
+@section('body_class', 'pb-payment-body')
+
+@section('content')
 @php
     $paymentMethodClass = \App\Enums\PaymentMethod::class;
-    $paymentStatusClass = \App\Enums\PaymentStatus::class;
-    $selectedMethod = $payment?->payment_method instanceof $paymentMethodClass
-        ? $payment->payment_method
-        : $paymentMethodClass::BCA;
+    $selectedMethod = $payment?->payment_method instanceof $paymentMethodClass ? $payment->payment_method : $paymentMethodClass::BCA;
     $amount = number_format((float) $application->price_amount_snapshot, 0, ',', '.');
-    $paymentStatus = match (true) {
-        $payment?->status === $paymentStatusClass::PENDING && $payment->expires_at?->isPast() => 'Pembayaran kedaluwarsa',
-        $payment?->status === $paymentStatusClass::PENDING => 'Menunggu pembayaran',
-        $payment?->status === $paymentStatusClass::PAID => 'Pembayaran berhasil',
-        $payment?->status === $paymentStatusClass::FAILED => 'Pembayaran gagal',
-        $payment?->status === $paymentStatusClass::EXPIRED => 'Pembayaran kedaluwarsa',
-        default => $application->status->label(),
-    };
+    $presentedPaymentStatus = $payment?->status ?? ($state === 'success' ? \App\Enums\PaymentStatus::PAID : null);
+    $paymentPresentation = \App\Support\PaymentStatusPresenter::for($presentedPaymentStatus, $payment?->status?->value === 'PENDING' && $payment?->expires_at?->isPast());
 @endphp
 
-@extends('layouts.marketing')
+<div class="pb-page pb-payment-page">
+    <a class="pb-back-link" href="{{ route('client.applications.show', $application->public_id) }}#pembayaran"><span aria-hidden="true">←</span> Kembali ke ruang pengajuan</a>
 
-@section('body_class', 'bd-payment-body')
-@section('content')
-<x-site-header variant="payment" />
+    <header class="pb-page-heading">
+        <p class="pb-kicker">Pembayaran</p>
+        <h1>{{ $application->service->name }}</h1>
+        <p>Pilih metode, ikuti instruksi transaksi, lalu tunggu konfirmasi pembayaran dari sistem.</p>
+    </header>
 
-@if(in_array($state, ['selection', 'failure', 'waiting'], true))
-    <main class="bd-payment-page" data-node-id="208:20682" data-name="/bayar">
-        <a class="bd-payment-back" href="{{ route('client.applications.show', $application->public_id) }}">
-            <img src="{{ asset('images/figma/register/back.svg') }}" alt="">
-            <span>Kembali</span>
-        </a>
-
-        <section class="bd-payment-card" aria-labelledby="payment-title">
-            @if(session('status') || $errors->any())
-                <div class="bd-payment-feedback">
-                    @if(session('status'))
-                        <div class="bd-feedback-status">{{ session('status') }}</div>
-                    @endif
-                    @if($errors->any())
-                        <div class="bd-feedback-errors"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
-                    @endif
-                </div>
-            @endif
-
-            <div class="bd-payment-order">
-                <p>Nomor pengajuan</p>
-                <h1 id="payment-title">#{{ $payment?->reference_id ?? $application->public_id }}</h1>
-                <p>Jenis Layanan</p>
-                <span class="bd-payment-service-tag">{{ $application->service->name }}</span>
-            </div>
-
-            <div class="bd-payment-service-card">
-                <h2>{{ $application->service->name }}</h2>
-                @if($application->service->description)
-                    <p>{{ $application->service->description }}</p>
+    <div class="pb-payment-layout">
+        <aside class="pb-order-summary" aria-labelledby="order-summary-title">
+            <h2 id="order-summary-title">Ringkasan pembayaran</h2>
+            <dl>
+                <div><dt>Layanan</dt><dd>{{ $application->service->name }}</dd></div>
+                <div><dt>ID pengajuan</dt><dd>…{{ strtoupper(substr($application->public_id, -4)) }}</dd></div>
+                <div class="pb-order-summary__total"><dt>Total</dt><dd>{{ $application->currency }} {{ $amount }}</dd></div>
+                @if($payment)
+                    <div><dt>Referensi</dt><dd>{{ $payment->reference_id }}</dd></div>
                 @endif
-                <strong>Rp {{ $amount }}</strong>
-            </div>
+            </dl>
+            <p>Status pembayaran hanya berubah setelah notifikasi provider tervalidasi. Kembali dari halaman pembayaran tidak otomatis berarti transaksi berhasil.</p>
+        </aside>
 
-            <div class="bd-payment-divider" aria-hidden="true"></div>
+        <section class="pb-payment-action" aria-labelledby="payment-action-title">
+            <div class="pb-payment-action__heading">
+                <div><p class="pb-kicker">Status transaksi</p><h2 id="payment-action-title">{{ $paymentPresentation['label'] }}</h2></div>
+                <span class="pb-status pb-status--{{ $paymentPresentation['tone'] }}">{{ $paymentPresentation['label'] }}</span>
+            </div>
 
             @if($state === 'waiting' && $payment)
-                <div class="bd-payment-waiting" data-payment-state="waiting">
-                    <div>
-                        <p class="bd-payment-section-label">Status pembayaran</p>
-                        <h2>{{ $paymentStatus }}</h2>
-                        <p class="bd-payment-muted">Selesaikan pembayaran menggunakan instruksi dari provider. Status berhasil hanya diperbarui setelah webhook tervalidasi.</p>
-                    </div>
-
+                <div class="pb-payment-instructions" data-payment-state="waiting">
+                    <p>Selesaikan pembayaran menggunakan instruksi berikut. Halaman ini dapat dimuat ulang untuk melihat status terbaru.</p>
                     @if($payment->virtualAccountNumber())
-                        <div class="bd-payment-instruction">
-                            <span>Nomor Virtual Account</span>
-                            <div class="bd-payment-copy-row">
-                                <strong>{{ $payment->virtualAccountNumber() }}</strong>
-                                <button type="button" class="bd-payment-copy" data-copy-value="{{ $payment->virtualAccountNumber() }}">Salin</button>
-                            </div>
+                        <div class="pb-payment-code">
+                            <span>Nomor Virtual Account {{ $payment->payment_method?->label() }}</span>
+                            <strong>{{ $payment->virtualAccountNumber() }}</strong>
+                            <button type="button" data-copy-value="{{ $payment->virtualAccountNumber() }}">Salin nomor</button>
                         </div>
                     @elseif($payment->qrString())
-                        <div class="bd-payment-instruction bd-payment-instruction--qr">
-                            <span>QR pembayaran dari Xendit</span>
+                        <div class="pb-payment-qr">
+                            <span>QRIS</span>
                             @if($qrCodeImage)
-                                <img class="bd-payment-qr-code" src="{{ $qrCodeImage }}" alt="QR pembayaran QRIS">
+                                <img class="pb-payment-qr-code" src="{{ $qrCodeImage }}" alt="Kode QR pembayaran QRIS">
                             @else
-                                <p role="status">QR pembayaran belum dapat ditampilkan. Silakan muat ulang halaman.</p>
+                                <p role="status">QR pembayaran belum dapat ditampilkan. Muat ulang halaman untuk mencoba kembali.</p>
                             @endif
-                            <p>Gunakan aplikasi pembayaran yang mendukung QRIS untuk memindai kode ini.</p>
+                            <p>Pindai melalui aplikasi pembayaran yang mendukung QRIS.</p>
                         </div>
                     @elseif($payment->checkout_url)
-                        <div class="bd-payment-instruction">
-                            <span>Halaman pembayaran</span>
-                            <a class="bd-payment-provider-link" href="{{ $payment->checkout_url }}" target="_blank" rel="noopener noreferrer">Buka halaman pembayaran</a>
-                        </div>
+                        <a class="pb-button pb-button--primary" href="{{ $payment->checkout_url }}" target="_blank" rel="noopener noreferrer">Buka halaman pembayaran</a>
                     @endif
-
                     @if($payment->expires_at)
-                        <p class="bd-payment-expiry">Berlaku sampai {{ $payment->expires_at->format('d M Y, H:i') }} WIB.</p>
+                        <p class="pb-payment-expiry">Instruksi berlaku sampai {{ $payment->expires_at->translatedFormat('d M Y, H:i') }} WIB.</p>
                     @endif
+                    <div class="pb-payment-refresh">
+                        <a class="pb-button pb-button--secondary" href="{{ route('client.payments.show', $application->public_id) }}">Periksa status pembayaran</a>
+                    </div>
+                </div>
+            @elseif($state === 'success')
+                <div class="pb-payment-success">
+                    <img src="{{ asset('images/figma/payment/success-check.svg') }}" alt="" aria-hidden="true">
+                    <div><strong>Pembayaran sudah diterima</strong><p>Rincian pembayaran tetap tersedia di ruang pengajuan. Tahap berikutnya mengikuti status pengajuan, bukan halaman pembayaran ini.</p></div>
+                    <a class="pb-button pb-button--primary" href="{{ route('client.applications.show', $application->public_id) }}#ringkasan">Kembali ke ruang pengajuan</a>
+                </div>
+            @elseif($state === 'refund')
+                <div class="pb-payment-success">
+                    <div><strong>{{ $paymentPresentation['label'] }}</strong><p>Status pengembalian dana berasal dari proses pembayaran yang tercatat. Rincian pengajuan tetap tersedia di ruang pengajuan.</p></div>
+                    <a class="pb-button pb-button--primary" href="{{ route('client.applications.show', $application->public_id) }}#pembayaran">Kembali ke ruang pengajuan</a>
                 </div>
             @else
                 @if($state === 'failure')
-                    <div class="bd-payment-alert" role="alert">{{ $paymentStatus }}. Pilih metode lain atau coba buat payment request baru.</div>
+                    <div class="pb-alert pb-alert--danger" role="alert">
+                        <strong>{{ $paymentPresentation['label'] }}</strong>
+                        <span>Anda dapat membuat instruksi pembayaran baru selama pengajuan masih mengizinkan pembayaran.</span>
+                    </div>
                 @endif
 
-                <form method="post" action="{{ route('client.payments.store', $application->public_id) }}" class="bd-payment-form" data-payment-form>
+                <form method="post" action="{{ route('client.payments.store', $application->public_id) }}" class="pb-payment-form" data-payment-form>
                     @csrf
-                    <p class="bd-payment-section-label">Metode</p>
-                    <div class="bd-payment-methods">
-                        @foreach($paymentMethods as $method)
-                            @php($isPaypal = $method === $paymentMethodClass::PAYPAL)
-                            <label class="bd-payment-method {{ $selectedMethod === $method ? 'is-selected' : '' }} {{ $isPaypal ? 'is-disabled' : '' }}">
-                                <input type="radio" name="payment_method" value="{{ $method->value }}" @checked($selectedMethod === $method) @disabled($isPaypal) required>
-                                <img class="bd-payment-method__logo bd-payment-method__logo--{{ strtolower($method->value) }}" src="{{ asset(match ($method) {
-                                    $paymentMethodClass::BCA => 'images/figma/payment/bca.png',
-                                    $paymentMethodClass::BRI => 'images/figma/payment/bri.png',
-                                    $paymentMethodClass::QRIS => 'images/figma/payment/qris.png',
-                                    $paymentMethodClass::PAYPAL => 'images/figma/payment/xendit.png',
-                                }) }}" alt="{{ $method->label() }}">
-                                <span class="bd-payment-method__name">{{ $method->label() }}</span>
-                                <img class="bd-payment-method__radio" src="{{ asset('images/figma/payment/radio-'.strtolower($method->value).'.svg') }}" alt="">
-                                @if($isPaypal)
-                                    <small>Segera hadir</small>
-                                @endif
-                            </label>
-                        @endforeach
-                    </div>
-
-                    <div class="bd-payment-total">
-                        <span>Total Pesanan</span>
-                        <strong>Rp{{ $amount }}</strong>
-                    </div>
-
-                    <button type="submit" class="bd-payment-submit" data-payment-submit>Bayar</button>
+                    <fieldset>
+                        <legend>Pilih metode pembayaran</legend>
+                        <div class="pb-payment-methods">
+                            @foreach($paymentMethods as $method)
+                                @php($isPaypal = $method === $paymentMethodClass::PAYPAL)
+                                <label class="pb-payment-method {{ $isPaypal ? 'is-disabled' : '' }}">
+                                    <input type="radio" name="payment_method" value="{{ $method->value }}" @checked(!$isPaypal && $selectedMethod === $method) @disabled($isPaypal) required>
+                                    @if(!$isPaypal)
+                                        <img src="{{ asset(match ($method) { $paymentMethodClass::BCA => 'images/figma/payment/bca.png', $paymentMethodClass::BRI => 'images/figma/payment/bri.png', default => 'images/figma/payment/qris.png' }) }}" alt="">
+                                    @endif
+                                    <span><strong>{{ $method->label() }}</strong>@if($isPaypal)<small>Segera hadir</small>@else<small>{{ $method === $paymentMethodClass::QRIS ? 'Pindai kode QR' : 'Virtual Account' }}</small>@endif</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </fieldset>
+                    <button class="pb-button pb-button--primary pb-button--wide" type="submit" data-payment-submit>Buat instruksi pembayaran</button>
                 </form>
             @endif
         </section>
-    </main>
-@elseif($state === 'success')
-    <main class="bd-payment-state-page" data-node-id="208:20836" data-name="/bayar-2">
-        <section class="bd-payment-state-card bd-payment-state-card--success" aria-labelledby="payment-success-title">
-            <div class="bd-payment-state-logo-wrap bd-payment-state-logo-wrap--success">
-                <img class="bd-payment-state-logo" src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantudaftarin">
-            </div>
-            <div class="bd-payment-success-summary">
-                <img class="bd-payment-success-icon" src="{{ asset('images/figma/payment/success-check.svg') }}" alt="">
-                <p class="bd-payment-success-amount">Rp {{ $amount }}</p>
-            </div>
-            <h1 id="payment-success-title">Pembayaran berhasil</h1>
-            <a class="bd-payment-confirm" href="{{ route('client.applications.show', $application->public_id) }}">Konfirmasi</a>
-        </section>
-    </main>
-@elseif($state === 'submitted')
-    <main class="bd-payment-state-page" data-node-id="208:20859" data-name="/bayar-3">
-        <section class="bd-payment-state-card bd-payment-state-card--submitted" aria-labelledby="payment-submitted-title">
-            <div class="bd-payment-state-logo-wrap bd-payment-state-logo-wrap--submitted">
-                <img class="bd-payment-state-logo" src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantudaftarin">
-            </div>
-            <h1 id="payment-submitted-title">Permohonan berhasil di ajukan</h1>
-            <a class="bd-payment-confirm" href="{{ route('client.applications.show', $application->public_id) }}">Konfirmasi</a>
-        </section>
-    </main>
-@elseif($state === 'estimate')
-    <main class="bd-payment-state-page bd-payment-state-page--with-back" data-node-id="208:20876" data-name="/bayar-4">
-        <a class="bd-payment-back" href="{{ route('client.applications.show', $application->public_id) }}">
-            <img src="{{ asset('images/figma/register/back.svg') }}" alt="">
-            <span>Kembali</span>
-        </a>
-        <section class="bd-payment-state-card bd-payment-state-card--estimate" aria-labelledby="payment-estimate-title">
-            <div class="bd-payment-state-logo-wrap bd-payment-state-logo-wrap--estimate">
-                <img class="bd-payment-state-logo" src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantudaftarin">
-            </div>
-            <h1 id="payment-estimate-title">@if($application->estimated_completion_at) Estimasi Selesai Tanggal {{ $application->estimated_completion_at->locale('id')->translatedFormat('j F Y') }} @else Estimasi selesai sedang disiapkan @endif</h1>
-            <a class="bd-payment-confirm" href="{{ route('client.applications.show', $application->public_id) }}">Konfirmasi</a>
-        </section>
-    </main>
-@else
-    <main class="bd-payment-state-page bd-payment-state-page--with-back" data-node-id="208:20893" data-name="/bayar-5">
-        <a class="bd-payment-back" href="{{ route('client.applications.show', $application->public_id) }}">
-            <img src="{{ asset('images/figma/register/back.svg') }}" alt="">
-            <span>Kembali</span>
-        </a>
-        <section class="bd-payment-state-card bd-payment-state-card--result" aria-labelledby="payment-result-title">
-            <div class="bd-payment-state-logo-wrap bd-payment-state-logo-wrap--result">
-                <img class="bd-payment-state-logo" src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantudaftarin">
-            </div>
-            <img class="bd-payment-result-image" src="{{ asset('images/figma/payment/payment-email.png') }}" alt="">
-            <h1 id="payment-result-title">Hasil layanan tersedia di akun Anda</h1>
-            <a class="bd-payment-confirm" href="{{ route('client.applications.show', $application->public_id) }}">Konfirmasi</a>
-        </section>
-    </main>
-@endif
+    </div>
+</div>
 @endsection

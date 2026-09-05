@@ -77,7 +77,14 @@ class OtpTest extends TestCase
             'password_confirmation' => 'strong-password-123',
         ]);
 
-        $response->assertRedirect(route('login'));
+        $response->assertRedirect(route('login'))
+            ->assertSessionHas('verification_email', 'new-client@example.test');
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('Kami mengirim link verifikasi ke')
+            ->assertSee('new-client@example.test')
+            ->assertSee(route('verification.send'), false)
+            ->assertSee('Kirim ulang link verifikasi');
         $user = User::query()->where('email', 'new-client@example.test')->firstOrFail();
         $this->assertNull($user->email_verified_at);
         Notification::assertSentTo($user, VerifyEmailNotification::class);
