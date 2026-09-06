@@ -18,7 +18,7 @@
             <a class="pb-button pb-button--primary" href="{{ route('client.services.index') }}">Lihat layanan</a>
         </section>
     @else
-        @php($filters = ['all' => 'Semua', 'action' => 'Perlu tindakan', 'processing' => 'Diproses', 'completed' => 'Selesai'])
+        @php($filters = ['all' => 'Semua', 'action' => 'Perlu tindakan', 'processing' => 'Diproses', 'completed' => 'Selesai', 'cancelled' => 'Dibatalkan'])
         <nav class="pb-application-filters" aria-label="Filter pengajuan">
             @foreach($filters as $key => $label)
                 <a href="{{ $key === 'all' ? route('client.applications.index') : route('client.applications.index', ['status' => $key]) }}" class="{{ $filter === $key ? 'is-active' : '' }}" @if($filter === $key) aria-current="page" @endif>{{ $label }}</a>

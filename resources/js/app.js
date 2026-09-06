@@ -42,6 +42,85 @@ document.addEventListener('click', async (event) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-admin-shell]').forEach((shell) => {
+        const drawer = shell.querySelector('[data-admin-drawer]');
+        const openButton = shell.querySelector('[data-admin-drawer-open]');
+        const closeButtons = [...shell.querySelectorAll('[data-admin-drawer-close]')];
+        const backdrop = shell.querySelector('.bd-admin-backdrop');
+
+        if (!drawer || !openButton || !backdrop) {
+            return;
+        }
+
+        const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        let returnFocus = null;
+
+        const closeDrawer = ({ restoreFocus = true } = {}) => {
+            drawer.classList.remove('is-open');
+            document.body.classList.remove('is-admin-drawer-open');
+            openButton.setAttribute('aria-expanded', 'false');
+            backdrop.hidden = true;
+
+            if (restoreFocus && returnFocus instanceof HTMLElement) {
+                returnFocus.focus();
+            }
+        };
+
+        const openDrawer = () => {
+            returnFocus = document.activeElement;
+            drawer.classList.add('is-open');
+            document.body.classList.add('is-admin-drawer-open');
+            openButton.setAttribute('aria-expanded', 'true');
+            backdrop.hidden = false;
+
+            const firstFocusable = drawer.querySelector(focusableSelector);
+            if (firstFocusable instanceof HTMLElement) {
+                firstFocusable.focus();
+            }
+        };
+
+        openButton.addEventListener('click', openDrawer);
+        closeButtons.forEach((button) => button.addEventListener('click', () => closeDrawer()));
+        drawer.querySelectorAll('a[href]').forEach((link) => link.addEventListener('click', () => closeDrawer({ restoreFocus: false })));
+
+        document.addEventListener('keydown', (event) => {
+            if (!drawer.classList.contains('is-open')) {
+                return;
+            }
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeDrawer();
+                return;
+            }
+
+            if (event.key !== 'Tab') {
+                return;
+            }
+
+            const focusable = [...drawer.querySelectorAll(focusableSelector)].filter((element) => element instanceof HTMLElement && element.offsetParent !== null);
+            if (focusable.length === 0) {
+                return;
+            }
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
+
+        window.matchMedia('(min-width: 1024px)').addEventListener('change', (event) => {
+            if (event.matches) {
+                closeDrawer({ restoreFocus: false });
+            }
+        });
+    });
+
     const publicMenu = document.querySelector('[data-public-menu]');
     const publicMenuButton = document.querySelector('[data-public-menu-button]');
     if (publicMenu && publicMenuButton) {

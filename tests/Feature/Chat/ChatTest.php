@@ -3,6 +3,7 @@
 namespace Tests\Feature\Chat;
 
 use App\Enums\ApplicationStatus;
+use App\Enums\ChatThreadType;
 use App\Enums\UserRole;
 use App\Livewire\ChatThread as ChatThreadComponent;
 use App\Models\Admin;
@@ -12,6 +13,7 @@ use App\Models\ChatThread;
 use App\Models\Service;
 use App\Models\User;
 use App\Notifications\ChatUnreadNotification;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
@@ -59,6 +61,20 @@ class ChatTest extends TestCase
             ->assertSee('&lt;script&gt;alert(1)&lt;/script&gt;', false);
         Notification::assertSentTo($adminUser, ChatUnreadNotification::class);
         $this->assertDatabaseHas('audit_logs', ['event' => 'chat.message_sent', 'auditable_id' => $message->id]);
+    }
+
+    public function test_chat_rejects_blank_or_whitespace_only_messages(): void
+    {
+        $client = User::factory()->create();
+        $thread = $this->threadFor($client);
+
+        Livewire::actingAs($client)
+            ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
+            ->set('body', '   ')
+            ->call('send')
+            ->assertHasErrors(['body' => 'required']);
+
+        $this->assertDatabaseCount('chat_messages', 0);
     }
 
     public function test_unread_messages_are_marked_read_by_thread_owner(): void
@@ -110,7 +126,7 @@ class ChatTest extends TestCase
         Livewire::actingAs($client)
             ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
             ->assertSet('isOtherParticipantTyping', true)
-            ->assertSee('Sedang mengetik...');
+            ->assertSee('Admin sedang mengetik...');
 
         Livewire::actingAs($adminUser)
             ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
@@ -140,6 +156,98 @@ class ChatTest extends TestCase
         $this->assertDatabaseCount('chat_messages', 0);
     }
 
+    public function test_chat_groups_messages_by_today_yesterday_and_older_dates(): void
+    {
+        $client = User::factory()->create();
+        $thread = $this->threadFor($client);
+        $today = Carbon::create(2026, 9, 6, 10, 0);
+
+        $this->travelTo($today);
+        try {
+            ChatMessage::create(['chat_thread_id' => $thread->id, 'sender_user_id' => $client->id, 'body' => 'Pesan hari ini.', 'created_at' => $today->copy()->subHour()]);
+            ChatMessage::create(['chat_thread_id' => $thread->id, 'sender_user_id' => $client->id, 'body' => 'Pesan kemarin.', 'created_at' => $today->copy()->subDay()]);
+            ChatMessage::create(['chat_thread_id' => $thread->id, 'sender_user_id' => $client->id, 'body' => 'Pesan lama.', 'created_at' => $today->copy()->subDays(3)]);
+
+            $this->actingAs($client)
+                ->get(route('client.chat.show', $thread->public_id))
+                ->assertOk()
+                ->assertSee('Hari ini')
+                ->assertSee('Kemarin')
+                ->assertSee($today->copy()->subDays(3)->locale('id')->translatedFormat('j F Y'))
+                ->assertSee('bd-chat-date-separator', false);
+        } finally {
+            $this->travelBack();
+        }
+    }
+
+    public function test_admin_quick_reply_populates_and_appends_to_the_composer_without_sending(): void
+    {
+        $client = User::factory()->create();
+        $adminUser = User::factory()->create(['role' => UserRole::SUPER_ADMIN]);
+        $admin = Admin::create(['user_id' => $adminUser->id, 'email' => $adminUser->email, 'role' => UserRole::SUPER_ADMIN, 'is_active' => true]);
+        $thread = $this->threadFor($client, $admin);
+        $documentReply = 'Dokumen pada pengajuan Anda belum lengkap. Silakan periksa kembali dokumen yang diperlukan pada halaman pengajuan.';
+
+        Livewire::actingAs($adminUser)
+            ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
+            ->assertSee('Balasan cepat')
+            ->set('quickReply', 'documents-incomplete')
+            ->assertSet('body', $documentReply)
+            ->assertSet('quickReply', '')
+            ->set('body', 'Catatan admin')
+            ->set('quickReply', 'reupload-document')
+            ->assertSet('body', "Catatan admin\n\nSilakan unggah ulang dokumen melalui bagian Dokumen pada halaman pengajuan agar dapat kami periksa kembali.");
+
+        Livewire::actingAs($client)
+            ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
+            ->assertDontSee('Balasan cepat');
+
+        $this->assertDatabaseCount('chat_messages', 0);
+    }
+
+    public function test_general_support_uses_context_safe_quick_reply_and_empty_state(): void
+    {
+        $client = User::factory()->create();
+        $adminUser = User::factory()->create(['role' => UserRole::SUPER_ADMIN]);
+        $admin = Admin::create(['user_id' => $adminUser->id, 'email' => $adminUser->email, 'role' => UserRole::SUPER_ADMIN, 'is_active' => true]);
+        $thread = $this->generalThreadFor($client, $admin);
+
+        Livewire::actingAs($adminUser)
+            ->test(ChatThreadComponent::class, ['threadId' => $thread->public_id])
+            ->assertSee('Belum ada percakapan')
+            ->assertSee('Mulai percakapan dengan klien jika diperlukan.')
+            ->set('quickReply', 'general-information')
+            ->assertSet('body', 'Terima kasih telah menghubungi Tim Bantu Daftarin. Mohon jelaskan kendala yang Anda alami agar kami dapat membantu.')
+            ->assertDontSee('Dokumen belum lengkap');
+
+        $this->actingAs($client)
+            ->get(route('client.chat.show', $thread->public_id))
+            ->assertOk()
+            ->assertSee('Belum ada percakapan')
+            ->assertSee('bantuan yang tidak terkait dengan satu pengajuan');
+        $this->assertDatabaseCount('chat_messages', 0);
+    }
+
+    public function test_empty_application_support_explains_its_context_to_client_and_admin(): void
+    {
+        $client = User::factory()->create();
+        $adminUser = User::factory()->create(['role' => UserRole::SUPER_ADMIN]);
+        $admin = Admin::create(['user_id' => $adminUser->id, 'email' => $adminUser->email, 'role' => UserRole::SUPER_ADMIN, 'is_active' => true]);
+        $thread = $this->threadFor($client, $admin);
+
+        $this->actingAs($client)
+            ->get(route('client.chat.show', $thread->public_id))
+            ->assertOk()
+            ->assertSee('Belum ada percakapan')
+            ->assertSee('Gunakan chat ini untuk pertanyaan terkait pengajuan NPWP Anda.');
+
+        $this->actingAs($adminUser)
+            ->get(route('admin.chat.show', $thread->public_id))
+            ->assertOk()
+            ->assertSee('Belum ada percakapan')
+            ->assertSee('Percakapan ini terkait dengan pengajuan berikut.');
+    }
+
     private function threadFor(User $client, ?Admin $admin = null): ChatThread
     {
         $service = Service::factory()->create();
@@ -155,6 +263,15 @@ class ChatTest extends TestCase
             'application_id' => $application->id,
             'client_user_id' => $client->id,
             'assigned_admin_id' => $admin?->id,
+        ]);
+    }
+
+    private function generalThreadFor(User $client, ?Admin $admin = null): ChatThread
+    {
+        return ChatThread::create([
+            'client_user_id' => $client->id,
+            'assigned_admin_id' => $admin?->id,
+            'context_type' => ChatThreadType::GENERAL_SUPPORT,
         ]);
     }
 }

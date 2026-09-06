@@ -62,9 +62,14 @@
                     <a href="{{ route('client.applications.index') }}">Lihat semua</a>
                 </div>
                 <div class="pb-application-list pb-application-list--compact">
-                    @foreach($dashboardApplications as $application)
+                    @forelse($dashboardApplications as $application)
                         <x-application-list-item :application="$application" compact />
-                    @endforeach
+                    @empty
+                        <div class="pb-inline-empty pb-inline-empty--card">
+                            <strong>Tidak ada pengajuan yang sedang berjalan.</strong>
+                            <span>Pengajuan yang dibatalkan tetap tersedia pada riwayat Pengajuan.</span>
+                        </div>
+                    @endforelse
                 </div>
             </section>
 

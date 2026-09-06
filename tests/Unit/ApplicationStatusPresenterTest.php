@@ -45,6 +45,7 @@ class ApplicationStatusPresenterTest extends TestCase
             'result review' => [ApplicationStatus::RESULT_REVIEW, 'Hasil sedang diverifikasi', 5, null],
             'completed' => [ApplicationStatus::COMPLETED, 'Pengajuan selesai', 6, 'Lihat hasil'],
             'archived' => [ApplicationStatus::ARCHIVED, 'Pengajuan diarsipkan', 6, 'Buka arsip'],
+            'cancelled' => [ApplicationStatus::CANCELLED, 'Dibatalkan', 1, null],
         ];
     }
 }

@@ -1,30 +1,49 @@
-@extends('layouts.app')
-
+@extends('layouts.admin')
+@section('title', 'Dukungan')
+@section('admin_context', 'Dukungan')
 @section('content')
-    <div class="flex items-end justify-between gap-6">
-        <div>
-            <p class="text-sm font-semibold uppercase tracking-wide text-indigo-700">Bantuan</p>
-            <h1 class="mt-2 text-3xl font-bold">Percakapan klien</h1>
-            <p class="mt-2 text-sm text-slate-600">Bantuan umum dan chat pengajuan menggunakan alur pesan yang sama.</p>
-        </div>
-    </div>
+    <div class="bd-admin-support-page">
+        <x-admin.page-header kicker="DUKUNGAN" title="Kotak masuk dukungan" description="Kelola percakapan Bantuan Umum dan Dukungan Pengajuan." />
 
-    <section class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-white" aria-label="Daftar percakapan bantuan">
-        @forelse($threads as $thread)
-            <a href="{{ route('admin.chat.show', $thread->public_id) }}" class="grid gap-4 border-b border-slate-200 p-5 last:border-b-0 hover:bg-slate-50 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-                <div class="min-w-0">
-                    <div class="flex flex-wrap items-center gap-2"><span class="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">{{ $thread->isGeneralSupport() ? 'Bantuan Umum' : 'Pengajuan' }}</span><strong>{{ $thread->client?->name ?? 'Klien' }}</strong></div>
-                    @if($thread->isGeneralSupport())
-                        <p class="mt-2 text-sm text-slate-600">Pertanyaan umum tanpa konteks pengajuan.</p>
-                    @else
-                        <p class="mt-2 text-sm text-slate-600">{{ $thread->application?->service?->name ?? 'Layanan pengajuan' }} · ID …{{ strtoupper(substr($thread->application?->public_id ?? '', -4)) }}</p>
-                    @endif
-                    <p class="mt-2 truncate text-sm {{ $thread->latestMessage ? 'text-slate-700' : 'text-slate-500' }}">{{ $thread->latestMessage?->body ?? 'Belum ada pesan.' }}</p>
+        <section class="bd-admin-list-surface bd-admin-support-surface mt-8" aria-labelledby="support-list-title">
+            <div class="bd-admin-list-toolbar bd-admin-support-toolbar">
+                <div>
+                    <h2 id="support-list-title">Percakapan klien</h2>
+                    <p>Pesan belum dibaca diprioritaskan pada daftar ini.</p>
                 </div>
-                <span class="text-sm font-semibold text-indigo-700">Buka percakapan</span>
-            </a>
-        @empty
-            <div class="p-8 text-center"><h2 class="font-semibold">Belum ada percakapan</h2><p class="mt-2 text-sm text-slate-600">Percakapan bantuan akan tampil di sini setelah dibuat.</p></div>
-        @endforelse
-    </section>
+                <form class="bd-admin-search" method="get" action="{{ route('admin.support.index') }}">
+                    <label class="sr-only" for="support-search">Cari percakapan</label>
+                    <input id="support-search" type="search" name="q" value="{{ $search }}" placeholder="Cari percakapan">
+                    <input type="hidden" name="filter" value="{{ $filter }}">
+                    <button class="bd-admin-button bd-admin-button--secondary" type="submit">Cari</button>
+                </form>
+            </div>
+
+            <nav class="bd-admin-filter-bar" aria-label="Filter dukungan">
+                @foreach(['all' => 'Semua', 'unread' => 'Belum dibaca', 'application' => 'Pengajuan', 'general' => 'Bantuan Umum'] as $key => $label)
+                    <a href="{{ route('admin.support.index', array_filter(['filter' => $key, 'q' => $search ?: null])) }}" @class(['is-active' => $filter === $key]) @if($filter === $key) aria-current="page" @endif>{{ $label }}</a>
+                @endforeach
+            </nav>
+
+            @if($threads->isNotEmpty())
+                <div class="bd-admin-support-list">
+                    @foreach($threads as $thread)
+                        @php($isUnread = $thread->unread_client_messages_count > 0)
+                        <a href="{{ route('admin.chat.show', $thread->public_id) }}" @class(['bd-admin-support-row', 'is-unread' => $isUnread]) aria-label="Buka percakapan {{ $thread->client?->name ?? 'klien' }}">
+                            <span class="bd-admin-service-mark" aria-hidden="true">{{ strtoupper(mb_substr($thread->client?->name ?? 'K', 0, 1)) }}</span>
+                            <span class="bd-admin-support-row__body">
+                                <span class="bd-admin-support-row__heading"><strong>{{ $thread->client?->name ?? 'Klien' }}</strong><x-admin.status-badge :label="$thread->isGeneralSupport() ? 'Bantuan Umum' : 'Pengajuan'" :tone="$thread->isGeneralSupport() ? 'neutral' : 'info'" /></span>
+                                <small>{{ $thread->isGeneralSupport() ? 'Percakapan tanpa konteks pengajuan.' : (($thread->application?->service?->name ?? 'Pengajuan').' · ID …'.strtoupper(substr($thread->application?->public_id ?? '', -6))) }}</small>
+                                <span>{{ $thread->latestMessage?->body ?? 'Belum ada pesan.' }}</span>
+                            </span>
+                            <span class="bd-admin-support-row__meta"><time>{{ ($thread->last_message_at ?? $thread->updated_at)->translatedFormat('d M, H:i') }}</time>@if($isUnread)<b aria-label="{{ $thread->unread_client_messages_count }} pesan belum dibaca">{{ $thread->unread_client_messages_count }}</b>@endif<span class="bd-admin-support-row__open">Buka <span aria-hidden="true">&rarr;</span></span></span>
+                        </a>
+                    @endforeach
+                </div>
+                <div class="bd-admin-pagination">{{ $threads->links() }}</div>
+            @else
+                <div class="bd-admin-empty-state"><h3>{{ $search !== '' ? 'Percakapan tidak ditemukan' : ($filter === 'unread' ? 'Tidak ada pesan belum dibaca' : 'Belum ada percakapan') }}</h3><p>{{ $search !== '' ? 'Coba gunakan nama klien, layanan, atau ID pengajuan lain.' : 'Percakapan baru akan muncul saat klien menghubungi dukungan.' }}</p></div>
+            @endif
+        </section>
+    </div>
 @endsection

@@ -8,7 +8,6 @@ use App\Exceptions\PaymentGatewayException;
 use App\Models\Application;
 use App\Models\Payment;
 use Carbon\CarbonImmutable;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;

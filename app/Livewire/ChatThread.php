@@ -6,6 +6,8 @@ use App\Models\ChatThread as ChatThreadModel;
 use App\Notifications\ChatUnreadNotification;
 use App\Services\AuditService;
 use App\Services\NotificationService;
+use App\Support\ChatPresentation;
+use App\Support\ChatQuickReplyPresenter;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
@@ -17,6 +19,8 @@ class ChatThread extends Component
 
     public string $body = '';
 
+    public string $quickReply = '';
+
     public bool $isOtherParticipantTyping = false;
 
     public function mount(string $threadId): void
@@ -27,6 +31,7 @@ class ChatThread extends Component
 
     public function send(): void
     {
+        $this->body = trim($this->body);
         $this->validate(['body' => ['required', 'string', 'max:2000']]);
         $thread = $this->thread();
         $this->assignCurrentAdmin($thread);
@@ -62,6 +67,27 @@ class ChatThread extends Component
         $this->typing();
     }
 
+    public function updatedQuickReply(string $key): void
+    {
+        if (blank($key) || ! auth()->user()?->isAdmin()) {
+            $this->quickReply = '';
+
+            return;
+        }
+
+        $template = ChatQuickReplyPresenter::forThread($this->thread())[$key] ?? null;
+        $this->quickReply = '';
+
+        if ($template === null) {
+            return;
+        }
+
+        $this->body = blank(trim($this->body))
+            ? $template
+            : rtrim($this->body)."\n\n".$template;
+        $this->typing();
+    }
+
     public function markRead(): void
     {
         $thread = $this->thread();
@@ -74,7 +100,14 @@ class ChatThread extends Component
         $thread = $this->thread();
         $this->syncTypingState($thread);
 
-        return view('livewire.chat-thread', ['thread' => $thread->load(['messages.sender', 'client', 'assignedAdmin.user', 'application.service'])]);
+        $thread->load(['messages.sender', 'client', 'assignedAdmin.user', 'application.service']);
+
+        return view('livewire.chat-thread', [
+            'thread' => $thread,
+            'messageGroups' => ChatPresentation::groupedMessages($thread->messages),
+            'quickReplies' => auth()->user()->isAdmin() ? ChatQuickReplyPresenter::forThread($thread) : [],
+            'quickReplyLabels' => ChatQuickReplyPresenter::labels(),
+        ]);
     }
 
     private function thread(): ChatThreadModel

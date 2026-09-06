@@ -9,7 +9,9 @@
     $selectedMethod = $payment?->payment_method instanceof $paymentMethodClass ? $payment->payment_method : $paymentMethodClass::BCA;
     $amount = number_format((float) $application->price_amount_snapshot, 0, ',', '.');
     $presentedPaymentStatus = $payment?->status ?? ($state === 'success' ? \App\Enums\PaymentStatus::PAID : null);
-    $paymentPresentation = \App\Support\PaymentStatusPresenter::for($presentedPaymentStatus, $payment?->status?->value === 'PENDING' && $payment?->expires_at?->isPast());
+    $paymentPresentation = $state === 'cancelled'
+        ? ['label' => 'Pengajuan dibatalkan', 'tone' => 'danger']
+        : \App\Support\PaymentStatusPresenter::for($presentedPaymentStatus, $payment?->status?->value === 'PENDING' && $payment?->expires_at?->isPast());
 @endphp
 
 <div class="pb-page pb-payment-page">
@@ -41,7 +43,13 @@
                 <span class="pb-status pb-status--{{ $paymentPresentation['tone'] }}">{{ $paymentPresentation['label'] }}</span>
             </div>
 
-            @if($state === 'waiting' && $payment)
+            @if($state === 'cancelled')
+                <div class="pb-payment-cancelled" data-payment-state="cancelled">
+                    <strong>Pengajuan telah dibatalkan</strong>
+                    <p>Pembayaran tidak dapat dilanjutkan untuk pengajuan ini.</p>
+                    <a class="pb-button pb-button--secondary" href="{{ route('client.applications.show', $application->public_id) }}">Kembali ke Pengajuan</a>
+                </div>
+            @elseif($state === 'waiting' && $payment)
                 <div class="pb-payment-instructions" data-payment-state="waiting">
                     <p>Selesaikan pembayaran menggunakan instruksi berikut. Halaman ini dapat dimuat ulang untuk melihat status terbaru.</p>
                     @if($payment->virtualAccountNumber())

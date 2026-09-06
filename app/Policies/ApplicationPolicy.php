@@ -27,6 +27,11 @@ class ApplicationPolicy
         return $user->isClient() && $application->user_id === $user->getKey();
     }
 
+    public function cancel(User $user, Application $application): bool
+    {
+        return $user->isClient() && $application->user_id === $user->getKey();
+    }
+
     public function adminAction(User $user, Application $application): bool
     {
         return $user->isAdmin();

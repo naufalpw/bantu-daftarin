@@ -14,9 +14,9 @@ class ApplicationTransitionService
 {
     public function __construct(private readonly AuditService $audit, private readonly NotificationService $notifications) {}
 
-    public function transition(Application $application, ApplicationStatus $target, User|Admin|null $actor = null, ?string $reason = null): Application
+    public function transition(Application $application, ApplicationStatus $target, User|Admin|null $actor = null, ?string $reason = null, bool $notify = true): Application
     {
-        return DB::transaction(function () use ($application, $target, $actor, $reason): Application {
+        return DB::transaction(function () use ($application, $target, $actor, $reason, $notify): Application {
             $locked = Application::query()->lockForUpdate()->findOrFail($application->getKey());
             $current = $locked->status instanceof ApplicationStatus ? $locked->status : ApplicationStatus::from($locked->status);
 
@@ -26,6 +26,11 @@ class ApplicationTransitionService
 
             if (! $current->canTransitionTo($target)) {
                 throw new InvalidApplicationTransition("Tidak dapat mengubah status dari {$current->value} ke {$target->value}.");
+            }
+
+            if ($target === ApplicationStatus::CANCELLED
+                && (! $actor instanceof User || ! $actor->isClient() || $actor->getKey() !== $locked->user_id)) {
+                throw new InvalidApplicationTransition('Pembatalan mandiri hanya dapat dilakukan oleh pemilik pengajuan.');
             }
 
             $locked->status = $target;
@@ -53,7 +58,9 @@ class ApplicationTransitionService
                 'to' => $target->value,
                 'reason' => $reason,
             ], $actor instanceof User || $actor instanceof Admin ? $actor : null);
-            $this->notifications->applicationStatus($locked);
+            if ($notify) {
+                $this->notifications->applicationStatus($locked);
+            }
 
             return $locked->load(['user', 'service']);
         });

@@ -26,6 +26,7 @@ Route::middleware(['auth', 'verified', 'client'])->prefix('app')->name('client.'
     Route::post('/bayar/{publicId}', [PaymentController::class, 'store'])->name('payments.store');
     Route::post('/applications/{publicId}/documents/submit', [ApplicationController::class, 'submitDocuments'])->name('applications.documents.submit');
     Route::post('/applications/{publicId}/revision/submit', [ApplicationController::class, 'submitRevision'])->name('applications.revision.submit');
+    Route::patch('/applications/{publicId}/cancel', [ApplicationController::class, 'cancel'])->name('applications.cancel');
     Route::post('/applications/{applicationId}/requirements/{requirementId}/documents', [DocumentController::class, 'store'])->name('documents.store');
     Route::delete('/documents/{documentId}', [DocumentController::class, 'destroy'])->name('documents.destroy');
     Route::get('/documents/{documentId}/view', [DocumentController::class, 'preview'])->name('documents.view');

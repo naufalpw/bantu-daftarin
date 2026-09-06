@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\ApplicationCancellationReason;
+use App\Enums\ApplicationStatus;
 use App\Enums\PaymentMethod;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Client\CancelApplicationRequest;
 use App\Http\Requests\Client\StoreApplicationRequest;
 use App\Http\Requests\Client\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Models\Service;
+use App\Services\ApplicationCancellationService;
 use App\Services\ApplicationWorkflowService;
 use App\Support\ApplicationStatusPresenter;
 use App\Support\ApplicationTimelinePresenter;
@@ -17,7 +21,10 @@ use Illuminate\View\View;
 
 class ApplicationController extends Controller
 {
-    public function __construct(private readonly ApplicationWorkflowService $workflow) {}
+    public function __construct(
+        private readonly ApplicationWorkflowService $workflow,
+        private readonly ApplicationCancellationService $cancellations,
+    ) {}
 
     public function create(Request $request, string $service): View
     {
@@ -40,7 +47,7 @@ class ApplicationController extends Controller
             ->latest('updated_at')
             ->get();
         $activeApplications = $applications
-            ->reject(fn (Application $application): bool => ApplicationStatusPresenter::category($application->status) === ApplicationStatusPresenter::CATEGORY_COMPLETED);
+            ->reject(fn (Application $application): bool => in_array(ApplicationStatusPresenter::category($application->status), [ApplicationStatusPresenter::CATEGORY_COMPLETED, ApplicationStatusPresenter::CATEGORY_CANCELLED], true));
         $priorityApplication = $activeApplications->first(fn (Application $application): bool => ApplicationStatusPresenter::category($application->status) === ApplicationStatusPresenter::CATEGORY_ACTION)
             ?? $activeApplications->first();
         $recentUpdates = $applications
@@ -52,7 +59,7 @@ class ApplicationController extends Controller
         return view('client.dashboard', [
             'applications' => $applications,
             'activeApplications' => $activeApplications,
-            'dashboardApplications' => $applications->take(3),
+            'dashboardApplications' => $activeApplications->take(3),
             'priorityApplication' => $priorityApplication,
             'priorityPresentation' => $priorityApplication ? ApplicationStatusPresenter::for($priorityApplication) : null,
             'recentUpdates' => $recentUpdates,
@@ -71,6 +78,7 @@ class ApplicationController extends Controller
             ApplicationStatusPresenter::CATEGORY_ACTION => $applications->filter(fn (Application $application): bool => ApplicationStatusPresenter::category($application->status) === ApplicationStatusPresenter::CATEGORY_ACTION)->values(),
             ApplicationStatusPresenter::CATEGORY_PROCESSING => $applications->filter(fn (Application $application): bool => ApplicationStatusPresenter::category($application->status) === ApplicationStatusPresenter::CATEGORY_PROCESSING)->values(),
             ApplicationStatusPresenter::CATEGORY_COMPLETED => $applications->filter(fn (Application $application): bool => ApplicationStatusPresenter::category($application->status) === ApplicationStatusPresenter::CATEGORY_COMPLETED)->values(),
+            ApplicationStatusPresenter::CATEGORY_CANCELLED => $applications->filter(fn (Application $application): bool => ApplicationStatusPresenter::category($application->status) === ApplicationStatusPresenter::CATEGORY_CANCELLED)->values(),
         ];
         $filter = $request->string('status')->toString();
         $filter = in_array($filter, array_keys($groups), true) ? $filter : 'all';
@@ -106,6 +114,10 @@ class ApplicationController extends Controller
             'application' => $application,
             'statusPresentation' => ApplicationStatusPresenter::for($application),
             'timeline' => ApplicationTimelinePresenter::for($application),
+            'canCancel' => $this->cancellations->canBeCancelledByClient($application, request()->user()),
+            'cancellationReasons' => ApplicationCancellationReason::options(),
+            'cancellationHistory' => $application->statusHistories
+                ->first(fn ($history): bool => $history->to_status === ApplicationStatus::CANCELLED),
         ]);
     }
 
@@ -132,6 +144,10 @@ class ApplicationController extends Controller
     {
         $application = $this->find($publicId);
         $this->authorize('submit', $application);
+        if ($application->status === ApplicationStatus::CANCELLED) {
+            return redirect()->route('client.applications.show', $application->public_id)
+                ->withErrors(['payment' => 'Pembayaran tidak dapat dilanjutkan untuk pengajuan yang telah dibatalkan.']);
+        }
         $method = PaymentMethod::tryFrom(strtoupper($request->string('payment_method')->toString())) ?? PaymentMethod::BCA;
         $this->workflow->createPayment($application, $request->user(), $method);
 
@@ -154,6 +170,17 @@ class ApplicationController extends Controller
         $this->workflow->submitRevision($application, request()->user());
 
         return back()->with('status', 'Perbaikan dokumen dikirim.');
+    }
+
+    public function cancel(CancelApplicationRequest $request, string $publicId): RedirectResponse
+    {
+        $application = $this->find($publicId);
+        $this->authorize('cancel', $application);
+        $reason = ApplicationCancellationReason::from($request->string('reason')->toString());
+        $this->cancellations->cancel($application, $request->user(), $reason, $request->input('reason_other'));
+
+        return redirect()->route('client.applications.show', $application->public_id)
+            ->with('status', 'Pengajuan telah dibatalkan. Riwayatnya tetap tersimpan.');
     }
 
     private function find(string $publicId): Application

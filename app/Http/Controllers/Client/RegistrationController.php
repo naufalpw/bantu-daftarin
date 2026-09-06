@@ -75,7 +75,7 @@ class RegistrationController extends Controller
         return Application::query()
             ->where('user_id', request()->user()->getKey())
             ->whereHas('service', fn ($query) => $query->where('code', $serviceCode))
-            ->whereNotIn('status', [ApplicationStatus::COMPLETED->value, ApplicationStatus::ARCHIVED->value])
+            ->whereNotIn('status', [ApplicationStatus::COMPLETED->value, ApplicationStatus::ARCHIVED->value, ApplicationStatus::CANCELLED->value])
             ->latest('id')
             ->first();
     }

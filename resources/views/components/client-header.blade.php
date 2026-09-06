@@ -22,7 +22,7 @@
             <a href="{{ route('client.dashboard') }}" @class(['is-active' => $isDashboard]) @if($isDashboard) aria-current="page" @endif>Beranda</a>
             <a href="{{ route('client.services.index') }}" @class(['is-active' => $isServices]) @if($isServices) aria-current="page" @endif>Layanan</a>
             <a href="{{ route('client.applications.index') }}" @class(['is-active' => $isApplications]) @if($isApplications) aria-current="page" @endif>Pengajuan</a>
-            <a href="{{ route('qna') }}" @class(['is-active' => $isHelp]) @if($isHelp) aria-current="page" @endif>Bantuan</a>
+            <a href="{{ route('qna') }}" @class(['is-active' => $isHelp]) @if($isHelp) aria-current="page" @endif>Bantuan <livewire:global-chat-notifier /></a>
         </nav>
 
         <details class="pb-account" data-account-menu>

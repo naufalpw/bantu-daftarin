@@ -1,11 +1,29 @@
-@php($authLayout = request()->is('admin/*') ? 'layouts.guest' : 'layouts.marketing')
+@php($authLayout = request()->is('admin/*') ? 'layouts.admin-auth' : 'layouts.marketing')
 @extends($authLayout)
 
 @if(request()->is('admin/*'))
+@section('title', 'Masuk Admin')
 @section('content')
-<h1 class="text-2xl font-bold">Masuk</h1>
-<p class="mt-2 text-sm text-slate-600">Setelah password benar, kami akan mengirim OTP ke email Anda.</p>
-<form method="post" action="{{ route('admin.login.store') }}" class="mt-6 space-y-4">@csrf<label class="block text-sm font-medium">Email<input name="email" type="email" value="{{ old('email') }}" required autocomplete="email" class="mt-1 w-full rounded-lg border-slate-300"></label><label class="block text-sm font-medium">Password<input name="password" type="password" required autocomplete="current-password" class="mt-1 w-full rounded-lg border-slate-300"></label><button class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700">Lanjutkan</button></form>
+<div class="bd-admin-auth-content">
+    <p class="bd-admin-kicker">AKSES ADMIN</p>
+    <h1 id="admin-auth-title">Masuk sebagai Super Admin</h1>
+    <p class="bd-admin-auth-content__intro">Gunakan akun admin yang aktif. Setelah kata sandi benar, kode OTP dikirim ke email terdaftar.</p>
+
+    <form method="post" action="{{ route('admin.login.store') }}" class="bd-admin-auth-form">
+        @csrf
+        <label class="bd-admin-field">
+            <span>Email</span>
+            <input name="email" type="email" value="{{ old('email') }}" required autocomplete="email" autofocus>
+        </label>
+        <label class="bd-admin-field">
+            <span>Kata sandi</span>
+            <input name="password" type="password" required autocomplete="current-password">
+        </label>
+        <button class="bd-admin-button bd-admin-button--primary bd-admin-button--wide" type="submit">Masuk dan kirim OTP</button>
+    </form>
+
+    <p class="bd-admin-auth-note">Akses ini khusus untuk pengelola Bantu Daftarin.</p>
+</div>
 @endsection
 @else
 @section('body_class', 'pb-auth-body pb-login-body')

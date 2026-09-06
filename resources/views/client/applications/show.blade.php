@@ -17,6 +17,9 @@
     $showPaymentSection = in_array($application->status->value, ['DOCUMENTS_READY_FOR_PAYMENT', 'AWAITING_PAYMENT', 'PAYMENT_CONFIRMED'], true);
     $showProcessSection = in_array($application->status->value, ['DOCUMENTS_SUBMITTED', 'UNDER_REVIEW', 'REVISION_SUBMITTED', 'DOCUMENTS_ACCEPTED', 'ESTIMATE_PENDING', 'IN_PROGRESS', 'WAITING_EXTERNAL_PROCESS', 'RESULT_UPLOADED', 'RESULT_REVIEW', 'COMPLETED', 'ARCHIVED'], true);
     $showResultSection = in_array($application->status->value, ['RESULT_UPLOADED', 'RESULT_REVIEW', 'COMPLETED', 'ARCHIVED'], true);
+    $isCancelled = $application->status === \App\Enums\ApplicationStatus::CANCELLED;
+    $hasConfirmedPayment = $latestPayment && ($latestPayment->paid_at || in_array($latestPayment->status->value, ['PAID', 'REFUND_REQUESTED', 'REFUNDING', 'REFUNDED'], true));
+    $showPaymentSection = $showPaymentSection || ($isCancelled && $latestPayment);
 @endphp
 
 <div class="pb-page pb-workspace{{ $isPersonalWorkspace ? ' pb-workspace--personal' : '' }}">
@@ -38,9 +41,16 @@
                 <span>Estimasi yang tercatat: {{ $application->estimated_completion_at->translatedFormat('d M Y') }}</span>
             @endif
         </div>
-        <div class="pb-workspace-header__progress">
-            @include('components.application-progress', ['status' => $application->status, 'presentation' => $statusPresentation])
-        </div>
+        @if($isCancelled)
+            <div class="pb-workspace-header__progress pb-workspace-header__cancelled">
+                <strong>Pengajuan telah dihentikan</strong>
+                <span>Riwayat tetap tersimpan sebagai konteks baca-saja.</span>
+            </div>
+        @else
+            <div class="pb-workspace-header__progress">
+                @include('components.application-progress', ['status' => $application->status, 'presentation' => $statusPresentation])
+            </div>
+        @endif
         <div class="pb-workspace-header__next">
             <span>Langkah berikutnya</span>
             <strong>{{ $statusPresentation['next_action'] }}</strong>
@@ -342,14 +352,91 @@
                 @endif
                 <a href="{{ route('qna') }}">Buka Bantuan</a>
             </section>
+            @if($canCancel || $isCancelled || $hasConfirmedPayment)
+                <section class="pb-application-settings" aria-labelledby="application-settings-title">
+                    <p class="pb-kicker">Pengaturan pengajuan</p>
+                    <h2 id="application-settings-title">{{ $isCancelled ? 'Pengajuan dibatalkan' : 'Tidak ingin melanjutkan?' }}</h2>
+                    @if($isCancelled)
+                        <p>Pengajuan ini tidak akan diproses lebih lanjut.</p>
+                        @if($cancellationHistory)
+                            <dl>
+                                <div><dt>Dibatalkan</dt><dd>{{ $cancellationHistory->created_at->translatedFormat('d F Y, H:i') }}</dd></div>
+                                <div><dt>Alasan</dt><dd>{{ $cancellationHistory->reason ?: '-' }}</dd></div>
+                            </dl>
+                        @endif
+                        <a class="pb-button pb-button--secondary" href="{{ route('client.services.index') }}">Mulai pengajuan baru</a>
+                    @elseif($canCancel)
+                        <p>Anda dapat membatalkan selama pembayaran belum dikonfirmasi. Catatan tetap tersimpan.</p>
+                        <button class="pb-button pb-button--danger-secondary" type="button" data-cancel-dialog-open>Batalkan pengajuan</button>
+                    @else
+                        <p>Pembatalan mandiri tidak tersedia setelah pembayaran dikonfirmasi. Jika Anda mengalami kendala, hubungi Tim Bantu Daftarin.</p>
+                        @if($application->chatThread)
+                            <a class="pb-button pb-button--secondary" href="{{ route('client.chat.show', $application->chatThread->public_id) }}">Buka bantuan</a>
+                        @endif
+                    @endif
+                </section>
+            @endif
         </aside>
     </div>
 </div>
+
+@if($canCancel)
+    <dialog class="pb-cancellation-dialog" data-cancel-dialog aria-labelledby="cancel-dialog-title" aria-describedby="cancel-dialog-description">
+        <form method="post" action="{{ route('client.applications.cancel', $application->public_id) }}">
+            @csrf
+            @method('PATCH')
+            <div class="pb-cancellation-dialog__header">
+                <p class="pb-kicker">Pengaturan pengajuan</p>
+                <h2 id="cancel-dialog-title">Batalkan pengajuan?</h2>
+                <p id="cancel-dialog-description">{{ $application->service->name }} · ID Pengajuan …{{ $shortId }}</p>
+            </div>
+            <p>Pengajuan akan dihentikan dan tidak akan diproses lebih lanjut. Catatan pengajuan tetap tersimpan.</p>
+            <label for="cancellation-reason">Alasan pembatalan</label>
+            <select id="cancellation-reason" name="reason" required data-cancellation-reason>
+                <option value="">Pilih alasan</option>
+                @foreach($cancellationReasons as $value => $label)
+                    <option value="{{ $value }}" @selected(old('reason') === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+            @error('reason')<span class="pb-field-error">{{ $message }}</span>@enderror
+            <div data-cancellation-other @if(old('reason') !== 'OTHER') hidden @endif>
+                <label for="cancellation-reason-other">Jelaskan alasan lainnya</label>
+                <textarea id="cancellation-reason-other" name="reason_other" rows="3" maxlength="500">{{ old('reason_other') }}</textarea>
+                @error('reason_other')<span class="pb-field-error">{{ $message }}</span>@enderror
+            </div>
+            <div class="pb-cancellation-dialog__actions">
+                <button class="pb-button pb-button--secondary" type="button" data-cancel-dialog-close>Kembali</button>
+                <button class="pb-button pb-button--danger" type="submit">Ya, batalkan pengajuan</button>
+            </div>
+        </form>
+    </dialog>
+@endif
 @endsection
 
 @push('scripts')
 <script>
 (() => {
+    const cancellationDialog = document.querySelector('[data-cancel-dialog]');
+    const cancellationTrigger = document.querySelector('[data-cancel-dialog-open]');
+    const cancellationClose = document.querySelector('[data-cancel-dialog-close]');
+    const cancellationReason = document.querySelector('[data-cancellation-reason]');
+    const cancellationOther = document.querySelector('[data-cancellation-other]');
+    const updateCancellationOther = () => {
+        if (!cancellationOther || !cancellationReason) return;
+        cancellationOther.hidden = cancellationReason.value !== 'OTHER';
+        cancellationOther.querySelector('textarea')?.toggleAttribute('required', cancellationReason.value === 'OTHER');
+    };
+    cancellationTrigger?.addEventListener('click', () => cancellationDialog?.showModal());
+    cancellationClose?.addEventListener('click', () => cancellationDialog?.close());
+    cancellationReason?.addEventListener('change', updateCancellationOther);
+    cancellationDialog?.addEventListener('click', (event) => {
+        if (event.target === cancellationDialog) cancellationDialog.close();
+    });
+    updateCancellationOther();
+    @if($errors->has('reason') || $errors->has('reason_other'))
+        cancellationDialog?.showModal();
+    @endif
+
     document.querySelectorAll('[data-file-input]').forEach((input) => {
         input.addEventListener('change', () => {
             const target = document.getElementById(input.dataset.fileNameTarget);

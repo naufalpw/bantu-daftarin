@@ -13,22 +13,54 @@ use App\Models\Application;
 use App\Models\Document;
 use App\Models\ResultDocument;
 use App\Services\AdminWorkflowService;
+use App\Support\AdminApplicationPresenter;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ApplicationController extends Controller
 {
     public function __construct(private readonly AdminWorkflowService $workflow) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
-        return view('admin.applications.index', ['applications' => Application::with(['user', 'service'])->latest()->paginate(20)]);
+        $filter = $request->string('filter', 'all')->toString();
+        $filters = AdminApplicationPresenter::filters();
+        $filter = array_key_exists($filter, $filters) ? $filter : 'all';
+        $search = trim($request->string('q')->toString());
+
+        $applications = Application::query()
+            ->with(['user', 'service'])
+            ->when($filter !== 'all', fn (Builder $query) => $query->whereIn('status', AdminApplicationPresenter::statusesFor($filter)))
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->where(function (Builder $matching) use ($search): void {
+                    $matching->where('public_id', 'like', "%{$search}%")
+                        ->orWhereHas('user', fn (Builder $users) => $users->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
+                        ->orWhereHas('service', fn (Builder $services) => $services->where('name', 'like', "%{$search}%"));
+                });
+            })
+            ->orderByRaw("case
+                when status in ('DOCUMENTS_SUBMITTED', 'REVISION_SUBMITTED', 'UNDER_REVIEW', 'RESULT_REVIEW') then 1
+                when status in ('DOCUMENTS_ACCEPTED', 'ESTIMATE_PENDING', 'IN_PROGRESS', 'WAITING_EXTERNAL_PROCESS', 'RESULT_UPLOADED') then 2
+                when status in ('COMPLETED', 'ARCHIVED') then 4
+                when status = 'CANCELLED' then 5
+                else 3 end")
+            ->orderByDesc('updated_at')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('admin.applications.index', compact('applications', 'filter', 'filters', 'search'));
     }
 
     public function show(string $publicId): View
     {
-        $application = $this->find($publicId)->load(['user', 'service', 'requirements.documents', 'personalDetails', 'businessDetails', 'representatives', 'payments', 'statusHistories', 'estimateHistories', 'resultDocuments', 'chatThread']);
+        $application = $this->find($publicId);
         $this->authorize('view', $application);
+        $application->load([
+            'user', 'service', 'requirements.documents.reviews', 'personalDetails', 'businessDetails', 'representatives',
+            'payments', 'statusHistories', 'estimateHistories.admin', 'resultDocuments', 'chatThread',
+        ]);
 
         return view('admin.applications.show', ['application' => $application]);
     }
@@ -39,7 +71,7 @@ class ApplicationController extends Controller
         $this->authorize('adminAction', $application);
         $this->workflow->beginReview($application, request()->user()->admin);
 
-        return back()->with('status', 'Aplikasi masuk ke tahap pemeriksaan.');
+        return back()->with('status', 'Pengajuan masuk ke tahap pemeriksaan.');
     }
 
     public function reviewDocument(ReviewDocumentRequest $request, string $documentId): RedirectResponse
@@ -58,7 +90,7 @@ class ApplicationController extends Controller
         $this->authorize('adminAction', $application);
         $this->workflow->finalizeReview($application, request()->user()->admin, request()->input('reason'));
 
-        return back()->with('status', 'Hasil pemeriksaan aplikasi tersimpan.');
+        return back()->with('status', 'Hasil pemeriksaan pengajuan tersimpan.');
     }
 
     public function estimate(EstimateRequest $request, string $publicId): RedirectResponse

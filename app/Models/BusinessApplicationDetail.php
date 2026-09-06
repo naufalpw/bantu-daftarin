@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BusinessType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class BusinessApplicationDetail extends BaseModel
@@ -10,7 +11,7 @@ class BusinessApplicationDetail extends BaseModel
 
     public function businessTypeLabel(): string
     {
-        return \App\Enums\BusinessType::tryFrom((string) $this->business_type)?->label() ?? (string) $this->business_type;
+        return BusinessType::tryFrom((string) $this->business_type)?->label() ?? (string) $this->business_type;
     }
 
     public function application()

@@ -28,12 +28,13 @@ class PaymentController extends Controller
         $application->load(['service', 'payments']);
 
         $payment = $application->payments->sortByDesc('id')->first();
+        $state = $this->state($application, $payment);
 
         return view('client.payment.show', [
             'application' => $application,
             'payment' => $payment,
-            'state' => $this->state($application, $payment),
-            'qrCodeImage' => $this->qrCodeRenderer->render($payment),
+            'state' => $state,
+            'qrCodeImage' => $state === 'cancelled' ? null : $this->qrCodeRenderer->render($payment),
             'paymentMethods' => [
                 PaymentMethod::BCA,
                 PaymentMethod::PAYPAL,
@@ -47,6 +48,10 @@ class PaymentController extends Controller
     {
         $application = $this->find($publicId);
         $this->authorize('submit', $application);
+        if ($application->status === ApplicationStatus::CANCELLED) {
+            return redirect()->route('client.applications.show', $application->public_id)
+                ->withErrors(['payment' => 'Pembayaran tidak dapat dilanjutkan untuk pengajuan yang telah dibatalkan.']);
+        }
         $method = PaymentMethod::from($request->string('payment_method')->toString());
         $payment = $this->workflow->createPayment($application, $request->user(), $method);
 
@@ -58,6 +63,10 @@ class PaymentController extends Controller
 
     private function state(Application $application, ?Payment $payment): string
     {
+        if ($application->status === ApplicationStatus::CANCELLED) {
+            return 'cancelled';
+        }
+
         if (in_array($payment?->status, [
             PaymentStatus::REFUND_REQUESTED,
             PaymentStatus::REFUNDING,

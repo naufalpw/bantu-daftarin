@@ -1,144 +1,125 @@
-@extends('layouts.app')
+@extends('layouts.admin')
+
+@section('title', 'Detail Pengajuan')
+@section('admin_context', 'Pengajuan')
 
 @section('content')
-@if($application->status->value === 'COMPLETED')
-    <form method="post" action="{{ route('admin.applications.archive', $application->public_id) }}" class="mb-4">
-        @csrf
-        <button class="rounded-lg border border-slate-300 px-4 py-2 text-sm" onclick="return confirm('Arsipkan aplikasi ini?')">Arsipkan aplikasi</button>
-    </form>
-@endif
+    @php
+        $nextAction = \App\Support\AdminApplicationPresenter::nextAction($application->status);
+        $documentCount = $application->requirements->where('is_required', true)->count();
+        $acceptedCount = $application->requirements->where('is_required', true)->where('status', 'ACCEPTED')->count();
+        $latestPayment = $application->payments->sortByDesc('created_at')->first();
+        $cancellationHistory = $application->statusHistories->first(fn ($history) => $history->to_status === \App\Enums\ApplicationStatus::CANCELLED);
+        $latePayment = $application->status === \App\Enums\ApplicationStatus::CANCELLED && $latestPayment?->status === \App\Enums\PaymentStatus::PAID;
+    @endphp
 
-@if(in_array($application->status->value, ['RESULT_UPLOADED', 'RESULT_REVIEW'], true))
-    <form method="post" enctype="multipart/form-data" action="{{ route('admin.applications.results.upload', $application->public_id) }}" class="mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-        @csrf
-        <input type="file" name="file" required accept=".jpg,.jpeg,.png,.pdf" class="text-sm">
-        <select name="type" class="rounded border-slate-300 text-sm">
-            <option value="PRIMARY_RESULT">Hasil utama</option>
-            <option value="SUPPORTING_DOCUMENT">Dokumen pendukung</option>
-            <option value="RECEIPT">Kwitansi</option>
-            <option value="REPORT">Laporan</option>
-            <option value="OTHER">Lainnya</option>
-        </select>
-        <button class="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white">Tambah hasil</button>
-    </form>
-@endif
+    <a class="bd-admin-back-link" href="{{ route('admin.applications.index') }}">Kembali ke daftar pengajuan</a>
+    <header class="bd-admin-detail-header">
+        <div><p class="bd-admin-kicker">PENGAJUAN</p><h1>{{ $application->service->name }}</h1><p>…{{ strtoupper(substr($application->public_id, -6)) }} · {{ $application->user->name }} · {{ $application->user->email }}</p></div>
+        <div class="bd-admin-detail-header__status"><x-admin.status-badge :status="$application->status" /><p>{{ $nextAction['label'] }}</p><small>{{ $nextAction['description'] }}</small></div>
+    </header>
 
-<div class="flex flex-wrap items-start justify-between gap-4">
-    <div>
-        <a href="{{ route('admin.applications.index') }}" class="text-sm text-indigo-700">Kembali ke semua aplikasi</a>
-        <h1 class="mt-3 text-3xl font-bold">{{ $application->service->name }}</h1>
-        <p class="mt-1 text-sm text-slate-500">{{ $application->user->email }} · {{ $application->public_id }}</p>
-    </div>
-    <span class="rounded-full bg-indigo-50 px-4 py-2 text-sm text-indigo-700">{{ $application->status->label() }}</span>
-</div>
+    <div class="bd-admin-detail-grid mt-8">
+        <div class="bd-admin-detail-content">
+            <section class="bd-admin-surface bd-admin-detail-section--summary" aria-labelledby="summary-title">
+                <div class="bd-admin-surface__header"><div><h2 id="summary-title">Ringkasan operasional</h2><p>Konteks singkat untuk menentukan tindakan berikutnya.</p></div></div>
+                <dl class="bd-admin-definition-grid"><div><dt>Klien</dt><dd>{{ $application->user->name }}</dd></div><div><dt>Diperbarui</dt><dd>{{ $application->updated_at->translatedFormat('d M Y, H:i') }}</dd></div><div><dt>Dokumen wajib</dt><dd>{{ $acceptedCount }} dari {{ $documentCount }} diterima</dd></div><div><dt>Langkah berikutnya</dt><dd>{{ $nextAction['label'] }}</dd></div></dl>
+            </section>
 
-<div class="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
-    <div class="space-y-6">
-        <section class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h2 class="font-semibold">Data aplikasi</h2>
-            <dl class="mt-4 grid gap-3 text-sm md:grid-cols-2">
-                @if($application->personalDetails)
-                    <div><dt class="text-slate-500">Nama</dt><dd>{{ $application->personalDetails->name }}</dd></div>
-                    <div><dt class="text-slate-500">Email</dt><dd>{{ $application->personalDetails->email }}</dd></div>
-                    <div><dt class="text-slate-500">Jenis kelamin</dt><dd>{{ $application->personalDetails->gender ?: '-' }}</dd></div>
+            @if($application->status === \App\Enums\ApplicationStatus::CANCELLED)
+                <section class="bd-admin-surface bd-admin-cancellation-summary" aria-labelledby="cancellation-summary-title">
+                    <div class="bd-admin-surface__header"><div><h2 id="cancellation-summary-title">Pengajuan dibatalkan</h2><p>Pengajuan tetap tersimpan sebagai riwayat dan tidak memiliki tindakan workflow lanjutan.</p></div><x-admin.status-badge :status="$application->status" /></div>
+                    <dl class="bd-admin-definition-grid">
+                        <div><dt>Dibatalkan oleh</dt><dd>{{ $cancellationHistory?->actor_type === 'user' ? 'Klien' : 'Sistem' }}</dd></div>
+                        <div><dt>Tanggal</dt><dd>{{ $cancellationHistory?->created_at?->translatedFormat('d F Y, H:i') ?? '-' }}</dd></div>
+                        <div class="bd-admin-definition-grid__wide"><dt>Alasan</dt><dd>{{ $cancellationHistory?->reason ?: '-' }}</dd></div>
+                    </dl>
+                </section>
+            @endif
+
+            <section class="bd-admin-surface bd-admin-detail-section--payment" aria-labelledby="payment-title">
+                <div class="bd-admin-surface__header"><div><h2 id="payment-title">Pembayaran</h2><p>Informasi pembayaran bersifat baca-saja dan berasal dari alur provider.</p></div></div>
+                @if($latestPayment)
+                    @php($paymentPresentation = \App\Support\PaymentStatusPresenter::for($latestPayment->status, $latestPayment->expires_at?->isPast() ?? false))
+                    <dl class="bd-admin-definition-grid"><div><dt>Status</dt><dd><x-admin.status-badge :label="$paymentPresentation['label']" :tone="$paymentPresentation['tone']" /></dd></div><div><dt>Jumlah</dt><dd>{{ $latestPayment->currency }} {{ number_format((float) $latestPayment->amount, 0, ',', '.') }}</dd></div><div><dt>Metode</dt><dd>{{ $latestPayment->payment_method?->label() ?? '-' }}</dd></div><div><dt>Provider</dt><dd>{{ strtoupper($latestPayment->provider) }}</dd></div><div><dt>Dibuat</dt><dd>{{ $latestPayment->created_at->translatedFormat('d M Y, H:i') }}</dd></div><div><dt>Dibayar / berakhir</dt><dd>{{ $latestPayment->paid_at?->translatedFormat('d M Y, H:i') ?? $latestPayment->expires_at?->translatedFormat('d M Y, H:i') ?? '-' }}</dd></div></dl>
+                    @if($latePayment)<p class="bd-admin-inline-note bd-admin-inline-note--danger"><strong>Pembayaran diterima setelah pengajuan dibatalkan.</strong><br>Pengajuan tetap dibatalkan dan memerlukan tindak lanjut manual. Tidak ada refund otomatis.</p>@endif
                 @else
-                    <div><dt class="text-slate-500">Badan usaha</dt><dd>{{ $application->businessDetails?->business_name }}</dd></div>
-                    <div><dt class="text-slate-500">Jenis</dt><dd>{{ $application->businessDetails?->business_type ?: '-' }}</dd></div>
-                    @foreach($application->representatives as $rep)
-                        <div><dt class="text-slate-500">Penanggung jawab</dt><dd>{{ $rep->name }} ({{ $rep->relationship->value }})</dd></div>
-                    @endforeach
+                    <div class="bd-admin-empty-state bd-admin-empty-state--compact"><h3>Belum ada pembayaran</h3><p>Pembayaran akan tercatat setelah klien memilih metode yang tersedia.</p></div>
                 @endif
-            </dl>
-        </section>
+            </section>
 
-        <section class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h2 class="font-semibold">Review dokumen</h2>
-            <div class="mt-5 space-y-4">
-                @foreach($application->requirements as $requirement)
-                    <div class="rounded-lg border p-4">
-                        <div class="flex justify-between gap-3"><div><p class="font-medium">{{ $requirement->name }}</p><p class="text-xs text-slate-500">{{ $requirement->statusLabel() }}</p></div></div>
-                        @foreach($requirement->documents->where('active', true) as $document)
-                            <div class="mt-3 rounded bg-slate-50 p-3 text-sm">
-                                <div class="flex flex-wrap justify-between gap-2">
-                                    <span>v{{ $document->version_number }} · {{ $document->review_status->label() }}</span>
-                                    <div class="flex flex-wrap gap-3">
-                                        <a target="_blank" rel="noopener" href="{{ route('admin.documents.view', $document->public_id) }}" class="text-indigo-700">Lihat</a>
-                                        <a href="{{ route('admin.documents.download', $document->public_id) }}" class="text-indigo-700">Unduh</a>
-                                        @if($application->status->value === 'UNDER_REVIEW' && $document->review_status->value === 'PENDING')
-                                            <form method="post" action="{{ route('admin.documents.review', $document->public_id) }}" class="flex flex-wrap items-center gap-2">
-                                                @csrf
-                                                <select name="action" class="rounded border-slate-300 text-xs"><option value="ACCEPT">Terima</option><option value="REQUEST_REVISION">Minta perbaikan</option><option value="REJECT">Tolak</option></select>
-                                                <input name="reason" placeholder="Alasan bila perlu" class="rounded border-slate-300 text-xs">
-                                                <input name="instruction" placeholder="Instruksi revisi" class="rounded border-slate-300 text-xs">
-                                                <button class="rounded bg-slate-900 px-2 py-1 text-xs text-white">Simpan</button>
-                                            </form>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
+            <section class="bd-admin-surface bd-admin-detail-section--data" aria-labelledby="data-title">
+                <div class="bd-admin-surface__header"><div><h2 id="data-title">Data pengajuan</h2><p>Informasi pemohon yang digunakan dalam pengajuan. Nomor identitas ditampilkan dalam bentuk tersamarkan.</p></div></div>
+                @if($application->personalDetails)
+                    <dl class="bd-admin-definition-grid">
+                        @php($nik = $application->personalDetails->nik)
+                        @php($familyCardNumber = $application->personalDetails->family_card_number)
+                        @php($maskedNik = filled($nik) ? str_repeat('*', max(0, mb_strlen($nik) - 4)).mb_substr($nik, -4) : '-')
+                        @php($maskedFamilyCard = filled($familyCardNumber) ? str_repeat('*', max(0, mb_strlen($familyCardNumber) - 4)).mb_substr($familyCardNumber, -4) : '-')
+                        <div><dt>Nama lengkap</dt><dd>{{ $application->personalDetails->name }}</dd></div><div><dt>Email</dt><dd>{{ $application->personalDetails->email ?: '-' }}</dd></div><div><dt>Jenis kelamin</dt><dd>{{ $application->personalDetails->gender ?: '-' }}</dd></div><div><dt>Status pernikahan</dt><dd>{{ $application->personalDetails->marital_status ?: '-' }}</dd></div><div><dt>Status dalam keluarga</dt><dd>{{ $application->personalDetails->family_status ?: '-' }}</dd></div><div><dt>Keperluan NPWP</dt><dd>{{ $application->personalDetails->purpose ?: '-' }}</dd></div><div><dt>NIK</dt><dd>{{ $maskedNik }}</dd></div><div><dt>Nomor KK</dt><dd>{{ $maskedFamilyCard }}</dd></div>
+                    </dl>
+                @else
+                    <div class="bd-admin-data-groups">
+                        <section aria-labelledby="business-information-title"><h3 id="business-information-title">Informasi badan</h3><dl class="bd-admin-definition-grid"><div><dt>Nama badan</dt><dd>{{ $application->businessDetails?->business_name ?: '-' }}</dd></div><div><dt>Jenis badan</dt><dd>{{ $application->businessDetails?->businessTypeLabel() ?: '-' }}</dd></div>@if(filled($application->businessDetails?->business_type_other))<div><dt>Jenis badan lainnya</dt><dd>{{ $application->businessDetails->business_type_other }}</dd></div>@endif<div><dt>Keperluan NPWP</dt><dd>{{ $application->businessDetails?->purpose ?: '-' }}</dd></div></dl></section>
+                        <section aria-labelledby="representatives-title"><h3 id="representatives-title">Penanggung jawab</h3><dl class="bd-admin-definition-grid">@forelse($application->representatives as $representative)<div><dt>{{ $representative->is_primary ? 'Penanggung jawab utama' : 'Penanggung jawab tambahan' }}</dt><dd>{{ $representative->name }}<br><span class="bd-admin-field-secondary">{{ \Illuminate\Support\Str::headline(strtolower($representative->relationship->value)) }}@if($representative->email) &middot; {{ $representative->email }}@endif</span></dd></div>@empty<div><dt>Penanggung jawab</dt><dd>-</dd></div>@endforelse</dl></section>
                     </div>
-                @endforeach
-            </div>
-        </section>
+                @endif
+            </section>
 
-        @if($application->resultDocuments->isNotEmpty())
-            <section class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                <h2 class="font-semibold">Dokumen hasil</h2>
-                <div class="mt-4 space-y-3">
-                    @foreach($application->resultDocuments as $result)
-                        <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 p-3 text-sm">
-                            <span>{{ str_replace('_', ' ', $result->type->value) }} · {{ $result->verification_status->value }}</span>
-                            <div class="flex flex-wrap gap-3"><a target="_blank" rel="noopener" href="{{ route('admin.results.view', $result->public_id) }}" class="text-indigo-700">Lihat</a><a href="{{ route('admin.results.download', $result->public_id) }}" class="text-indigo-700">Unduh</a></div>
-                            @if(in_array($result->verification_status->value, ['PENDING', 'REJECTED'], true) && $application->status->value === 'RESULT_REVIEW')
-                                <form method="post" action="{{ route('admin.results.verify', $result->public_id) }}" class="flex flex-wrap items-center gap-2">
-                                    @csrf
-                                    <select name="verified" class="rounded border-slate-300 text-xs"><option value="1">Verifikasi</option><option value="0">Tolak hasil</option></select>
-                                    <input name="reason" placeholder="Alasan bila ditolak" class="rounded border-slate-300 text-xs">
-                                    <button class="rounded bg-emerald-600 px-2 py-1 text-xs text-white">Simpan</button>
-                                </form>
+            <section class="bd-admin-surface bd-admin-detail-section--documents" aria-labelledby="documents-title">
+                <div class="bd-admin-surface__header"><div><h2 id="documents-title">Dokumen dan review</h2><p>Dokumen aktif yang dikirim pengguna. Keputusan tetap berlaku pada versi aktif dan lifecycle yang tersedia.</p></div><a href="{{ route('admin.documents.index', ['filter' => 'review']) }}">Buka antrian dokumen</a></div>
+                <div class="bd-admin-document-list">
+                    @foreach($application->requirements as $requirement)
+                        @php($activeDocument = $requirement->documents->where('active', true)->first())
+                        <article class="bd-admin-document" @if($activeDocument) id="document-{{ $activeDocument->public_id }}" @endif>
+                            <header><div><h3>{{ $requirement->name }}</h3><p>{{ $requirement->is_required ? 'Wajib' : 'Opsional' }} · {{ $requirement->statusLabel() }}</p></div><x-admin.status-badge :label="$activeDocument?->review_status->label() ?? 'Belum diunggah'" :tone="$activeDocument ? match($activeDocument->review_status->value) {'PENDING' => 'attention', 'REVISION_REQUIRED', 'REJECTED' => 'danger', 'LOCKED', 'ACCEPTED' => 'success', default => 'neutral'} : 'neutral'" /></header>
+                            @if($activeDocument)
+                                <div class="bd-admin-document__preview">
+                                    @if(str_starts_with($activeDocument->mime_type, 'image/'))
+                                        <img src="{{ route('admin.documents.view', $activeDocument->public_id) }}" alt="Pratinjau {{ $requirement->name }} versi {{ $activeDocument->version_number }}">
+                                    @else
+                                        <span class="bd-admin-document__pdf">PDF</span>
+                                        <strong>{{ $activeDocument->original_filename ?: $requirement->name.'.'.strtolower($activeDocument->extension) }}</strong>
+                                        <small>{{ number_format($activeDocument->size_bytes / 1024 / 1024, 1) }} MB</small>
+                                    @endif
+                                </div>
+                                <div class="bd-admin-document__meta"><span>Versi {{ $activeDocument->version_number }}</span><span>{{ strtoupper($activeDocument->extension) }} · {{ number_format($activeDocument->size_bytes / 1024, 0) }} KB</span><span>Diunggah {{ $activeDocument->uploaded_at->translatedFormat('d M Y, H:i') }}</span><span>{{ $activeDocument->scan_status->value === 'PASSED' ? 'Lolos pemeriksaan keamanan' : 'Status keamanan: '.$activeDocument->scan_status->value }}</span></div>
+                                @if($activeDocument->rejection_reason)<p class="bd-admin-inline-note bd-admin-inline-note--danger"><strong>Alasan:</strong> {{ $activeDocument->rejection_reason }}@if($activeDocument->revision_instruction)<br><strong>Instruksi:</strong> {{ $activeDocument->revision_instruction }}@endif</p>@endif
+                                <div class="bd-admin-document__actions"><a href="{{ route('admin.documents.view', $activeDocument->public_id) }}" target="_blank" rel="noopener">Lihat dokumen</a><a href="{{ route('admin.documents.download', $activeDocument->public_id) }}">Unduh</a></div>
+                                @if($application->status->value === 'UNDER_REVIEW' && $activeDocument->review_status->value === 'PENDING')
+                                    <details class="bd-admin-review-form"><summary>Catat keputusan review</summary><form method="post" action="{{ route('admin.documents.review', $activeDocument->public_id) }}">@csrf<label for="action-{{ $activeDocument->id }}">Keputusan</label><select id="action-{{ $activeDocument->id }}" name="action"><option value="ACCEPT">Terima dokumen</option><option value="REQUEST_REVISION">Minta perbaikan</option><option value="REJECT">Tolak dokumen</option></select><label for="reason-{{ $activeDocument->id }}">Alasan bila ditolak atau perlu diperbaiki</label><textarea id="reason-{{ $activeDocument->id }}" name="reason" rows="2"></textarea><label for="instruction-{{ $activeDocument->id }}">Instruksi revisi</label><textarea id="instruction-{{ $activeDocument->id }}" name="instruction" rows="2"></textarea><button class="bd-admin-button bd-admin-button--primary" type="submit">Simpan keputusan</button></form></details>
+                                @endif
+                                @if($requirement->documents->count() > 1)<details class="bd-admin-version-history"><summary>{{ $requirement->documents->count() - 1 }} versi sebelumnya</summary><ul>@foreach($requirement->documents->where('active', false)->sortByDesc('version_number') as $previous)<li>Versi {{ $previous->version_number }} · {{ $previous->review_status->label() }} · {{ $previous->uploaded_at->translatedFormat('d M Y') }}</li>@endforeach</ul></details>@endif
+                            @else
+                                <div class="bd-admin-document__preview bd-admin-document__preview--empty"><strong>Belum diunggah</strong><span>Belum ada versi aktif yang dapat ditinjau.</span></div>
                             @endif
-                        </div>
+                        </article>
                     @endforeach
                 </div>
             </section>
-        @endif
+
+            <section class="bd-admin-surface bd-admin-detail-section--result" aria-labelledby="result-title">
+                <div class="bd-admin-surface__header"><div><h2 id="result-title">Hasil</h2><p>Hanya hasil terverifikasi yang dapat tersedia untuk klien.</p></div></div>
+                @if($application->resultDocuments->isNotEmpty())<div class="bd-admin-document-list">@foreach($application->resultDocuments as $result)@php($resultTone = match($result->verification_status->value) {'VERIFIED' => 'success', 'REJECTED' => 'danger', default => 'attention'})<article class="bd-admin-document"><header><div><h3>{{ str_replace('_', ' ', strtolower($result->type->value)) }}</h3><p>Diunggah {{ $result->uploaded_at->translatedFormat('d M Y, H:i') }}</p></div><x-admin.status-badge :label="$result->verification_status->value === 'VERIFIED' ? 'Terverifikasi' : ($result->verification_status->value === 'REJECTED' ? 'Ditolak' : 'Menunggu verifikasi')" :tone="$resultTone" /></header><div class="bd-admin-document__actions"><a href="{{ route('admin.results.view', $result->public_id) }}" target="_blank" rel="noopener">Lihat hasil</a><a href="{{ route('admin.results.download', $result->public_id) }}">Unduh</a></div>@if($result->rejection_reason)<p class="bd-admin-inline-note bd-admin-inline-note--danger"><strong>Alasan:</strong> {{ $result->rejection_reason }}</p>@endif@if(in_array($result->verification_status->value, ['PENDING', 'REJECTED'], true) && $application->status->value === 'RESULT_REVIEW')<details class="bd-admin-review-form"><summary>Verifikasi hasil</summary><form method="post" action="{{ route('admin.results.verify', $result->public_id) }}">@csrf<label for="verified-{{ $result->id }}">Keputusan</label><select id="verified-{{ $result->id }}" name="verified"><option value="1">Verifikasi hasil</option><option value="0">Tolak hasil</option></select><label for="result-reason-{{ $result->id }}">Alasan bila ditolak</label><textarea id="result-reason-{{ $result->id }}" name="reason" rows="2"></textarea><button class="bd-admin-button bd-admin-button--primary" type="submit">Simpan verifikasi</button></form></details>@endif</article>@endforeach</div>@else<div class="bd-admin-empty-state bd-admin-empty-state--compact"><h3>Belum ada hasil</h3><p>Hasil akan dicatat di sini setelah diunggah melalui tahap proses yang valid.</p></div>@endif
+            </section>
+
+            <section class="bd-admin-surface" aria-labelledby="history-title"><div class="bd-admin-surface__header"><div><h2 id="history-title">Riwayat pengajuan</h2><p>Riwayat status dan estimasi yang relevan untuk operasional.</p></div></div><ol class="bd-admin-timeline">@forelse($application->statusHistories->sortByDesc('created_at') as $history)<li><strong>{{ $history->to_status->label() }}</strong><span>{{ $history->created_at->translatedFormat('d M Y, H:i') }}</span>@if($history->reason)<p>{{ $history->reason }}</p>@endif</li>@empty<li><strong>Belum ada riwayat status</strong></li>@endforelse @foreach($application->estimateHistories->sortByDesc('created_at') as $estimate)<li><strong>Estimasi diperbarui</strong><span>{{ $estimate->created_at->translatedFormat('d M Y, H:i') }}</span><p>{{ $estimate->reason }}</p></li>@endforeach</ol></section>
+        </div>
+
+        <aside class="bd-admin-detail-aside">
+            <section class="bd-admin-surface"><div class="bd-admin-surface__header"><div><h2>Tindakan berikutnya</h2><p>{{ $nextAction['description'] }}</p></div></div>
+                <div class="bd-admin-action-stack">
+                    @if(in_array($application->status->value, ['DOCUMENTS_SUBMITTED', 'REVISION_SUBMITTED'], true))<form method="post" action="{{ route('admin.applications.review.start', $application->public_id) }}">@csrf<button class="bd-admin-button bd-admin-button--primary bd-admin-button--wide">Mulai pemeriksaan</button></form>
+                    @elseif($application->status->value === 'UNDER_REVIEW')<form method="post" action="{{ route('admin.applications.review.finalize', $application->public_id) }}">@csrf<label for="final-review-reason">Catatan review (opsional)</label><textarea id="final-review-reason" name="reason" rows="2"></textarea><button class="bd-admin-button bd-admin-button--primary bd-admin-button--wide">Selesaikan review</button></form>
+                    @elseif(in_array($application->status->value, ['DOCUMENTS_ACCEPTED', 'ESTIMATE_PENDING'], true))<form method="post" action="{{ route('admin.applications.estimate', $application->public_id) }}">@csrf<label for="estimate-at">Estimasi selesai</label><input id="estimate-at" type="datetime-local" name="estimated_completion_at" required><label for="estimate-reason">Alasan estimasi</label><textarea id="estimate-reason" name="reason" rows="2" required></textarea><button class="bd-admin-button bd-admin-button--primary bd-admin-button--wide">Simpan estimasi</button></form>
+                    @elseif($application->status->value === 'IN_PROGRESS')<form method="post" action="{{ route('admin.applications.external.waiting', $application->public_id) }}">@csrf<button class="bd-admin-button bd-admin-button--primary bd-admin-button--wide">Tandai menunggu proses instansi</button></form>
+                    @elseif($application->status->value === 'WAITING_EXTERNAL_PROCESS')<form method="post" enctype="multipart/form-data" action="{{ route('admin.applications.results.upload', $application->public_id) }}">@csrf<label for="result-file">File hasil</label><input id="result-file" type="file" name="file" required accept=".jpg,.jpeg,.png,.pdf"><label for="result-type">Jenis hasil</label><select id="result-type" name="type"><option value="PRIMARY_RESULT">Hasil utama</option><option value="SUPPORTING_DOCUMENT">Dokumen pendukung</option><option value="RECEIPT">Kwitansi</option><option value="REPORT">Laporan</option><option value="OTHER">Lainnya</option></select><button class="bd-admin-button bd-admin-button--primary bd-admin-button--wide">Unggah hasil</button></form>
+                    @elseif($application->status->value === 'RESULT_UPLOADED')<form method="post" action="{{ route('admin.applications.results.review', $application->public_id) }}">@csrf<button class="bd-admin-button bd-admin-button--primary bd-admin-button--wide">Mulai review hasil</button></form>
+                    @elseif($application->status->value === 'RESULT_REVIEW')<form method="post" action="{{ route('admin.applications.complete', $application->public_id) }}">@csrf<button class="bd-admin-button bd-admin-button--primary bd-admin-button--wide">Tandai selesai</button></form>
+                    @elseif($application->status->value === 'COMPLETED')<form method="post" action="{{ route('admin.applications.archive', $application->public_id) }}">@csrf<button class="bd-admin-button bd-admin-button--secondary bd-admin-button--wide" onclick="return confirm('Arsipkan pengajuan ini?')">Arsipkan pengajuan</button></form>@else<p class="bd-admin-muted-copy">Tidak ada tindakan admin yang tersedia pada tahap ini.</p>@endif
+                </div>
+            </section>
+            @if($application->chatThread)<a class="bd-admin-support-link" href="{{ route('admin.chat.show', $application->chatThread->public_id) }}"><strong>Dukungan pengajuan</strong><span>Buka percakapan klien dalam konteks pengajuan ini.</span></a>@endif
+        </aside>
     </div>
-
-    <aside class="space-y-6">
-        <section class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h2 class="font-semibold">Tindakan</h2>
-            <div class="mt-4 space-y-3 text-sm">
-                @if(in_array($application->status->value, ['DOCUMENTS_SUBMITTED', 'REVISION_SUBMITTED'], true))
-                    <form method="post" action="{{ route('admin.applications.review.start', $application->public_id) }}">@csrf<button class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white">Mulai pemeriksaan</button></form>
-                @elseif($application->status->value === 'UNDER_REVIEW')
-                    <form method="post" action="{{ route('admin.applications.review.finalize', $application->public_id) }}">@csrf<button class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white">Selesaikan review</button></form>
-                @elseif(in_array($application->status->value, ['DOCUMENTS_ACCEPTED', 'ESTIMATE_PENDING'], true))
-                    <form method="post" action="{{ route('admin.applications.estimate', $application->public_id) }}" class="space-y-2">@csrf<input type="datetime-local" name="estimated_completion_at" required class="w-full rounded border-slate-300"><input name="reason" placeholder="Alasan estimasi" required class="w-full rounded border-slate-300"><button class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white">Simpan estimasi</button></form>
-                @elseif($application->status->value === 'IN_PROGRESS')
-                    <form method="post" action="{{ route('admin.applications.external.waiting', $application->public_id) }}">@csrf<button class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white">Tandai menunggu proses eksternal</button></form>
-                @elseif($application->status->value === 'WAITING_EXTERNAL_PROCESS')
-                    <form method="post" enctype="multipart/form-data" action="{{ route('admin.applications.results.upload', $application->public_id) }}" class="space-y-2">@csrf<input type="file" name="file" required accept=".jpg,.jpeg,.png,.pdf" class="w-full text-sm"><select name="type" class="w-full rounded border-slate-300"><option value="PRIMARY_RESULT">Hasil utama</option><option value="SUPPORTING_DOCUMENT">Dokumen pendukung</option><option value="RECEIPT">Kwitansi</option><option value="REPORT">Laporan</option><option value="OTHER">Lainnya</option></select><button class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white">Upload hasil</button></form>
-                @elseif($application->status->value === 'RESULT_UPLOADED')
-                    <form method="post" action="{{ route('admin.applications.results.review', $application->public_id) }}">@csrf<button class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white">Mulai review hasil</button></form>
-                @elseif($application->status->value === 'RESULT_REVIEW')
-                    <form method="post" action="{{ route('admin.applications.complete', $application->public_id) }}">@csrf<button class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white">Tandai selesai</button></form>
-                @endif
-            </div>
-        </section>
-
-        <section class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h2 class="font-semibold">Riwayat status</h2>
-            <ol class="mt-4 space-y-3 text-sm">
-                @foreach($application->statusHistories as $history)
-                    <li class="border-l-2 border-indigo-200 pl-3"><p>{{ $history->to_status->label() }}</p><p class="text-xs text-slate-500">{{ $history->created_at->translatedFormat('d M Y H:i') }}</p></li>
-                @endforeach
-            </ol>
-        </section>
-
-        @if($application->chatThread)
-            <a href="{{ route('admin.chat.show', $application->chatThread->public_id) }}" class="block rounded-xl bg-indigo-700 p-5 text-white"><p class="font-semibold">Chat client</p></a>
-        @endif
-    </aside>
-</div>
 @endsection

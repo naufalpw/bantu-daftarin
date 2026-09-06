@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Webhooks;
 use App\Enums\ApplicationStatus;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Application;
 use App\Models\Payment;
 use App\Models\WebhookEvent;
 use App\Services\ApplicationTransitionService;
@@ -62,10 +63,21 @@ class XenditWebhookController extends Controller
                 $reference = $normalized['reference'];
                 $status = $normalized['status'];
 
-                $payment = Payment::with('application.user')->where('reference_id', $reference)->lockForUpdate()->first();
-                if (! $payment) {
+                $paymentReference = Payment::query()
+                    ->select(['id', 'application_id'])
+                    ->where('reference_id', $reference)
+                    ->first();
+                if (! $paymentReference) {
                     throw new \DomainException('Reference pembayaran tidak ditemukan.');
                 }
+
+                // Lock in the same order as client cancellation: application, then payment.
+                $application = Application::query()
+                    ->with('user')
+                    ->lockForUpdate()
+                    ->findOrFail($paymentReference->application_id);
+                $payment = Payment::query()->lockForUpdate()->findOrFail($paymentReference->id);
+                $payment->setRelation('application', $application);
                 if ($normalized['amount'] === null || number_format((float) $normalized['amount'], 2, '.', '') !== number_format((float) $payment->amount, 2, '.', '') || $normalized['currency'] !== strtoupper($payment->currency)) {
                     throw new \DomainException('Nominal atau mata uang pembayaran tidak sesuai.');
                 }
@@ -92,9 +104,16 @@ class XenditWebhookController extends Controller
                     $payment->forceFill(['provider_payload' => $payload])->save();
                 }
 
-                if ($targetStatus === PaymentStatus::PAID && $payment->status === PaymentStatus::PAID && $payment->application->status === ApplicationStatus::AWAITING_PAYMENT) {
-                    $application = $this->transitions->transition($payment->application, ApplicationStatus::PAYMENT_CONFIRMED, null, 'xendit_webhook');
-                    $this->notifications->paymentConfirmed($application);
+                if ($targetStatus === PaymentStatus::PAID && $payment->status === PaymentStatus::PAID) {
+                    if ($application->status === ApplicationStatus::AWAITING_PAYMENT) {
+                        $application = $this->transitions->transition($application, ApplicationStatus::PAYMENT_CONFIRMED, null, 'xendit_webhook');
+                        $this->notifications->paymentConfirmed($application);
+                    } elseif ($application->status === ApplicationStatus::CANCELLED) {
+                        $this->audit->record('payment.received_after_application_cancelled', $payment, [
+                            'application_id' => $application->public_id,
+                            'event_id' => $event->event_id,
+                        ]);
+                    }
                 }
 
                 $event->forceFill(['status' => 'PROCESSED', 'processed_at' => now()])->save();

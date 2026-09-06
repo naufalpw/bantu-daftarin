@@ -13,6 +13,8 @@ final class ApplicationStatusPresenter
 
     public const CATEGORY_COMPLETED = 'completed';
 
+    public const CATEGORY_CANCELLED = 'cancelled';
+
     public static function category(ApplicationStatus $status): string
     {
         return match ($status) {
@@ -24,6 +26,7 @@ final class ApplicationStatusPresenter
             ApplicationStatus::REVISION_REQUIRED => self::CATEGORY_ACTION,
             ApplicationStatus::COMPLETED,
             ApplicationStatus::ARCHIVED => self::CATEGORY_COMPLETED,
+            ApplicationStatus::CANCELLED => self::CATEGORY_CANCELLED,
             default => self::CATEGORY_PROCESSING,
         };
     }
@@ -72,6 +75,7 @@ final class ApplicationStatusPresenter
             ApplicationStatus::RESULT_REVIEW => self::make('Hasil sedang diverifikasi', 'Tim sedang memastikan hasil sebelum tersedia.', 'waiting', 'Tunggu verifikasi hasil.', null, 'get', 5, 'Hasil', 'hasil'),
             ApplicationStatus::COMPLETED => self::make('Pengajuan selesai', 'Hasil terverifikasi tersedia di ruang pengajuan.', 'success', 'Lihat atau unduh hasil terverifikasi.', 'Lihat hasil', 'get', 6, 'Selesai', 'hasil'),
             ApplicationStatus::ARCHIVED => self::make('Pengajuan diarsipkan', 'Pengajuan disimpan sebagai riwayat baca-saja.', 'neutral', 'Buka kembali informasi pengajuan bila diperlukan.', 'Buka arsip', 'get', 6, 'Selesai', 'ringkasan'),
+            ApplicationStatus::CANCELLED => self::make('Dibatalkan', 'Pengajuan ini telah dibatalkan dan tidak akan diproses lebih lanjut.', 'danger', 'Tidak ada tindakan lanjutan untuk pengajuan ini.', null, 'get', 1, 'Dibatalkan', 'ringkasan'),
         };
     }
 

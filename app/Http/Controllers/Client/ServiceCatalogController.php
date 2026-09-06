@@ -17,7 +17,7 @@ class ServiceCatalogController extends Controller
                     'requirements' => fn ($query) => $query->where('active', true),
                     'applications' => fn ($query) => $query
                         ->where('user_id', request()->user()->getKey())
-                        ->whereNotIn('status', [ApplicationStatus::COMPLETED->value, ApplicationStatus::ARCHIVED->value])
+                        ->whereNotIn('status', [ApplicationStatus::COMPLETED->value, ApplicationStatus::ARCHIVED->value, ApplicationStatus::CANCELLED->value])
                         ->latest('updated_at'),
                 ])
                 ->whereIn('status', ['ACTIVE', 'COMING_SOON'])
