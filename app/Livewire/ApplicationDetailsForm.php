@@ -2,13 +2,34 @@
 
 namespace App\Livewire;
 
+use App\Enums\BusinessType;
 use App\Models\Application;
 use App\Services\ApplicationWorkflowService;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class ApplicationDetailsForm extends Component
 {
+    private const PERSONAL_SELECT_VALUES = [
+        'gender' => ['Pria', 'Wanita'],
+        'marital_status' => ['Lajang', 'Kawin', 'Cerai Hidup', 'Cerai Mati'],
+        'family_status' => ['Suami', 'Istri', 'Anak'],
+    ];
+
+    private const LEGACY_PERSONAL_SELECT_VALUES = [
+        'gender' => [
+            'Laki-Laki' => 'Pria',
+            'Laki-laki' => 'Pria',
+            'Perempuan' => 'Wanita',
+        ],
+        'marital_status' => [
+            'Belum Menikah' => 'Lajang',
+            'Menikah' => 'Kawin',
+        ],
+        'family_status' => [],
+    ];
+
     public string $applicationId;
 
     public string $kind = '';
@@ -21,26 +42,32 @@ class ApplicationDetailsForm extends Component
 
     public string $saveState = '';
 
-    public function mount(Application $application): void
+    public string $variant = 'default';
+
+    public function mount(Application $application, string $variant = 'default'): void
     {
         Gate::authorize('update', $application);
+        $this->variant = $variant;
         $application->load(['service', 'personalDetails', 'businessDetails', 'representatives']);
         $this->applicationId = $application->public_id;
         $this->kind = $application->service->code;
 
         if ($application->personalDetails) {
-            $this->details = [
+            $this->details = $this->normalizeLegacyPersonalSelectValues([
                 'name' => $application->personalDetails->name,
+                'nik' => $application->personalDetails->nik,
+                'family_card_number' => $application->personalDetails->family_card_number,
                 'email' => $application->personalDetails->email,
                 'marital_status' => $application->personalDetails->marital_status,
                 'family_status' => $application->personalDetails->family_status,
                 'purpose' => $application->personalDetails->purpose,
                 'gender' => $application->personalDetails->gender,
-            ];
+            ]);
         } else {
             $this->details = [
                 'business_name' => $application->businessDetails?->business_name,
                 'business_type' => $application->businessDetails?->business_type,
+                'business_type_other' => $application->businessDetails?->business_type_other,
                 'purpose' => $application->businessDetails?->purpose,
             ];
             $primary = $application->representatives->firstWhere('is_primary', true);
@@ -63,6 +90,9 @@ class ApplicationDetailsForm extends Component
             ->firstOrFail();
         Gate::authorize('update', $application);
         $kind = $application->service->code;
+        if ($kind === 'NPWP_PERSONAL') {
+            $this->details = $this->normalizeLegacyPersonalSelectValues($this->details);
+        }
         $validated = $this->validate($this->rules($kind));
 
         app(ApplicationWorkflowService::class)->saveDetails(
@@ -80,17 +110,20 @@ class ApplicationDetailsForm extends Component
     {
         $rules = [
             'details.email' => ['nullable', 'email:rfc', 'max:190'],
-            'details.marital_status' => ['nullable', 'string', 'max:64'],
-            'details.family_status' => ['nullable', 'string', 'max:64'],
-            'details.gender' => ['nullable', 'string', 'max:32'],
+            'details.marital_status' => ['nullable', 'string', Rule::in(self::PERSONAL_SELECT_VALUES['marital_status'])],
+            'details.family_status' => ['nullable', 'string', Rule::in(self::PERSONAL_SELECT_VALUES['family_status'])],
+            'details.gender' => ['nullable', 'string', Rule::in(self::PERSONAL_SELECT_VALUES['gender'])],
             'details.purpose' => ['nullable', 'string', 'max:255'],
         ];
 
         if ($kind === 'NPWP_PERSONAL') {
             $rules['details.name'] = ['required', 'string', 'max:120'];
+            $rules['details.nik'] = ['nullable', 'digits:16'];
+            $rules['details.family_card_number'] = ['nullable', 'digits:16'];
         } else {
             $rules['details.business_name'] = ['required', 'string', 'max:190'];
-            $rules['details.business_type'] = ['nullable', 'string', 'max:128'];
+            $rules['details.business_type'] = ['nullable', 'string', Rule::in(BusinessType::values())];
+            $rules['details.business_type_other'] = ['nullable', 'required_if:details.business_type,OTHER', 'prohibited_unless:details.business_type,OTHER', 'string', 'max:128'];
             $rules['representative.name'] = ['required', 'string', 'max:120'];
             $rules['representative.relationship'] = ['required', 'in:OWNER,DIRECTOR,MANAGEMENT,EMPLOYEE,AUTHORIZED_REPRESENTATIVE,OTHER'];
             $rules['representative.email'] = ['nullable', 'email:rfc', 'max:190'];
@@ -105,5 +138,18 @@ class ApplicationDetailsForm extends Component
     public function render()
     {
         return view('livewire.application-details-form');
+    }
+
+    private function normalizeLegacyPersonalSelectValues(array $details): array
+    {
+        foreach (self::LEGACY_PERSONAL_SELECT_VALUES as $field => $aliases) {
+            $value = $details[$field] ?? null;
+
+            if (is_string($value) && array_key_exists($value, $aliases)) {
+                $details[$field] = $aliases[$value];
+            }
+        }
+
+        return $details;
     }
 }

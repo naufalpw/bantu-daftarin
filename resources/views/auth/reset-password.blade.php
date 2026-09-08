@@ -1,5 +1,16 @@
 @extends('layouts.guest')
 @section('content')
-<h1 class="text-2xl font-semibold">Password baru</h1>
-<form method="post" action="{{ route('password.update') }}" class="mt-6 space-y-4">@csrf<input type="hidden" name="token" value="{{ $token }}"><label class="block text-sm font-medium">Email<input name="email" type="email" value="{{ $email }}" required class="mt-1 w-full rounded-lg border-slate-300"></label><label class="block text-sm font-medium">Password baru<input name="password" type="password" minlength="12" required class="mt-1 w-full rounded-lg border-slate-300"></label><label class="block text-sm font-medium">Ulangi password<input name="password_confirmation" type="password" required class="mt-1 w-full rounded-lg border-slate-300"></label><button class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white">Simpan password</button></form>
+<div class="pb-flow-content">
+    <p class="pb-kicker">Pemulihan akun</p>
+    <h1>Buat kata sandi baru</h1>
+    <p>Gunakan kata sandi minimal 12 karakter yang tidak digunakan pada layanan lain.</p>
+    <form method="post" action="{{ route('password.update') }}" class="pb-auth-form">
+        @csrf
+        <input type="hidden" name="token" value="{{ $token }}">
+        <label class="pb-field"><span>Email</span><input name="email" type="email" value="{{ $email }}" required autocomplete="email"></label>
+        <label class="pb-field"><span>Kata sandi baru</span><input name="password" type="password" minlength="12" required autocomplete="new-password"></label>
+        <label class="pb-field"><span>Ulangi kata sandi</span><input name="password_confirmation" type="password" required autocomplete="new-password"></label>
+        <button class="pb-button pb-button--primary pb-button--wide" type="submit">Simpan kata sandi</button>
+    </form>
+</div>
 @endsection

@@ -14,12 +14,16 @@ use App\Models\Document;
 use App\Models\Service;
 use App\Models\ServiceRequirement;
 use App\Models\User;
+use App\Notifications\ResultAvailableNotification;
 use App\Services\AdminWorkflowService;
 use App\Services\ApplicationTransitionService;
 use App\Services\DocumentWorkflowService;
+use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -53,6 +57,11 @@ class AdminWorkflowTest extends TestCase
 
         $application = $workflow->beginResultReview($application->fresh(), $admin);
         $workflow->verifyResult($result->fresh(), $admin, true);
+        Notification::assertSentTo($setup['client'], ResultAvailableNotification::class);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $setup['client']->id,
+            'type' => 'result.available',
+        ]);
         $application = $workflow->complete($application->fresh(), $admin);
 
         $this->assertSame(ApplicationStatus::COMPLETED, $application->status);
@@ -60,6 +69,87 @@ class AdminWorkflowTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['event' => 'result.uploaded', 'auditable_id' => $result->id]);
         $this->assertDatabaseHas('audit_logs', ['event' => 'result.verification_changed', 'auditable_id' => $result->id]);
         $this->assertDatabaseHas('audit_logs', ['event' => 'application.status_changed', 'auditable_id' => $application->id]);
+    }
+
+    public function test_result_notification_is_sent_only_after_primary_result_verification_and_is_idempotent(): void
+    {
+        Notification::fake();
+        Storage::fake('private');
+        Storage::fake('quarantine');
+        $setup = $this->setupApplication(ApplicationStatus::WAITING_EXTERNAL_PROCESS);
+        $admin = $this->admin();
+        $workflow = app(AdminWorkflowService::class);
+        $result = $workflow->uploadResult($setup['application'], $admin, $this->validPdf('pending-result.pdf'), ResultDocumentType::PRIMARY_RESULT);
+        $workflow->beginResultReview($setup['application']->fresh(), $admin);
+
+        Notification::assertNotSentTo($setup['client'], ResultAvailableNotification::class);
+
+        $workflow->verifyResult($result->fresh(), $admin, true);
+        $workflow->verifyResult($result->fresh(), $admin, true);
+
+        Notification::assertSentTo($setup['client'], ResultAvailableNotification::class);
+        $this->assertSame(1, \App\Models\Notification::query()->where('user_id', $setup['client']->id)->where('type', 'result.available')->count());
+    }
+
+    public function test_result_notification_mail_uses_authorized_application_link_and_safe_content(): void
+    {
+        $setup = $this->setupApplication(ApplicationStatus::RESULT_REVIEW);
+        $notification = new ResultAvailableNotification(
+            (string) $setup['application']->public_id,
+            'synthetic-result-public-id',
+        );
+
+        $message = $notification->toMail($setup['client']);
+        $content = implode(' ', array_map('strval', array_merge($message->introLines, $message->outroLines)));
+
+        $this->assertSame('Hasil pengajuan Anda sudah tersedia', $message->subject);
+        $this->assertSame('Lihat hasil pengajuan', $message->actionText);
+        $this->assertSame(route('client.applications.show', $setup['application']->public_id), $message->actionUrl);
+        $this->assertStringContainsString('Hasil pengajuan Anda sudah tersedia untuk ditinjau.', $content);
+        $this->assertStringNotContainsString('3173055501010001', $content);
+        $this->assertStringNotContainsString('3173055501010002', $content);
+        $this->actingAs($setup['client'])
+            ->get($message->actionUrl)
+            ->assertOk();
+    }
+
+    public function test_result_notification_is_queued_for_the_application_owner(): void
+    {
+        Queue::fake();
+        Storage::fake('private');
+        Storage::fake('quarantine');
+        $setup = $this->setupApplication(ApplicationStatus::WAITING_EXTERNAL_PROCESS);
+        $admin = $this->admin();
+        $workflow = app(AdminWorkflowService::class);
+        $result = $workflow->uploadResult($setup['application'], $admin, $this->validPdf('queued-result.pdf'), ResultDocumentType::PRIMARY_RESULT);
+        $workflow->beginResultReview($setup['application']->fresh(), $admin);
+
+        $workflow->verifyResult($result->fresh(), $admin, true);
+
+        Queue::assertPushed(SendQueuedNotifications::class, function (SendQueuedNotifications $job) use ($setup): bool {
+            return $job->notification instanceof ResultAvailableNotification
+                && $job->notification->applicationId === (string) $setup['application']->public_id
+                && $job->notifiables->contains('id', $setup['client']->id);
+        });
+    }
+
+    public function test_result_notification_failure_does_not_change_verified_result(): void
+    {
+        Storage::fake('private');
+        Storage::fake('quarantine');
+        $setup = $this->setupApplication(ApplicationStatus::WAITING_EXTERNAL_PROCESS);
+        $admin = $this->admin();
+        $workflow = app(AdminWorkflowService::class);
+        $result = $workflow->uploadResult($setup['application'], $admin, $this->validPdf('failure-result.pdf'), ResultDocumentType::PRIMARY_RESULT);
+        $workflow->beginResultReview($setup['application']->fresh(), $admin);
+
+        $notifications = \Mockery::mock(NotificationService::class);
+        $notifications->shouldReceive('resultAvailable')->once()->andThrow(new \RuntimeException('synthetic mail failure'));
+        $this->app->instance(NotificationService::class, $notifications);
+
+        app(AdminWorkflowService::class)->verifyResult($result->fresh(), $admin, true);
+
+        $this->assertSame('VERIFIED', $result->fresh()->verification_status->value);
     }
 
     public function test_estimate_requires_accepted_documents(): void

@@ -9,8 +9,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('admins', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('user_id')->unique()->constrained('users')->restrictOnDelete();
@@ -22,8 +20,6 @@ return new class extends Migration
         });
 
         Schema::create('auth_challenges', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
@@ -41,8 +37,6 @@ return new class extends Migration
         });
 
         Schema::create('services', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->string('code', 64)->unique();
@@ -57,8 +51,6 @@ return new class extends Migration
         });
 
         Schema::create('service_requirements', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('service_id')->constrained('services')->restrictOnDelete();
@@ -77,8 +69,6 @@ return new class extends Migration
         });
 
         Schema::create('applications', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('user_id')->constrained('users')->restrictOnDelete();
@@ -99,8 +89,6 @@ return new class extends Migration
         });
 
         Schema::create('personal_application_details', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->foreignId('application_id')->unique()->constrained('applications')->cascadeOnDelete();
             $table->string('name');
@@ -113,8 +101,6 @@ return new class extends Migration
         });
 
         Schema::create('business_application_details', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->foreignId('application_id')->unique()->constrained('applications')->cascadeOnDelete();
             $table->string('business_name');
@@ -124,8 +110,6 @@ return new class extends Migration
         });
 
         Schema::create('business_representatives', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('application_id')->constrained('applications')->cascadeOnDelete();
@@ -138,8 +122,6 @@ return new class extends Migration
         });
 
         Schema::create('application_requirements', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('application_id')->constrained('applications')->cascadeOnDelete();
@@ -159,8 +141,6 @@ return new class extends Migration
         });
 
         Schema::create('documents', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('application_id')->constrained('applications')->restrictOnDelete();
@@ -193,8 +173,6 @@ return new class extends Migration
         });
 
         Schema::create('document_reviews', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->foreignId('document_id')->constrained('documents')->restrictOnDelete();
             $table->foreignId('reviewer_admin_id')->constrained('admins')->restrictOnDelete();
@@ -206,8 +184,6 @@ return new class extends Migration
         });
 
         Schema::create('document_access_logs', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->foreignId('document_id')->constrained('documents')->restrictOnDelete();
             $table->string('actor_type', 32);
@@ -221,8 +197,6 @@ return new class extends Migration
         });
 
         Schema::create('payments', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('application_id')->constrained('applications')->restrictOnDelete();
@@ -242,8 +216,6 @@ return new class extends Migration
         });
 
         Schema::create('webhook_events', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->string('provider', 32);
             $table->string('event_id');
@@ -258,8 +230,6 @@ return new class extends Migration
         });
 
         Schema::create('application_status_histories', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->foreignId('application_id')->constrained('applications')->restrictOnDelete();
             $table->string('from_status', 40)->nullable();
@@ -272,8 +242,6 @@ return new class extends Migration
         });
 
         Schema::create('application_estimate_histories', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->foreignId('application_id')->constrained('applications')->restrictOnDelete();
             $table->foreignId('admin_id')->constrained('admins')->restrictOnDelete();
@@ -285,8 +253,6 @@ return new class extends Migration
         });
 
         Schema::create('application_consents', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->foreignId('application_id')->constrained('applications')->restrictOnDelete();
             $table->string('consent_type', 64);
@@ -299,8 +265,6 @@ return new class extends Migration
         });
 
         Schema::create('chat_threads', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('application_id')->unique()->constrained('applications')->restrictOnDelete();
@@ -311,8 +275,6 @@ return new class extends Migration
         });
 
         Schema::create('chat_messages', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('chat_thread_id')->constrained('chat_threads')->restrictOnDelete();
@@ -325,8 +287,6 @@ return new class extends Migration
         });
 
         Schema::create('notifications', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->foreignId('user_id')->constrained('users')->restrictOnDelete();
             $table->string('type', 128);
@@ -337,8 +297,6 @@ return new class extends Migration
         });
 
         Schema::create('result_documents', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('application_id')->constrained('applications')->restrictOnDelete();
@@ -367,8 +325,6 @@ return new class extends Migration
         });
 
         Schema::create('audit_logs', function (Blueprint $table) {
-            $table->charset('utf8mb4');
-            $table->collation('utf8mb4_unicode_ci');
             $table->id();
             $table->string('event', 128)->index();
             $table->string('actor_type', 32)->nullable();

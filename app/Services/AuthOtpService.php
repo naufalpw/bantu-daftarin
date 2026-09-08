@@ -15,25 +15,41 @@ class AuthOtpService
 {
     public function __construct(private readonly AuditService $audit) {}
 
-    public function issue(User $user, AuthChallengeType $type): AuthChallenge
+    public function resendCooldownRemaining(User $user, AuthChallengeType $type): int
     {
         $latest = $user->authChallenges()
             ->where('type', $type->value)
             ->whereNull('used_at')
-            ->latest('created_at')
+            ->whereNotNull('last_sent_at')
+            ->latest('last_sent_at')
             ->first();
-        if ($latest?->last_sent_at && now()->diffInSeconds($latest->last_sent_at) < (int) config('auth_otp.resend_cooldown_seconds')) {
-            throw new OtpChallengeException('Kode OTP baru belum dapat dikirim. Silakan tunggu sebentar.');
+
+        if (! $latest?->last_sent_at) {
+            return 0;
         }
 
+        $cooldown = max(0, (int) config('auth_otp.resend_cooldown_seconds'));
+        $availableAt = $latest->last_sent_at->copy()->addSeconds($cooldown);
+
+        return max(0, $availableAt->getTimestamp() - now()->getTimestamp());
+    }
+
+    public function issue(User $user, AuthChallengeType $type): AuthChallenge
+    {
+        $cooldownRemaining = $this->resendCooldownRemaining($user, $type);
+        if ($cooldownRemaining > 0) {
+            throw OtpChallengeException::cooldown($cooldownRemaining);
+        }
+
+        $issuedAt = now();
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $user->authChallenges()->where('type', $type->value)->whereNull('used_at')->update(['used_at' => now()]);
         $challenge = $user->authChallenges()->create([
             'type' => $type->value,
             'code_hash' => Hash::make($code),
-            'expires_at' => now()->addMinutes((int) config('auth_otp.expire_minutes')),
+            'expires_at' => $issuedAt->copy()->addMinutes((int) config('auth_otp.expire_minutes')),
             'max_attempts' => (int) config('auth_otp.max_attempts'),
-            'last_sent_at' => now(),
+            'last_sent_at' => $issuedAt,
             'request_ip' => request()?->ip(),
         ]);
 

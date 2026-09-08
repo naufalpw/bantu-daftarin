@@ -9,6 +9,6 @@ Data aplikasi mencakup identitas, dokumen, pembayaran, komunikasi, dan hasil lay
 - Webhook pembayaran memverifikasi callback token, reference, nominal, currency, idempotency ledger, dan transaksi database.
 - Password, OTP, secret, isi file, dan confidential webhook data tidak dicatat ke log/email.
 - `APP_DEBUG=false`, cookie secure di production, HTTPS, least-privilege database account, backup encrypted, queue/scheduler, dan monitoring wajib untuk production.
-- Database lokal memakai MariaDB XAMPP dengan InnoDB; private storage tetap wajib dipertahankan dan nama koneksi Laravel `mysql` merujuk pada PDO MariaDB.
+- Database lokal memakai PostgreSQL dengan koneksi Laravel `pgsql`, schema `public`, dan least-privilege user aplikasi. Private storage tetap wajib dipertahankan; MariaDB/MySQL tidak digunakan sebagai runtime database aplikasi.
 
 Retensi final dokumen: `[BUSINESS AND LEGAL CONFIRMATION REQUIRED]`. Infrastruktur `retention_until`, `deletion_scheduled_at`, `deleted_at`, dan purge fisik disiapkan tanpa menetapkan durasi legal secara sepihak.

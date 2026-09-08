@@ -21,6 +21,7 @@ enum ApplicationStatus: string
     case ARCHIVED = 'ARCHIVED';
     case REVISION_REQUIRED = 'REVISION_REQUIRED';
     case REVISION_SUBMITTED = 'REVISION_SUBMITTED';
+    case CANCELLED = 'CANCELLED';
 
     public function label(): string
     {
@@ -42,16 +43,17 @@ enum ApplicationStatus: string
             self::ARCHIVED => 'Diarsipkan',
             self::REVISION_REQUIRED => 'Perlu perbaikan dokumen',
             self::REVISION_SUBMITTED => 'Perbaikan dikirim',
+            self::CANCELLED => 'Dibatalkan',
         };
     }
 
     public function canTransitionTo(self $target): bool
     {
         return in_array($target, match ($this) {
-            self::DRAFT => [self::AWAITING_DOCUMENTS],
-            self::AWAITING_DOCUMENTS => [self::DOCUMENTS_READY_FOR_PAYMENT],
-            self::DOCUMENTS_READY_FOR_PAYMENT => [self::AWAITING_PAYMENT],
-            self::AWAITING_PAYMENT => [self::PAYMENT_CONFIRMED],
+            self::DRAFT => [self::AWAITING_DOCUMENTS, self::CANCELLED],
+            self::AWAITING_DOCUMENTS => [self::DOCUMENTS_READY_FOR_PAYMENT, self::CANCELLED],
+            self::DOCUMENTS_READY_FOR_PAYMENT => [self::AWAITING_PAYMENT, self::CANCELLED],
+            self::AWAITING_PAYMENT => [self::PAYMENT_CONFIRMED, self::CANCELLED],
             self::PAYMENT_CONFIRMED => [self::DOCUMENTS_SUBMITTED],
             self::DOCUMENTS_SUBMITTED => [self::UNDER_REVIEW],
             self::UNDER_REVIEW => [self::DOCUMENTS_ACCEPTED, self::REVISION_REQUIRED],
@@ -65,6 +67,7 @@ enum ApplicationStatus: string
             self::REVISION_REQUIRED => [self::REVISION_SUBMITTED],
             self::REVISION_SUBMITTED => [self::UNDER_REVIEW],
             self::ARCHIVED => [],
+            self::CANCELLED => [],
         }, true);
     }
 }

@@ -4,7 +4,7 @@ Checklist ini digunakan untuk acceptance manual MVP Bantu Daftarin. Checklist ti
 
 ## Aturan dan evidence
 
-- Jalankan pada database development MariaDB XAMPP yang terisolasi. Jangan gunakan data client nyata.
+- Jalankan pada database development PostgreSQL yang terisolasi. Jangan gunakan data client nyata.
 - Gunakan hanya nama, email, nomor identitas, gambar, dan PDF sintetis. Jangan upload KTP, KK, foto wajah, atau hasil layanan nyata.
 - Simpan `public_id`, timestamp, screenshot seperlunya, dan status terakhir untuk setiap case.
 - Status database pada checklist ditulis dengan nama internal; UI seharusnya menampilkan label bahasa sederhana, misalnya `REVISION_REQUIRED` sebagai `Perlu perbaikan dokumen`.
@@ -13,7 +13,7 @@ Checklist ini digunakan untuk acceptance manual MVP Bantu Daftarin. Checklist ti
 
 ## Prasyarat lokal
 
-1. XAMPP MariaDB aktif pada `127.0.0.1:3306`, database `.env` sudah tersedia, dan migration/seeder berhasil.
+1. PostgreSQL aktif pada `127.0.0.1:5432`, database `.env` sudah tersedia, dan migration/seeder berhasil. XAMPP bila digunakan hanya menyediakan Apache/PHP.
 2. Asset sudah dibangun dengan `npm run build`.
 3. Cara menjalankan aplikasi yang direkomendasikan untuk acceptance dari repository ini:
 

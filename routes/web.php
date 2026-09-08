@@ -3,13 +3,27 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Client\RegistrationController;
+use App\Http\Controllers\HelpCenterController;
+use App\Http\Controllers\PresenceHeartbeatController;
 use App\Http\Controllers\Testing\FakePaymentController;
+use App\Http\Middleware\ReadOnlySession;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route(auth()->check() ? (auth()->user()->isAdmin() ? 'admin.dashboard' : 'client.dashboard') : 'login'));
+Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route(auth()->user()->isAdmin() ? 'admin.dashboard' : 'client.dashboard');
+    }
+
+    return view('home');
+})->name('home');
+
+Route::get('/qna', [HelpCenterController::class, 'index'])->name('qna');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+    Route::redirect('/daftar', '/register')->name('daftar');
     Route::post('/register', [AuthController::class, 'register'])->name('register.store');
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-login')->name('login.store');
@@ -30,6 +44,19 @@ Route::post('/admin/login', [AuthController::class, 'login'])->middleware('throt
 Route::get('/admin/otp', [AuthController::class, 'showOtp'])->name('admin.otp');
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+
+Route::post('/presence/heartbeat', PresenceHeartbeatController::class)
+    ->withoutMiddleware(StartSession::class)
+    ->middleware([ReadOnlySession::class, 'auth'])
+    ->name('presence.heartbeat');
+
+Route::middleware(['auth', 'verified', 'client'])->group(function (): void {
+    Route::get('/jenis-badan', [RegistrationController::class, 'businessTypes'])->name('npwp.business.types');
+    Route::get('/npwp-pribadi', [RegistrationController::class, 'personalEntry'])->name('npwp.personal');
+    Route::get('/npwp-pribadi/{publicId}', [RegistrationController::class, 'personal'])->name('npwp.personal.application');
+    Route::get('/npwp-badan', [RegistrationController::class, 'businessEntry'])->name('npwp.business');
+    Route::get('/npwp-badan/{publicId}', [RegistrationController::class, 'business'])->name('npwp.business.application');
+});
 
 require __DIR__.'/client.php';
 require __DIR__.'/admin.php';

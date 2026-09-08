@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\TransactionalEmail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -16,6 +17,7 @@ class LoginOtpNotification extends Notification implements ShouldQueue
 
     public function __construct(string $code)
     {
+        $this->afterCommit();
         $this->encryptedCode = Crypt::encryptString($code);
     }
 
@@ -26,12 +28,18 @@ class LoginOtpNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
-            ->subject('Kode OTP Bantu Daftarin')
-            ->greeting('Halo '.$notifiable->name.',')
-            ->line('Gunakan kode OTP berikut untuk melanjutkan login:')
-            ->line(Crypt::decryptString($this->encryptedCode))
-            ->line('Kode berlaku terbatas dan hanya dapat digunakan satu kali.')
-            ->line('Jika Anda tidak merasa melakukan login, abaikan email ini.');
+        return TransactionalEmail::make(
+            subject: 'Kode verifikasi BantuDaftarin',
+            preheader: 'Gunakan kode verifikasi untuk melanjutkan masuk ke akun BantuDaftarin Anda.',
+            greeting: TransactionalEmail::greetingFor($notifiable),
+            title: 'Kode verifikasi',
+            paragraphs: ['Gunakan kode berikut untuk melanjutkan masuk ke akun BantuDaftarin Anda.'],
+            secondaryLines: [
+                'Kode ini berlaku selama 10 menit dan hanya dapat digunakan satu kali.',
+                'Jangan bagikan kode ini kepada siapa pun.',
+                'Jika Anda tidak mencoba masuk, abaikan email ini.',
+            ],
+            otpCode: Crypt::decryptString($this->encryptedCode),
+        );
     }
 }

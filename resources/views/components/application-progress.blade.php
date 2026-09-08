@@ -1,22 +1,23 @@
 @php
-    $steps = [
-        'AWAITING_DOCUMENTS' => 'Data & dokumen',
-        'AWAITING_PAYMENT' => 'Pembayaran',
-        'UNDER_REVIEW' => 'Pemeriksaan',
-        'IN_PROGRESS' => 'Proses eksternal',
-        'RESULT_REVIEW' => 'Hasil',
-        'COMPLETED' => 'Selesai',
-    ];
-    $order = array_keys($steps);
-    $current = $status->value;
-    $currentIndex = match ($current) {
-        'DRAFT', 'AWAITING_DOCUMENTS', 'DOCUMENTS_READY_FOR_PAYMENT' => 0,
-        'AWAITING_PAYMENT', 'PAYMENT_CONFIRMED', 'DOCUMENTS_SUBMITTED' => 1,
-        'UNDER_REVIEW', 'REVISION_REQUIRED', 'REVISION_SUBMITTED', 'DOCUMENTS_ACCEPTED', 'ESTIMATE_PENDING' => 2,
-        'IN_PROGRESS', 'WAITING_EXTERNAL_PROCESS' => 3,
-        'RESULT_UPLOADED', 'RESULT_REVIEW' => 4,
-        'COMPLETED', 'ARCHIVED' => 5,
-        default => 0,
-    };
+    $presentation = $presentation ?? \App\Support\ApplicationStatusPresenter::forStatus($status);
+    $stages = ['Data & dokumen', 'Pembayaran', 'Pemeriksaan', 'Proses eksternal', 'Hasil', 'Selesai'];
 @endphp
-<ol class="mb-6 grid gap-2 sm:grid-cols-6" aria-label="Progress aplikasi">@foreach($steps as $step => $label)<li class="rounded-lg p-3 text-xs {{ $loop->index <= $currentIndex ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200' }}"><span class="font-semibold">{{ $loop->iteration }}.</span> {{ $label }}@if($current === 'REVISION_REQUIRED' && $loop->index === 2)<span class="block mt-1 text-[11px]">Perlu perbaikan dokumen</span>@endif</li>@endforeach</ol>
+
+<div class="pb-progress" aria-label="Tahap pengajuan">
+    <div class="pb-progress__mobile">
+        <span>Tahap {{ $presentation['stage'] }} dari 6</span>
+        <strong>{{ $presentation['stage_label'] }}</strong>
+        <div class="pb-progress__bar" role="progressbar" aria-label="Kemajuan pengajuan" aria-valuemin="1" aria-valuemax="6" aria-valuenow="{{ $presentation['stage'] }}">
+            <span style="width: {{ ($presentation['stage'] / 6) * 100 }}%"></span>
+        </div>
+    </div>
+    <ol class="pb-progress__desktop">
+        @foreach($stages as $stage)
+            @php($state = $loop->iteration < $presentation['stage'] ? 'complete' : ($loop->iteration === $presentation['stage'] ? 'current' : 'future'))
+            <li class="is-{{ $state }}" @if($state === 'current') aria-current="step" @endif>
+                <span class="pb-progress__marker" aria-hidden="true">{{ $state === 'complete' ? '✓' : $loop->iteration }}</span>
+                <span>{{ $stage }}</span>
+            </li>
+        @endforeach
+    </ol>
+</div>

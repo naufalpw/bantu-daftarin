@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Contracts\PaymentGateway;
 use App\Enums\ApplicationStatus;
+use App\Enums\BusinessType;
+use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\ServiceStatus;
 use App\Exceptions\PaymentGatewayException;
@@ -83,15 +85,18 @@ class ApplicationWorkflowService
     public function saveDetails(Application $application, array $details, ?array $representative, User $actor, ?array $additionalRepresentative = null): Application
     {
         if (! in_array($application->status, [ApplicationStatus::DRAFT, ApplicationStatus::AWAITING_DOCUMENTS], true)) {
-            throw new \DomainException('Data aplikasi sudah dikunci pada tahap ini.');
+            throw new \DomainException('Data pengajuan sudah dikunci pada tahap ini.');
         }
 
         if ($application->service->code === 'NPWP_PERSONAL') {
             if (blank($details['name'] ?? null)) {
                 throw new \DomainException('Nama lengkap wajib diisi.');
             }
+            $existingPersonal = $application->personalDetails;
             $application->personalDetails()->updateOrCreate([], [
                 'name' => $details['name'] ?? '',
+                'nik' => array_key_exists('nik', $details) ? $details['nik'] : $existingPersonal?->nik,
+                'family_card_number' => array_key_exists('family_card_number', $details) ? $details['family_card_number'] : $existingPersonal?->family_card_number,
                 'email' => $details['email'] ?? $actor->email,
                 'marital_status' => $details['marital_status'] ?? null,
                 'family_status' => $details['family_status'] ?? null,
@@ -104,9 +109,19 @@ class ApplicationWorkflowService
             if (blank($details['business_name'] ?? null) || blank($primary['name'] ?? null) || blank($primary['relationship'] ?? null)) {
                 throw new \DomainException('Nama badan usaha dan penanggung jawab utama wajib diisi.');
             }
+            $existingBusiness = $application->businessDetails;
+            $businessType = array_key_exists('business_type', $details) ? $details['business_type'] : $existingBusiness?->business_type;
+            $businessTypeOther = array_key_exists('business_type_other', $details) ? $details['business_type_other'] : $existingBusiness?->business_type_other;
+            if ($businessType === BusinessType::OTHER->value && blank($businessTypeOther)) {
+                throw new \DomainException('Jenis badan usaha lainnya wajib diisi.');
+            }
+            if ($businessType !== BusinessType::OTHER->value) {
+                $businessTypeOther = null;
+            }
             $application->businessDetails()->updateOrCreate([], [
                 'business_name' => $details['business_name'] ?? '',
-                'business_type' => $details['business_type'] ?? null,
+                'business_type' => $businessType,
+                'business_type_other' => $businessTypeOther,
                 'purpose' => $details['purpose'] ?? null,
             ]);
 
@@ -148,8 +163,20 @@ class ApplicationWorkflowService
 
     public function submitForDocuments(Application $application, User $actor): Application
     {
-        if (! $application->personalDetails && ! $application->businessDetails) {
-            throw new \DomainException('Lengkapi data aplikasi terlebih dahulu.');
+        $application->loadMissing(['service', 'personalDetails', 'businessDetails', 'representatives']);
+        if ($application->service->code === 'NPWP_PERSONAL') {
+            if (! $application->personalDetails || blank($application->personalDetails->name) || blank($application->personalDetails->nik) || blank($application->personalDetails->family_card_number)) {
+                throw new \DomainException('Nama, NIK, dan Nomor KK wajib diisi sebelum konfirmasi.');
+            }
+        } elseif (! $application->businessDetails || ! $application->representatives->firstWhere('is_primary', true)) {
+            throw new \DomainException('Lengkapi data pengajuan terlebih dahulu.');
+        }
+
+        if ($application->service->code === 'NPWP_BUSINESS') {
+            $businessType = $application->businessDetails->business_type;
+            if (blank($businessType) || ($businessType === BusinessType::OTHER->value && blank($application->businessDetails->business_type_other))) {
+                throw new \DomainException('Jenis badan usaha wajib dilengkapi sebelum konfirmasi.');
+            }
         }
 
         $application->forceFill(['submitted_at' => now()])->save();
@@ -157,67 +184,94 @@ class ApplicationWorkflowService
         return $this->transitions->transition($application, ApplicationStatus::AWAITING_DOCUMENTS, $actor);
     }
 
-    public function createPayment(Application $application, User $actor): Payment
+    public function createPayment(Application $application, User $actor, PaymentMethod|string|null $method = null): Payment
     {
-        if ($application->status === ApplicationStatus::AWAITING_DOCUMENTS) {
-            if (! $application->hasAllRequiredDocuments()) {
-                throw new \DomainException('Lengkapi dan pastikan seluruh dokumen wajib lolos pemeriksaan keamanan terlebih dahulu.');
+        $selectedMethod = $method instanceof PaymentMethod
+            ? $method
+            : PaymentMethod::tryFrom(strtoupper((string) ($method ?: PaymentMethod::BCA->value))) ?? throw new \DomainException('Metode pembayaran tidak didukung.');
+
+        if (! $selectedMethod->isAvailable()) {
+            throw new PaymentGatewayException('PayPal belum tersedia.');
+        }
+
+        return DB::transaction(function () use ($application, $actor, $selectedMethod): Payment {
+            $application = Application::query()
+                ->with(['service', 'user'])
+                ->lockForUpdate()
+                ->findOrFail($application->getKey());
+
+            if ($application->status === ApplicationStatus::AWAITING_DOCUMENTS) {
+                if (! $application->hasAllRequiredDocuments()) {
+                    throw new \DomainException('Lengkapi dan pastikan seluruh dokumen wajib lolos pemeriksaan keamanan terlebih dahulu.');
+                }
+                $application = $this->transitions->transition($application, ApplicationStatus::DOCUMENTS_READY_FOR_PAYMENT, $actor);
             }
-            $application = $this->transitions->transition($application, ApplicationStatus::DOCUMENTS_READY_FOR_PAYMENT, $actor);
-        }
 
-        if ($application->status !== ApplicationStatus::DOCUMENTS_READY_FOR_PAYMENT && $application->status !== ApplicationStatus::AWAITING_PAYMENT) {
-            throw new \DomainException('Aplikasi belum siap untuk pembayaran.');
-        }
+            if ($application->status !== ApplicationStatus::DOCUMENTS_READY_FOR_PAYMENT && $application->status !== ApplicationStatus::AWAITING_PAYMENT) {
+                throw new \DomainException('Aplikasi belum siap untuk pembayaran.');
+            }
 
-        if ($application->status === ApplicationStatus::DOCUMENTS_READY_FOR_PAYMENT) {
-            $application = $this->transitions->transition($application, ApplicationStatus::AWAITING_PAYMENT, $actor);
-        }
+            if ($application->status === ApplicationStatus::DOCUMENTS_READY_FOR_PAYMENT) {
+                $application = $this->transitions->transition($application, ApplicationStatus::AWAITING_PAYMENT, $actor);
+            }
 
-        $existing = $application->payments()->where('status', 'PENDING')->latest()->first();
-        if ($existing?->checkout_url && $existing->expires_at?->isPast()) {
-            $existing->forceFill(['status' => PaymentStatus::EXPIRED, 'failed_at' => now()])->save();
-            $this->audit->record('payment.state_changed', $existing, ['to' => PaymentStatus::EXPIRED->value], $actor);
-            $existing = null;
-        }
-        if ($existing?->checkout_url) {
-            if (config('services.xendit.driver') === 'fake' && str_starts_with($existing->checkout_url, 'https://example.test/checkout/')) {
-                $existing->forceFill([
-                    'checkout_url' => route('testing.fake-payments.checkout', $existing->public_id),
+            $existing = $application->payments()
+                ->where('status', PaymentStatus::PENDING->value)
+                ->latest('id')
+                ->lockForUpdate()
+                ->first();
+            if ($existing?->expires_at?->isPast()) {
+                $existing->forceFill(['status' => PaymentStatus::EXPIRED, 'failed_at' => now()])->save();
+                $this->audit->record('payment.state_changed', $existing, ['to' => PaymentStatus::EXPIRED->value], $actor);
+                $existing = null;
+            }
+
+            $existingMethod = $existing?->payment_method;
+            if ($existing && $existingMethod instanceof PaymentMethod && $existingMethod !== $selectedMethod) {
+                throw new \DomainException('Pembayaran yang sedang berjalan menggunakan metode lain. Selesaikan atau tunggu sampai kedaluwarsa.');
+            }
+
+            if ($existing && ($existing->checkout_url || filled($existing->external_id))) {
+                if (config('services.xendit.driver') === 'fake' && str_starts_with((string) $existing->checkout_url, 'https://example.test/checkout/')) {
+                    $existing->forceFill([
+                        'checkout_url' => route('testing.fake-payments.checkout', $existing->public_id),
+                        'payment_method' => $existingMethod?->value ?? $selectedMethod->value,
+                    ])->save();
+                }
+
+                return $existing->fresh();
+            }
+
+            $payment = $existing ?: $application->payments()->create([
+                'provider' => $selectedMethod->provider(),
+                'payment_method' => $selectedMethod,
+                'reference_id' => 'BD-'.Str::uuid(),
+                'amount' => $application->price_amount_snapshot,
+                'currency' => $application->currency,
+                'status' => PaymentStatus::PENDING,
+                'expires_at' => now()->addSeconds((int) config('services.xendit.invoice_duration')),
+            ]);
+            if (! $existing) {
+                $this->audit->record('payment.created', $payment, ['application_id' => $application->public_id, 'amount' => (string) $payment->amount, 'currency' => $payment->currency, 'method' => $selectedMethod->value], $actor);
+            }
+
+            try {
+                $invoice = $this->paymentGateway->createInvoice($application->load(['user', 'service']), $payment, $selectedMethod);
+                $payment->forceFill([
+                    'external_id' => $invoice['external_id'],
+                    'checkout_url' => $invoice['checkout_url'],
+                    'expires_at' => $invoice['expires_at'] ?? $payment->expires_at,
+                    'provider_payload' => $invoice['payload'],
                 ])->save();
+                $this->audit->record('payment.checkout_created', $payment, ['application_id' => $application->public_id, 'method' => $selectedMethod->value], $actor);
+            } catch (PaymentGatewayException $exception) {
+                $payment->forceFill(['status' => PaymentStatus::FAILED, 'failed_at' => now()])->save();
+                $this->audit->record('payment.state_changed', $payment, ['to' => PaymentStatus::FAILED->value], $actor);
+                throw $exception;
             }
 
-            return $existing;
-        }
-
-        $payment = $existing ?: $application->payments()->create([
-            'provider' => 'xendit',
-            'reference_id' => 'BD-'.Str::uuid(),
-            'amount' => $application->price_amount_snapshot,
-            'currency' => $application->currency,
-            'status' => 'PENDING',
-            'expires_at' => now()->addSeconds((int) config('services.xendit.invoice_duration')),
-        ]);
-        if (! $existing) {
-            $this->audit->record('payment.created', $payment, ['application_id' => $application->public_id, 'amount' => (string) $payment->amount, 'currency' => $payment->currency], $actor);
-        }
-
-        try {
-            $invoice = $this->paymentGateway->createInvoice($application->load(['user', 'service']), $payment);
-            $payment->forceFill([
-                'external_id' => $invoice['external_id'],
-                'checkout_url' => $invoice['checkout_url'],
-                'expires_at' => $invoice['expires_at'],
-                'provider_payload' => $invoice['payload'],
-            ])->save();
-            $this->audit->record('payment.checkout_created', $payment, ['application_id' => $application->public_id], $actor);
-        } catch (PaymentGatewayException $exception) {
-            $payment->forceFill(['status' => 'FAILED', 'failed_at' => now()])->save();
-            $this->audit->record('payment.state_changed', $payment, ['to' => 'FAILED'], $actor);
-            throw $exception;
-        }
-
-        return $payment->fresh();
+            return $payment->fresh();
+        });
     }
 
     public function submitDocuments(Application $application, User $actor): Application

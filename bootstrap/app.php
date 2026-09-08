@@ -5,11 +5,13 @@ use App\Exceptions\InvalidApplicationTransition;
 use App\Exceptions\PaymentGatewayException;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureClient;
+use App\Http\Middleware\ReadOnlySession;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureAdmin::class,
             'client' => EnsureClient::class,
         ]);
+        $middleware->prependToPriorityList(ShareErrorsFromSession::class, ReadOnlySession::class);
         $middleware->validateCsrfTokens(except: ['webhooks/*']);
     })
     ->withExceptions(function (Exceptions $exceptions) {

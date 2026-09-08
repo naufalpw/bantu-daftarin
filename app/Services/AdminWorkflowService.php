@@ -188,6 +188,16 @@ class AdminWorkflowService
         ])->save();
         $this->audit->record('result.verification_changed', $result, ['verified' => $verified, 'reason' => $reason], $admin);
 
+        if ($verified && $result->type === ResultDocumentType::PRIMARY_RESULT) {
+            try {
+                $this->notifications->resultAvailable($result);
+            } catch (\Throwable $exception) {
+                logger()->warning('result_available_notification_failed', [
+                    'exception_class' => $exception::class,
+                ]);
+            }
+        }
+
         return $result->fresh();
     }
 

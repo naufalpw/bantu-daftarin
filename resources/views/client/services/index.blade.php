@@ -1,5 +1,80 @@
-@extends('layouts.app')
+@extends('layouts.client')
+
+@section('context_title', 'Layanan')
+@section('body_class', 'pb-services-body')
+
 @section('content')
-<div><p class="text-sm text-indigo-700">Layanan</p><h1 class="text-3xl font-semibold">Pilih kebutuhan Anda</h1><p class="mt-1 text-slate-600">Bantu Daftarin membantu proses administrasi. Proses eksternal dilakukan manual oleh admin.</p></div>
-<div class="mt-8 grid gap-5 md:grid-cols-2">@foreach($services as $service)<article class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200"><div class="flex items-start justify-between gap-3"><h2 class="text-xl font-semibold">{{ $service->name }}</h2>@if($service->status->value === 'COMING_SOON')<span class="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">Segera hadir</span>@endif</div><p class="mt-3 text-sm text-slate-600">{{ $service->description }}</p>@if($service->price_amount)<p class="mt-5 text-lg font-semibold">{{ $service->currency }} {{ number_format((float) $service->price_amount, 0, ',', '.') }}</p>@endif@if($service->isBookable())<a href="{{ route('client.applications.create', $service->public_id) }}" class="mt-5 inline-block rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white">Mulai aplikasi</a>@else<span class="mt-5 inline-block rounded-lg bg-slate-100 px-4 py-2 text-sm text-slate-500">Belum tersedia</span>@endif</article>@endforeach</div>
+<div class="pb-page">
+    <header class="pb-page-heading pb-services-heading">
+        <p class="pb-kicker">Layanan</p>
+        <h1>Pilih layanan</h1>
+        <p>Bandingkan persyaratan sebelum memulai pengajuan.</p>
+    </header>
+
+    <section class="pb-service-catalog" aria-label="Layanan pengajuan NPWP">
+        <div class="pb-service-catalog__active-grid">
+        @foreach($services as $service)
+            @php($bookable = $service->isBookable())
+            @php($activeApplication = $service->applications->first())
+            @continue(!$bookable)
+            @php($statusPresentation = $activeApplication ? \App\Support\ApplicationStatusPresenter::for($activeApplication) : null)
+            <article class="pb-service-catalog-card">
+                <div class="pb-service-catalog-card__icon" aria-hidden="true">
+                    <img src="{{ asset(match ($service->code) {
+                        'NPWP_BUSINESS' => 'images/figma/home/business-icon.svg',
+                        'NPWP_PERSONAL' => 'images/figma/home/personal-icon.svg',
+                        default => 'images/figma/home/tax-icon.svg',
+                    }) }}" alt="">
+                </div>
+                <div class="pb-service-catalog-card__heading">
+                    <h2>{{ $service->name }}</h2>
+                    <p>{{ $service->description }}</p>
+                </div>
+
+                <div class="pb-service-catalog-card__price">
+                    <span>Biaya layanan</span>
+                    <strong>{{ $service->currency }} {{ number_format((float) $service->price_amount, 0, ',', '.') }}</strong>
+                </div>
+
+                <div class="pb-service-catalog-card__requirements">
+                    <h3>Persyaratan utama</h3>
+                    <ul>
+                        @foreach($service->requirements->where('is_required', true)->take(3) as $requirement)
+                            <li>{{ $requirement->name }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+
+                <div class="pb-service-catalog-card__footer">
+                    @if($activeApplication)
+                        <div class="pb-service-catalog-card__active-state">
+                            <span>Pengajuan aktif</span>
+                            <strong>{{ $statusPresentation['label'] }}</strong>
+                            <p>Terakhir diperbarui {{ $activeApplication->updated_at->format('d M Y') }}</p>
+                        </div>
+                        <a class="pb-button pb-button--primary pb-button--wide" href="{{ route('client.applications.show', $activeApplication->public_id) }}">Lanjutkan pengajuan</a>
+                    @else
+                        <a class="pb-button pb-button--primary pb-button--wide" href="{{ route('client.applications.create', $service->public_id) }}">Lihat persyaratan</a>
+                    @endif
+                </div>
+            </article>
+        @endforeach
+        </div>
+
+        @foreach($services as $service)
+            @continue($service->isBookable())
+            <article class="pb-service-coming-soon">
+                <div class="pb-service-coming-soon__icon" aria-hidden="true">
+                    <img src="{{ asset('images/figma/home/tax-icon.png') }}" alt="">
+                </div>
+                <div class="pb-service-coming-soon__body">
+                    <h2>{{ $service->name }}</h2>
+                    <p>Layanan pelaporan pajak sedang dipersiapkan.</p>
+                </div>
+                <span class="pb-status pb-status--neutral">Segera hadir</span>
+            </article>
+        @endforeach
+    </section>
+
+</div>
 @endsection

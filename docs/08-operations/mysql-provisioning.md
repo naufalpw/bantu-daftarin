@@ -1,4 +1,6 @@
-# Database Provisioning (Authoritative XAMPP MariaDB)
+# Database Provisioning MariaDB (Historical — Superseded)
+
+> Panduan ini dipertahankan untuk riwayat dan rollback reference saja. Sejak 2026-09-06, MariaDB/MySQL bukan runtime database aplikasi; gunakan [postgresql-provisioning.md](postgresql-provisioning.md). Jangan menghapus database MariaDB lama melalui panduan ini.
 
 Provisioning database/user dilakukan sebelum Laravel migration dan bukan bagian dari migration:
 

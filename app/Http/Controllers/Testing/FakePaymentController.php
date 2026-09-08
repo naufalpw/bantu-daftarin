@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Testing;
 
+use App\Enums\ApplicationStatus;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Webhooks\XenditWebhookController;
@@ -13,10 +14,13 @@ use Illuminate\View\View;
 
 class FakePaymentController extends Controller
 {
-    public function show(string $paymentId): View
+    public function show(string $paymentId): View|RedirectResponse
     {
         $this->assertFakeMode();
         $payment = $this->findPayment($paymentId);
+        if ($payment->application->status === ApplicationStatus::CANCELLED) {
+            return redirect()->route('client.payments.show', $payment->application->public_id);
+        }
 
         return view('testing.fake-payment', compact('payment'));
     }
@@ -25,6 +29,11 @@ class FakePaymentController extends Controller
     {
         $this->assertFakeMode();
         $payment = $this->findPayment($paymentId);
+
+        if ($payment->application->status === ApplicationStatus::CANCELLED) {
+            return redirect()->route('client.applications.show', $payment->application->public_id)
+                ->withErrors(['payment' => 'Pembayaran tidak dapat dilanjutkan untuk pengajuan yang telah dibatalkan.']);
+        }
 
         if ($payment->status !== PaymentStatus::PENDING) {
             return back()->withErrors(['payment' => 'Pembayaran ini sudah tidak menunggu pembayaran.']);

@@ -22,13 +22,17 @@ class ApplicationController extends Controller
 
     public function index(): View
     {
-        return view('admin.applications.index', ['applications' => Application::with(['user', 'service'])->latest()->paginate(20)]);
+        return view('admin.applications.index');
     }
 
     public function show(string $publicId): View
     {
-        $application = $this->find($publicId)->load(['user', 'service', 'requirements.documents', 'personalDetails', 'businessDetails', 'representatives', 'payments', 'statusHistories', 'estimateHistories', 'resultDocuments', 'chatThread']);
+        $application = $this->find($publicId);
         $this->authorize('view', $application);
+        $application->load([
+            'user', 'service', 'requirements.documents.reviews', 'personalDetails', 'businessDetails', 'representatives',
+            'payments', 'statusHistories', 'estimateHistories.admin', 'resultDocuments', 'chatThread',
+        ]);
 
         return view('admin.applications.show', ['application' => $application]);
     }
@@ -39,7 +43,7 @@ class ApplicationController extends Controller
         $this->authorize('adminAction', $application);
         $this->workflow->beginReview($application, request()->user()->admin);
 
-        return back()->with('status', 'Aplikasi masuk ke tahap pemeriksaan.');
+        return back()->with('status', 'Pengajuan masuk ke tahap pemeriksaan.');
     }
 
     public function reviewDocument(ReviewDocumentRequest $request, string $documentId): RedirectResponse
@@ -49,7 +53,7 @@ class ApplicationController extends Controller
         $action = DocumentReviewAction::from($request->string('action')->toString());
         $this->workflow->reviewDocument($document, $request->user()->admin, $action, $request->input('reason'), $request->input('instruction'));
 
-        return back()->with('status', 'Review dokumen tersimpan.');
+        return back()->with('status', 'Keputusan dokumen tersimpan.');
     }
 
     public function finalizeReview(string $publicId): RedirectResponse
@@ -58,7 +62,7 @@ class ApplicationController extends Controller
         $this->authorize('adminAction', $application);
         $this->workflow->finalizeReview($application, request()->user()->admin, request()->input('reason'));
 
-        return back()->with('status', 'Hasil pemeriksaan aplikasi tersimpan.');
+        return back()->with('status', 'Hasil pemeriksaan pengajuan tersimpan.');
     }
 
     public function estimate(EstimateRequest $request, string $publicId): RedirectResponse
@@ -112,7 +116,7 @@ class ApplicationController extends Controller
         $this->authorize('adminAction', $application);
         $this->workflow->complete($application, request()->user()->admin);
 
-        return back()->with('status', 'Aplikasi ditandai selesai.');
+        return back()->with('status', 'Pengajuan ditandai selesai.');
     }
 
     public function archive(string $publicId): RedirectResponse
@@ -121,7 +125,7 @@ class ApplicationController extends Controller
         $this->authorize('adminAction', $application);
         $this->workflow->archive($application, request()->user()->admin);
 
-        return back()->with('status', 'Aplikasi diarsipkan.');
+        return back()->with('status', 'Pengajuan diarsipkan.');
     }
 
     private function find(string $publicId): Application

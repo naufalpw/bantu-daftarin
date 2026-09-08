@@ -83,6 +83,6 @@ class SecurityRegressionTest extends TestCase
 
         $response->assertHeader('Content-Security-Policy');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->assertHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+        $response->assertHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
     }
 }

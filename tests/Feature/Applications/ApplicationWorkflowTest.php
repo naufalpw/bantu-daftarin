@@ -82,7 +82,7 @@ class ApplicationWorkflowTest extends TestCase
             'kind' => 'NPWP_BUSINESS',
             'consent' => 1,
             'business_name' => 'PT Synthetic Nusantara',
-            'business_type' => 'Perseroan Terbatas',
+            'business_type' => 'PT',
             'representative' => [
                 'name' => 'Synthetic Director',
                 'relationship' => BusinessRelationship::DIRECTOR->value,
@@ -207,11 +207,90 @@ class ApplicationWorkflowTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(ApplicationDetailsForm::class, ['application' => $application])
+            ->assertSee('Perubahan disimpan otomatis setelah Anda selesai mengisi kolom.')
+            ->assertDontSee('Anda juga dapat menyimpan secara manual.')
             ->set('details.name', 'Synthetic Autosave Client')
             ->call('save')
             ->assertSet('saveState', 'Tersimpan otomatis.');
 
         $this->assertDatabaseHas('personal_application_details', ['application_id' => $application->id, 'name' => 'Synthetic Autosave Client']);
+    }
+
+    public function test_personal_detail_selects_normalize_legacy_values_and_validate_allowed_options(): void
+    {
+        $user = User::factory()->create();
+        $service = Service::factory()->create(['code' => 'NPWP_PERSONAL']);
+        $application = Application::factory()->create([
+            'user_id' => $user->id,
+            'service_id' => $service->id,
+            'status' => ApplicationStatus::DRAFT,
+        ]);
+        $application->personalDetails()->create([
+            'name' => 'Synthetic Existing Client',
+            'gender' => 'Laki-Laki',
+            'marital_status' => 'Belum Menikah',
+            'family_status' => 'Anak',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ApplicationDetailsForm::class, ['application' => $application])
+            ->assertSeeHtml('<select wire:model.blur="details.gender"')
+            ->assertSeeHtml('<option value="Pria">Pria</option>')
+            ->assertSeeHtml('<option value="Lajang">Lajang</option>')
+            ->assertSeeHtml('<option value="Suami">Suami</option>')
+            ->assertSet('details.gender', 'Pria')
+            ->assertSet('details.marital_status', 'Lajang')
+            ->set('details.gender', 'Wanita')
+            ->set('details.marital_status', 'Kawin')
+            ->set('details.family_status', 'Istri')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('saveState', 'Tersimpan otomatis.');
+
+        $this->assertDatabaseHas('personal_application_details', [
+            'application_id' => $application->id,
+            'gender' => 'Wanita',
+            'marital_status' => 'Kawin',
+            'family_status' => 'Istri',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ApplicationDetailsForm::class, ['application' => $application->fresh()])
+            ->set('details.gender', 'Tidak valid')
+            ->call('save')
+            ->assertHasErrors(['details.gender' => 'in']);
+
+        $this->actingAs($user)
+            ->put(route('client.applications.update', $application->public_id), [
+                'name' => 'Synthetic Existing Client',
+                'gender' => 'Tidak valid',
+            ])
+            ->assertSessionHasErrors('gender');
+    }
+
+    public function test_personal_detail_selects_accept_each_available_option(): void
+    {
+        $user = User::factory()->create();
+        $service = Service::factory()->create(['code' => 'NPWP_PERSONAL']);
+        $application = Application::factory()->create([
+            'user_id' => $user->id,
+            'service_id' => $service->id,
+            'status' => ApplicationStatus::DRAFT,
+        ]);
+
+        $component = Livewire::actingAs($user)
+            ->test(ApplicationDetailsForm::class, ['application' => $application])
+            ->set('details.name', 'Synthetic Select Client');
+
+        foreach ([
+            'details.gender' => ['Pria', 'Wanita'],
+            'details.marital_status' => ['Lajang', 'Kawin', 'Cerai Hidup', 'Cerai Mati'],
+            'details.family_status' => ['Suami', 'Istri', 'Anak'],
+        ] as $field => $values) {
+            foreach ($values as $value) {
+                $component->set($field, $value)->call('save')->assertHasNoErrors();
+            }
+        }
     }
 
     public function test_client_submit_requires_documents_and_creates_pending_payment_after_upload(): void
@@ -229,6 +308,8 @@ class ApplicationWorkflowTest extends TestCase
             'kind' => 'NPWP_PERSONAL',
             'consent' => 1,
             'name' => 'Synthetic Payment Client',
+            'nik' => '3173055501010001',
+            'family_card_number' => '3173055501010002',
         ])->assertRedirect();
         $application = Application::query()->where('user_id', $user->id)->latest('id')->firstOrFail();
 
@@ -254,7 +335,7 @@ class ApplicationWorkflowTest extends TestCase
         $this->assertSame(ApplicationStatus::DOCUMENTS_READY_FOR_PAYMENT, $application->fresh()->status);
         $this->actingAs($user)->get(route('client.applications.show', $application->public_id))
             ->assertOk()
-            ->assertSee('Bayar');
+            ->assertSee('Lanjut ke pembayaran');
         $this->actingAs($user)->post(route('client.applications.payment', $application->public_id))->assertRedirect();
         $this->assertSame(ApplicationStatus::AWAITING_PAYMENT, $application->fresh()->status);
         $this->assertSame(PaymentStatus::PENDING, $application->fresh()->payments()->latest('id')->first()->status);

@@ -1,14 +1,167 @@
-@extends('layouts.app')
+@extends('layouts.client')
+
+@section('context_title', 'Mulai pengajuan')
+@section('body_class', 'pb-create-body')
+
 @section('content')
-<div><a href="{{ route('client.services.index') }}" class="text-sm text-indigo-700">← Kembali ke layanan</a><h1 class="mt-3 text-3xl font-semibold">{{ $service->name }}</h1><p class="mt-1 text-slate-600">Isi data dasar. Dokumen dapat diunggah setelah draft dibuat.</p></div>
-<form method="post" action="{{ route('client.applications.store') }}" class="mt-8 space-y-6">@csrf<input type="hidden" name="service_public_id" value="{{ $service->public_id }}"><input type="hidden" name="kind" value="{{ $service->code }}">
-    @if($service->code === 'NPWP_PERSONAL')
-        <section class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200"><h2 class="font-semibold">Data perseorangan</h2><div class="mt-4 grid gap-4 md:grid-cols-2"><label class="text-sm font-medium md:col-span-2">Nama lengkap<input name="name" value="{{ old('name', auth()->user()->name) }}" required class="mt-1 w-full rounded-lg border-slate-300"></label><label class="text-sm font-medium">Email<input name="email" type="email" value="{{ old('email', auth()->user()->email) }}" class="mt-1 w-full rounded-lg border-slate-300"></label><label class="text-sm font-medium">Jenis kelamin<input name="gender" value="{{ old('gender') }}" class="mt-1 w-full rounded-lg border-slate-300"></label><label class="text-sm font-medium">Status pernikahan<input name="marital_status" value="{{ old('marital_status') }}" class="mt-1 w-full rounded-lg border-slate-300"></label><label class="text-sm font-medium">Status dalam keluarga<input name="family_status" value="{{ old('family_status') }}" class="mt-1 w-full rounded-lg border-slate-300"></label><label class="text-sm font-medium md:col-span-2">Keperluan NPWP<input name="purpose" value="{{ old('purpose') }}" class="mt-1 w-full rounded-lg border-slate-300"></label></div></section>
-    @else
-        <section class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200"><h2 class="font-semibold">Data badan usaha</h2><div class="mt-4 grid gap-4 md:grid-cols-2"><label class="text-sm font-medium md:col-span-2">Nama badan usaha<input name="business_name" value="{{ old('business_name') }}" required class="mt-1 w-full rounded-lg border-slate-300"></label><label class="text-sm font-medium">Jenis badan usaha<input name="business_type" value="{{ old('business_type') }}" class="mt-1 w-full rounded-lg border-slate-300"></label><label class="text-sm font-medium">Keperluan NPWP<input name="purpose" value="{{ old('purpose') }}" class="mt-1 w-full rounded-lg border-slate-300"></label></div><div class="mt-6 border-t pt-5"><h3 class="font-medium">Penanggung jawab utama</h3><div class="mt-3 grid gap-4 md:grid-cols-3"><label class="text-sm font-medium">Nama<input name="representative[name]" value="{{ old('representative.name') }}" required class="mt-1 w-full rounded-lg border-slate-300"></label><label class="text-sm font-medium">Hubungan<select name="representative[relationship]" required class="mt-1 w-full rounded-lg border-slate-300">@foreach(['OWNER','DIRECTOR','MANAGEMENT','EMPLOYEE','AUTHORIZED_REPRESENTATIVE','OTHER'] as $relationship)<option value="{{ $relationship }}">{{ str_replace('_', ' ', $relationship) }}</option>@endforeach</select></label><label class="text-sm font-medium">Email<input name="representative[email]" type="email" value="{{ old('representative.email') }}" class="mt-1 w-full rounded-lg border-slate-300"></label></div></div></section>
-    @endif
-    @if($service->code === 'NPWP_BUSINESS')<section class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200"><h2 class="font-semibold">Representative tambahan (opsional)</h2><div class="mt-4 grid gap-4 md:grid-cols-3"><label class="text-sm font-medium">Nama<input name="additional_representative[name]" value="{{ old('additional_representative.name') }}" class="mt-1 w-full rounded-lg border-slate-300"></label><label class="text-sm font-medium">Hubungan<select name="additional_representative[relationship]" class="mt-1 w-full rounded-lg border-slate-300"><option value="">Pilih bila ada</option>@foreach(['OWNER','DIRECTOR','MANAGEMENT','EMPLOYEE','AUTHORIZED_REPRESENTATIVE','OTHER'] as $relationship)<option value="{{ $relationship }}">{{ str_replace('_', ' ', $relationship) }}</option>@endforeach</select></label><label class="text-sm font-medium">Email<input name="additional_representative[email]" type="email" value="{{ old('additional_representative.email') }}" class="mt-1 w-full rounded-lg border-slate-300"></label></div></section>@endif
-    <label class="flex items-start gap-3 rounded-xl bg-white p-5 text-sm ring-1 ring-slate-200"><input type="checkbox" name="consent" value="1" required class="mt-1 rounded border-slate-300"><span>Saya menyetujui pemrosesan data untuk layanan ini sesuai informasi aplikasi. Saya memahami Bantu Daftarin bukan sistem resmi pemerintah.</span></label>
-    <button class="rounded-lg bg-indigo-600 px-5 py-2 font-medium text-white">Simpan draft</button>
-</form>
+@php
+    $businessType = old('business_type', $selectedBusinessType);
+    $relationshipLabels = [
+        'OWNER' => 'Pemilik',
+        'DIRECTOR' => 'Direktur',
+        'MANAGEMENT' => 'Pengurus',
+        'EMPLOYEE' => 'Karyawan',
+        'AUTHORIZED_REPRESENTATIVE' => 'Penerima kuasa',
+        'OTHER' => 'Lainnya',
+    ];
+@endphp
+
+<div class="pb-page pb-create">
+    <a class="pb-back-link" href="{{ route('client.services.index') }}">
+        <span aria-hidden="true">←</span> Kembali ke layanan
+    </a>
+
+    <header class="pb-page-heading">
+        <p class="pb-kicker">Persyaratan pengajuan</p>
+        <h1>{{ $service->name }}</h1>
+        <p>Lihat biaya dan dokumen yang perlu disiapkan. Setelah data awal dan persetujuan disimpan, draft pengajuan dibuat.</p>
+    </header>
+
+    <div class="pb-start-layout">
+        <aside class="pb-start-summary" aria-labelledby="start-summary-title">
+            <h2 id="start-summary-title">Sebelum mulai</h2>
+            <dl>
+                <div>
+                    <dt>Biaya layanan</dt>
+                    <dd>{{ $service->currency }} {{ number_format((float) $service->price_amount, 0, ',', '.') }}</dd>
+                </div>
+                <div>
+                    <dt>Dokumen yang disiapkan</dt>
+                    <dd>
+                        <ul>
+                            @foreach($service->requirements as $requirement)
+                                <li>
+                                    {{ $requirement->name }}
+                                    <small>{{ $requirement->is_required ? 'Wajib' : 'Opsional' }}@if($requirement->condition), {{ $requirement->condition }}@endif</small>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </dd>
+                </div>
+            </dl>
+            <p class="pb-private-note">Dokumen disimpan secara privat dan hanya dapat dibuka oleh pihak yang berwenang dalam pengajuan.</p>
+        </aside>
+
+        <form method="post" action="{{ route('client.applications.store') }}" class="pb-form-surface">
+            @csrf
+            <input type="hidden" name="service_public_id" value="{{ $service->public_id }}">
+            <input type="hidden" name="kind" value="{{ $service->code }}">
+
+            <div class="pb-form-heading">
+                <div>
+                    <p class="pb-kicker">Data awal</p>
+                    <h2>Informasi untuk membuat draft</h2>
+                </div>
+                <span><b>*</b> Wajib diisi</span>
+            </div>
+
+            @if($service->code === 'NPWP_PERSONAL')
+                <div class="pb-form-grid">
+                    <label class="pb-field pb-field--wide">
+                        <span>Nama lengkap <b>*</b></span>
+                        <input name="name" value="{{ old('name', auth()->user()->name) }}" required autocomplete="name">
+                        @error('name')<small class="pb-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="pb-field pb-field--wide">
+                        <span>Email pengajuan</span>
+                        <input name="email" type="email" value="{{ old('email', auth()->user()->email) }}" autocomplete="email">
+                        @error('email')<small class="pb-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="pb-field pb-field--wide">
+                        <span>Keperluan NPWP <small>Opsional</small></span>
+                        <input name="purpose" value="{{ old('purpose') }}">
+                        @error('purpose')<small class="pb-field__error">{{ $message }}</small>@enderror
+                    </label>
+                </div>
+            @else
+                <div class="pb-form-grid">
+                    <label class="pb-field pb-field--wide">
+                        <span>Nama badan usaha <b>*</b></span>
+                        <input name="business_name" value="{{ old('business_name') }}" required>
+                        @error('business_name')<small class="pb-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="pb-field pb-field--wide">
+                        <span>Jenis badan usaha <b>*</b></span>
+                        <select id="business-type" name="business_type" required>
+                            <option value="">Pilih jenis badan usaha</option>
+                            @foreach(\App\Enums\BusinessType::cases() as $type)
+                                <option value="{{ $type->value }}" @selected($businessType === $type->value)>{{ $type->label() }}</option>
+                            @endforeach
+                        </select>
+                        @error('business_type')<small class="pb-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label id="business-type-other-field" class="pb-field pb-field--wide" @if($businessType !== 'OTHER') hidden @endif>
+                        <span>Jenis badan usaha lainnya <b>*</b></span>
+                        <input id="business-type-other" name="business_type_other" value="{{ old('business_type_other') }}" @if($businessType === 'OTHER') required @endif>
+                        @error('business_type_other')<small class="pb-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="pb-field">
+                        <span>Nama penanggung jawab <b>*</b></span>
+                        <input name="representative[name]" value="{{ old('representative.name') }}" required autocomplete="name">
+                        @error('representative.name')<small class="pb-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="pb-field">
+                        <span>Hubungan dengan badan usaha <b>*</b></span>
+                        <select name="representative[relationship]" required>
+                            <option value="">Pilih hubungan</option>
+                            @foreach($relationshipLabels as $value => $label)
+                                <option value="{{ $value }}" @selected(old('representative.relationship') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('representative.relationship')<small class="pb-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="pb-field pb-field--wide">
+                        <span>Email penanggung jawab <small>Opsional</small></span>
+                        <input name="representative[email]" type="email" value="{{ old('representative.email') }}" autocomplete="email">
+                        @error('representative.email')<small class="pb-field__error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="pb-field pb-field--wide">
+                        <span>Keperluan NPWP <small>Opsional</small></span>
+                        <input name="purpose" value="{{ old('purpose') }}">
+                    </label>
+                </div>
+            @endif
+
+            <label class="pb-consent">
+                <input type="checkbox" name="consent" value="1" required @checked(old('consent'))>
+                <span>Saya menyetujui pemrosesan data untuk layanan ini. Saya memahami Bantu Daftarin adalah layanan bantuan administrasi, bukan portal resmi pemerintah.</span>
+            </label>
+            @error('consent')<small class="pb-field__error">{{ $message }}</small>@enderror
+
+            <div class="pb-form-actions">
+                <p>Setelah draft dibuat, data lengkap dan dokumen dikelola dari ruang pengajuan.</p>
+                <button class="pb-button pb-button--primary" type="submit">Buat draft pengajuan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if($service->code === 'NPWP_BUSINESS')
+<script>
+    (() => {
+        const type = document.getElementById('business-type');
+        const otherField = document.getElementById('business-type-other-field');
+        const otherInput = document.getElementById('business-type-other');
+        if (!type || !otherField || !otherInput) return;
+        const update = () => {
+            const isOther = type.value === 'OTHER';
+            otherField.hidden = !isOther;
+            otherInput.required = isOther;
+            if (!isOther) otherInput.value = '';
+        };
+        type.addEventListener('change', update);
+        update();
+    })();
+</script>
+@endif
 @endsection

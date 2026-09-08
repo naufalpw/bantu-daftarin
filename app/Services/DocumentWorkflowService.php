@@ -27,7 +27,7 @@ class DocumentWorkflowService
     public function upload(Application $application, ApplicationRequirement $requirement, UploadedFile $file, User $actor): Document
     {
         if ($application->user_id !== $actor->getKey() || $requirement->application_id !== $application->getKey()) {
-            throw new \DomainException('Dokumen tidak terkait dengan aplikasi ini.');
+            throw new \DomainException('Dokumen tidak terkait dengan pengajuan ini.');
         }
         if (! $this->canClientUpload($application, $requirement)) {
             throw new \DomainException('Dokumen terkunci pada tahap ini atau belum dibuka untuk revisi.');
@@ -82,14 +82,14 @@ class DocumentWorkflowService
     public function review(Document $document, Admin $admin, DocumentReviewAction $action, ?string $reason = null, ?string $instruction = null): Document
     {
         if ($document->application->status !== ApplicationStatus::UNDER_REVIEW || ! $document->active || $document->scan_status->value !== 'PASSED' || $document->review_status !== DocumentReviewStatus::PENDING) {
-            throw new \DomainException('Dokumen tidak dapat direview.');
+            throw new \DomainException('Dokumen tidak dapat diperiksa.');
         }
 
         return DB::transaction(function () use ($document, $admin, $action, $reason, $instruction): Document {
             $locked = Document::query()->lockForUpdate()->findOrFail($document->getKey());
             $lockedApplication = Application::query()->lockForUpdate()->findOrFail($locked->application_id);
             if ($lockedApplication->status !== ApplicationStatus::UNDER_REVIEW || ! $locked->active || $locked->scan_status !== DocumentScanStatus::PASSED || $locked->review_status !== DocumentReviewStatus::PENDING) {
-                throw new \DomainException('Dokumen tidak dapat direview.');
+                throw new \DomainException('Dokumen tidak dapat diperiksa.');
             }
             $status = match ($action) {
                 DocumentReviewAction::ACCEPT => DocumentReviewStatus::LOCKED,

@@ -5,6 +5,14 @@ Repository: current checkout `bantu-daftarin`
 
 Legenda: `[x]` terbukti dari source dan validasi yang sudah dijalankan, `[ ]` masih actionable, `[BLOCKED]` membutuhkan external/business/legal decision yang tidak aman untuk ditebak.
 
+## PostgreSQL runtime migration — 2026-09-06
+
+- [x] ADR-0003 menetapkan PostgreSQL sebagai database runtime lokal dan automated test: connection `pgsql`, schema `public`, host `127.0.0.1:5432`, database `bantu_daftarin_mvp`, dan database test `bantu_daftarin_mvp_test`.
+- [x] Runtime Laravel telah diverifikasi menggunakan driver `pgsql`, database `bantu_daftarin_mvp`, dan user `bantu_daftarin_app` tanpa mencetak password.
+- [x] `php artisan migrate --seed` berhasil pada PostgreSQL `bantu_daftarin_mvp`; MariaDB lama tidak dihapus atau diubah.
+- [x] PostgreSQL test database berhasil di-reset/seeder secara terisolasi pada `bantu_daftarin_mvp_test`; full regression suite lulus (231 tests, 1331 assertions).
+- [x] ADR-0002 dan panduan MariaDB dipertahankan sebagai catatan historis, bukan kontrak runtime aktif.
+
 ## Phase 0 — Foundation baseline
 
 - [x] AGENTS.md tersedia dan menjadi engineering guide.
@@ -12,14 +20,14 @@ Legenda: `[x]` terbukti dari source dan validasi yang sudah dijalankan, `[ ]` ma
 - [x] Modular monolith boundary Client/Admin/Webhook tersedia.
 - [x] Scope MVP terkunci pada NPWP Perseorangan dan NPWP Badan Usaha.
 - [x] Lapor Pajak tetap COMING_SOON dan tidak memiliki workflow aktif.
-- [x] ADR-0002 menetapkan MariaDB XAMPP sebagai database authoritative untuk development dan application database lokal.
+- [x] ADR-0002 adalah keputusan historis yang telah disupersede oleh ADR-0003 PostgreSQL.
 - [BLOCKED] Exact Figma frame mapping and final business decisions for NIK/nomor KK, conditional business requirements, and production pricing require inputs not present in the repository.
 
 ## Phase 1 — Laravel foundation
 
 - [x] Laravel 12 application scaffold dan Composer dependencies tersedia.
 - [x] Blade, Livewire, Vite/Tailwind, route separation, queue database, mail boundary, logging, dan exception handling tersedia.
-- [x] Laravel `mysql` PDO connection, InnoDB, and utf8mb4 configuration target the authoritative XAMPP MariaDB database.
+- [x] Laravel `pgsql` connection dan PostgreSQL schema `public` menjadi konfigurasi database runtime aktif.
 - [x] Security headers dan session cookie settings tersedia.
 - [x] `vendor/bin/pint --test`, PHP lint, route cache, view cache, config cache, frontend build, Composer validate, dan npm audit pernah pass.
 - [x] Final foundation checks rerun after implementation changes: Pint, PHP lint, route/view/config cache, frontend build, Composer/npm validation and audits.
@@ -30,9 +38,9 @@ Legenda: `[x]` terbukti dari source dan validasi yang sudah dijalankan, `[ ]` ma
 - [x] Foreign keys, public ID uniques, ownership/status/reference indexes, delete behavior, and guarded models are implemented.
 - [x] Service/requirement snapshots are implemented.
 - [x] Factories and synthetic seeder are implemented.
-- [x] Clean isolated local MariaDB migration and seeder succeeded on `bantu_daftarin_mvp`.
+- [x] Historical MariaDB migration evidence dipertahankan; PostgreSQL migration dan seeder terbaru berhasil pada `bantu_daftarin_mvp`.
 - [x] Migration status shows all four migrations ran on the isolated local database.
-- [x] MariaDB 10.4.32 migration/schema compatibility verified directly on the active XAMPP server.
+- [x] PostgreSQL migration/schema compatibility diverifikasi langsung melalui `php artisan migrate --seed` pada database runtime kosong.
 - [x] Schema/constraint evidence executed through migration status, clean seeding, foreign-key-backed feature setup, and the per-application requirement unique-constraint test.
 
 ## Phase 3 — Authentication
@@ -100,7 +108,7 @@ Legenda: `[x]` terbukti dari source dan validasi yang sudah dijalankan, `[ ]` ma
 - [x] Expanded full suite and all static/build/security checks pass after the latest coverage additions.
 - [x] Full suite and static/build/security checks were rerun after final formatting and seeder/config fixes.
 - [x] Automated evidence is separated from manual/browser acceptance evidence; no manual interactive result is claimed.
-- [x] Complete migration and test verification rerun against the active MariaDB 10.4.32 XAMPP server.
+- [ ] Complete PostgreSQL migration and test verification is recorded in the final PostgreSQL validation run.
 - [x] Test procedure documents `php artisan optimize:clear` before PHPUnit so cached application configuration cannot redirect database-reset tests to the application database.
 - [BLOCKED] Manual/browser acceptance requires an operator desktop/browser session and is not safely claimable from automated checks alone.
 - [x] Manual browser acceptance checklist created at `docs/07-testing/manual-acceptance-checklist.md`, including seeded data, exact route/action coverage, expected state changes, and security negative cases.
@@ -116,7 +124,7 @@ Legenda: `[x]` terbukti dari source dan validasi yang sudah dijalankan, `[ ]` ma
 
 ## Current known decisions/risks
 
-- The latest architecture decision makes XAMPP's MariaDB 10.4.32 authoritative for local development and the local application database; no alternate database installation or migration is required.
+- ADR-0003 makes PostgreSQL authoritative for local development, runtime, and testing. XAMPP may provide Apache/PHP only; MariaDB/MySQL is retained as historical backup and is not a runtime database.
 - Existing legacy schema in database `bantu_daftarin` was preserved. Local MVP uses isolated `bantu_daftarin_mvp` and `bantu_daftarin_mvp_test`.
 - Figma files are not present in the repository, so exact frame mapping cannot be verified.
 - Manual email-dependent acceptance requires a local SMTP mail catcher; the current `MAIL_MAILER=log` setting is not recommended as an OTP inspection method.

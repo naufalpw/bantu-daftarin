@@ -1,6 +1,106 @@
-@extends('layouts.app')
+@extends('layouts.admin')
+
+@section('title', 'Dashboard')
+@section('admin_context', 'Dashboard operasional')
+
 @section('content')
-<div class="flex flex-wrap items-end justify-between gap-4"><div><p class="text-sm text-indigo-700">Panel admin</p><h1 class="text-3xl font-semibold">Dashboard</h1><p class="mt-1 text-slate-600">Review dilakukan manual dan setiap perubahan dicatat.</p></div><a href="{{ route('admin.applications.index') }}" class="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white">Lihat semua aplikasi</a></div>
-<div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">@foreach($counts as $status => $total)<div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><p class="text-sm text-slate-500">{{ \App\Enums\ApplicationStatus::tryFrom($status)?->label() ?? $status }}</p><p class="mt-2 text-3xl font-semibold">{{ $total }}</p></div>@endforeach</div>
-<section class="mt-8 rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200"><h2 class="font-semibold">Antrian perlu tindakan</h2><div class="mt-4 divide-y">@forelse($queue as $application)<a href="{{ route('admin.applications.show', $application->public_id) }}" class="flex flex-wrap justify-between gap-3 py-4 hover:bg-slate-50"><span><span class="font-medium">{{ $application->service->name }}</span><span class="ml-2 text-sm text-slate-500">{{ $application->user->email }}</span></span><span class="text-sm text-indigo-700">{{ $application->status->label() }}</span></a>@empty<p class="py-4 text-sm text-slate-500">Tidak ada antrian saat ini.</p>@endforelse</div></section>
+<div class="bd-admin-dashboard">
+    <x-admin.page-header kicker="DASHBOARD" title="Ruang kerja admin" description="Lihat pengajuan yang perlu ditindaklanjuti dan aktivitas terbaru.">
+        <a class="bd-admin-button bd-admin-button--primary" href="{{ route('admin.applications.index') }}">Lihat semua pengajuan</a>
+    </x-admin.page-header>
+
+    @php
+        $attentionItems = [
+            ['key' => 'review', 'label' => 'Pengajuan perlu ditinjau', 'action' => 'Buka pengajuan', 'href' => route('admin.applications.index', ['filter' => 'review'])],
+            ['key' => 'revision', 'label' => 'Revisi masuk', 'action' => 'Tinjau dokumen', 'href' => route('admin.documents.index', ['filter' => 'revision'])],
+            ['key' => 'result', 'label' => 'Hasil perlu diverifikasi', 'action' => 'Tinjau hasil', 'href' => route('admin.applications.index', ['filter' => 'result'])],
+            ['key' => 'support', 'label' => 'Pesan belum dibaca', 'action' => 'Buka dukungan', 'href' => route('admin.support.index', ['filter' => 'unread'])],
+        ];
+    @endphp
+
+    <section class="bd-admin-surface bd-admin-attention-panel" aria-labelledby="attention-title">
+        <div class="bd-admin-surface__header">
+            <div><h2 id="attention-title">Perlu ditindaklanjuti</h2></div>
+        </div>
+        <div class="bd-admin-attention-panel__items">
+            @foreach($attentionItems as $item)
+                <article class="bd-admin-attention-item" data-admin-attention="{{ $item['key'] }}">
+                    <strong>{{ $attention[$item['key']] }}</strong>
+                    <div>
+                        <h3>{{ $item['label'] }}</h3>
+                        <a href="{{ $item['href'] }}">{{ $item['action'] }} <span aria-hidden="true">&rarr;</span></a>
+                    </div>
+                </article>
+            @endforeach
+        </div>
+    </section>
+
+    <div class="bd-admin-operational-grid">
+        <livewire:admin.activity-chart :period="$period" :periods="$periods" :activity="$activity" />
+
+        <section class="bd-admin-surface bd-admin-recent-activity" aria-labelledby="recent-activity-title">
+            <div class="bd-admin-surface__header">
+                <div>
+                    <p class="bd-admin-kicker">AKTIVITAS TERBARU</p>
+                    <h2 id="recent-activity-title">Pembaruan terakhir</h2>
+                </div>
+                <a href="{{ route('admin.activity.index') }}">Lihat semua</a>
+            </div>
+            @if($activity['recent']->isNotEmpty())
+                <ol class="bd-admin-recent-activity__list">
+                    @foreach($activity['recent'] as $item)
+                        <li>
+                            <a href="{{ route('admin.applications.show', $item['application']->public_id) }}#history-title">
+                                <strong>{{ $item['label'] }}</strong>
+                                <span>{{ $item['application']->service->name }} <span aria-hidden="true">&middot;</span> ID ...{{ strtoupper(substr($item['application']->public_id, -6)) }}</span>
+                                <time datetime="{{ $item['at']->toIso8601String() }}">{{ $item['at']->translatedFormat('d M, H:i') }}</time>
+                            </a>
+                        </li>
+                    @endforeach
+                </ol>
+            @else
+                <div class="bd-admin-empty-state bd-admin-empty-state--compact">
+                    <h3>Belum ada aktivitas terbaru</h3>
+                </div>
+            @endif
+        </section>
+    </div>
+
+    <section class="bd-admin-surface bd-admin-priority-queue" aria-labelledby="priority-queue-title">
+        <div class="bd-admin-surface__header">
+            <div>
+                <h2 id="priority-queue-title">Antrian prioritas</h2>
+                <p>Pengajuan yang memerlukan tindakan admin.</p>
+            </div>
+            <a href="{{ route('admin.applications.index', ['filter' => 'review']) }}">Lihat semua pengajuan</a>
+        </div>
+
+        @if($priorityQueue->isNotEmpty())
+            <div class="bd-admin-table-wrap">
+                <table class="bd-admin-table bd-admin-priority-queue__table">
+                    <thead>
+                        <tr><th>Pengajuan</th><th>Klien</th><th>Status / kebutuhan</th><th>Diperbarui</th><th><span class="sr-only">Tindakan</span></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach($priorityQueue as $application)
+                            @php($nextAction = \App\Support\AdminApplicationPresenter::nextAction($application->status))
+                            <tr>
+                                <td><strong>{{ $application->service->name }}</strong><small>ID ...{{ strtoupper(substr($application->public_id, -6)) }}</small></td>
+                                <td>{{ $application->user->name }}</td>
+                                <td><x-admin.status-badge :status="$application->status" /><small>{{ $nextAction['description'] }}</small></td>
+                                <td>{{ $application->updated_at->translatedFormat('d M, H:i') }}</td>
+                                <td><a class="bd-admin-table-link" href="{{ route('admin.applications.show', $application->public_id) }}">Tinjau</a></td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <div class="bd-admin-empty-state">
+                <h3>Semua pekerjaan prioritas sudah ditangani</h3>
+                <p>Tidak ada pengajuan yang memerlukan tindakan admin saat ini.</p>
+            </div>
+        @endif
+    </section>
+</div>
 @endsection

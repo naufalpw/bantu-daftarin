@@ -1,6 +1,113 @@
-@extends('layouts.app')
+@extends('layouts.client')
+
+@section('context_title', 'Beranda')
+@section('body_class', 'pb-dashboard-body')
+
 @section('content')
-<div class="flex flex-wrap items-end justify-between gap-4"><div><p class="text-sm text-indigo-700">Ruang client</p><h1 class="text-3xl font-semibold">Aplikasi Anda</h1><p class="mt-1 text-slate-600">Pantau data, dokumen, pembayaran, dan hasil dalam satu tempat.</p></div><a href="{{ route('client.services.index') }}" class="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white">Buat aplikasi</a></div>
-<div class="mt-8 grid gap-4">@forelse($applications as $application)<a href="{{ route('client.applications.show', $application->public_id) }}" class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200 hover:ring-indigo-300"><div class="flex flex-wrap justify-between gap-3"><div><p class="font-semibold">{{ $application->service->name }}</p><p class="mt-1 text-xs text-slate-500">{{ $application->public_id }}</p></div><span class="rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700">{{ $application->status->label() }}</span></div><p class="mt-4 text-sm text-slate-600">Dibuat {{ $application->created_at->translatedFormat('d M Y H:i') }}</p></a>@empty<div class="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-600">Belum ada aplikasi. Pilih layanan untuk memulai.</div>@endforelse</div>
-<div class="mt-6">{{ $applications->links() }}</div>
+<div class="pb-page pb-dashboard">
+    <header class="pb-page-heading pb-dashboard__heading">
+        <p class="pb-kicker">Beranda</p>
+        <h1>Selamat datang, {{ auth()->user()->name }}</h1>
+        <p>Lanjutkan hal yang perlu Anda tindaklanjuti atau lihat perkembangan pengajuan Anda.</p>
+    </header>
+
+    @if($applications->isEmpty())
+        <section class="pb-empty pb-empty--dashboard" aria-labelledby="empty-dashboard-title">
+            <div>
+                <p class="pb-kicker">Mulai pengajuan</p>
+                <h2 id="empty-dashboard-title">Belum ada pengajuan</h2>
+                <p>Pilih layanan untuk memulai pengajuan pertama Anda.</p>
+                <a class="pb-button pb-button--primary" href="{{ route('client.services.index') }}">Lihat layanan</a>
+            </div>
+        </section>
+    @else
+        @if($priorityApplication)
+            <section class="pb-priority pb-priority--next" aria-labelledby="priority-title">
+                <div class="pb-priority__copy">
+                    <div class="pb-priority__topline">
+                        <p class="pb-kicker pb-kicker--inverse">Langkah berikutnya</p>
+                        <span class="pb-status pb-status--{{ $priorityPresentation['tone'] }}">{{ $priorityPresentation['label'] }}</span>
+                    </div>
+                    <h2 id="priority-title">{{ $priorityApplication->service->name }}</h2>
+                    <p>{{ $priorityPresentation['next_action'] }}</p>
+                    <div class="pb-priority__meta">
+                        <span>ID …{{ strtoupper(substr($priorityApplication->public_id, -4)) }}</span>
+                        <time datetime="{{ $priorityApplication->updated_at?->toAtomString() }}">Diperbarui {{ $priorityApplication->updated_at?->translatedFormat('d M Y') }}</time>
+                    </div>
+                </div>
+                <div class="pb-priority__action">
+                    @if($priorityPresentation['cta_label'])
+                        @if($priorityPresentation['cta_method'] === 'post')
+                            <form method="post" action="{{ route('client.applications.documents.submit', $priorityApplication->public_id) }}">
+                                @csrf
+                                <button class="pb-button pb-button--light" type="submit">{{ $priorityPresentation['cta_label'] }}</button>
+                            </form>
+                        @else
+                            <a class="pb-button pb-button--light" href="{{ $priorityPresentation['cta_url'] }}">{{ $priorityPresentation['cta_label'] }}</a>
+                        @endif
+                    @else
+                        <a class="pb-button pb-button--light" href="{{ route('client.applications.show', $priorityApplication->public_id) }}">Lihat pengajuan</a>
+                    @endif
+                </div>
+            </section>
+        @endif
+
+        <div class="pb-dashboard__columns">
+            <section class="pb-section pb-dashboard-applications" aria-labelledby="dashboard-applications-title">
+                <div class="pb-section-heading">
+                    <div>
+                        <p class="pb-kicker">Pengajuan Anda</p>
+                        <h2 id="dashboard-applications-title">Pengajuan yang sedang berjalan</h2>
+                    </div>
+                    <a href="{{ route('client.applications.index') }}">Lihat semua</a>
+                </div>
+                <div class="pb-application-list pb-application-list--compact">
+                    @forelse($dashboardApplications as $application)
+                        <x-application-list-item :application="$application" compact />
+                    @empty
+                        <div class="pb-inline-empty pb-inline-empty--card">
+                            <strong>Tidak ada pengajuan yang sedang berjalan.</strong>
+                            <span>Pengajuan yang dibatalkan tetap tersedia pada riwayat Pengajuan.</span>
+                        </div>
+                    @endforelse
+                </div>
+            </section>
+
+            <section class="pb-latest" aria-labelledby="latest-update-title">
+                <p class="pb-kicker">Pembaruan terbaru</p>
+                <h2 id="latest-update-title">Aktivitas pengajuan</h2>
+                @forelse($recentUpdates as $update)
+                    @php($updatePresentation = \App\Support\ApplicationStatusPresenter::forStatus($update['history']->to_status))
+                    <div class="pb-latest__item">
+                        <time datetime="{{ $update['history']->created_at->toAtomString() }}">{{ $update['history']->created_at->translatedFormat('d M Y, H:i') }}</time>
+                        <strong>{{ $updatePresentation['label'] }}</strong>
+                        <p>{{ $update['application']->service->name }}</p>
+                    </div>
+                @empty
+                    <p class="pb-inline-empty">Belum ada pembaruan pengajuan.</p>
+                @endforelse
+                <a href="{{ route('client.applications.index') }}">Lihat aktivitas</a>
+            </section>
+        </div>
+
+        <section class="pb-service-shortcuts pb-service-shortcuts--dashboard" aria-labelledby="other-services-title">
+            <div>
+                <p class="pb-kicker">Butuh layanan lain?</p>
+                <h2 id="other-services-title">Pilih layanan sesuai kebutuhan Anda</h2>
+            </div>
+            <div class="pb-service-shortcuts__list">
+                @foreach($services as $service)
+                    @if($service->status->value === 'COMING_SOON')
+                        <span>{{ $service->name }} <small>Segera hadir</small></span>
+                    @else
+                        <a href="{{ route('client.services.index') }}">{{ $service->name }}</a>
+                    @endif
+                @endforeach
+            </div>
+            <div class="pb-service-shortcuts__actions">
+                <a class="pb-button pb-button--primary" href="{{ route('client.services.index') }}">Lihat semua layanan</a>
+            </div>
+        </section>
+    @endif
+</div>
 @endsection

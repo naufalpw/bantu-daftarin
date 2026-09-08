@@ -1,0 +1,14 @@
+/*
+ * Reproducible typography for the public/client surfaces.
+ *
+ * Inter comes from Fontsource and is licensed under the SIL Open Font
+ * License 1.1. Only the normal variable Latin subset is loaded because the
+ * current product copy is Indonesian/Latin text.
+ */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 900;
+    src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2');
+}

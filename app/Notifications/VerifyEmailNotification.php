@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\TransactionalEmail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -11,6 +12,11 @@ use Illuminate\Support\Facades\URL;
 class VerifyEmailNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
+    public function __construct()
+    {
+        $this->afterCommit();
+    }
 
     public function via(object $notifiable): array
     {
@@ -24,11 +30,18 @@ class VerifyEmailNotification extends Notification implements ShouldQueue
             'hash' => sha1($notifiable->getEmailForVerification()),
         ]);
 
-        return (new MailMessage)
-            ->subject('Verifikasi email Bantu Daftarin')
-            ->greeting('Halo '.$notifiable->name.',')
-            ->line('Klik tombol berikut untuk memverifikasi email Anda.')
-            ->action('Verifikasi email', $url)
-            ->line('Tautan verifikasi berlaku selama 60 menit.');
+        return TransactionalEmail::make(
+            subject: 'Verifikasi email BantuDaftarin',
+            preheader: 'Selesaikan verifikasi email akun BantuDaftarin Anda.',
+            greeting: TransactionalEmail::greetingFor($notifiable),
+            title: 'Verifikasi email Anda',
+            paragraphs: ['Verifikasi email untuk mengaktifkan akun BantuDaftarin Anda.'],
+            actionText: 'Verifikasi email',
+            actionUrl: $url,
+            secondaryLines: [
+                'Tautan verifikasi ini berlaku selama 60 menit.',
+                'Jika Anda tidak membuat akun BantuDaftarin, abaikan email ini.',
+            ],
+        );
     }
 }

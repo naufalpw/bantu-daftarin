@@ -15,6 +15,7 @@
             <nav class="flex items-center gap-4 text-sm">
                 @if(auth()->user()->isAdmin())
                     <a href="{{ route('admin.applications.index') }}" class="hover:text-indigo-700">Aplikasi</a>
+                    <a href="{{ route('admin.support.index') }}" class="hover:text-indigo-700">Bantuan</a>
                 @else
                     <a href="{{ route('client.services.index') }}" class="hover:text-indigo-700">Layanan</a>
                 @endif
