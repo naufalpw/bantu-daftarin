@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Contracts\MalwareScanner;
 use App\Contracts\PaymentGateway;
+use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureClient;
 use App\Models\Application;
 use App\Models\ChatThread;
 use App\Models\Document;
@@ -20,10 +22,12 @@ use App\Services\PaymentGatewayRouter;
 use App\Services\PayPalPaymentProvider;
 use App\Services\TestingMalwareScanner;
 use App\Services\XenditPaymentProvider;
+use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -51,6 +55,12 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Payment::class, PaymentPolicy::class);
         Gate::policy(ResultDocument::class, ResultDocumentPolicy::class);
         Gate::policy(ChatThread::class, ChatThreadPolicy::class);
+
+        Livewire::addPersistentMiddleware([
+            EnsureAdmin::class,
+            EnsureClient::class,
+            EnsureEmailIsVerified::class,
+        ]);
 
         RateLimiter::for('auth-login', fn ($request) => Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip()));
         RateLimiter::for('auth-otp', fn ($request) => Limit::perMinute(10)->by($request->session()->get('pending_auth_user_id', 'guest').'|'.$request->ip()));
