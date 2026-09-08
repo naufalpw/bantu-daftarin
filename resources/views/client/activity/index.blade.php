@@ -14,7 +14,7 @@
         <section class="bd-activity-panel" aria-label="Aktivitas aplikasi">
             <details class="bd-activity-accordion">
                 <summary>
-                    <span>Status Trasnsaksi</span>
+                    <span>Status Transaksi</span>
                     <span class="bd-activity-caret" aria-hidden="true"></span>
                 </summary>
                 <div class="bd-activity-accordion__content">
@@ -52,7 +52,7 @@
                         <article class="bd-activity-row bd-activity-row--process">
                             <div>
                                 <strong>{{ $process['label'] }}</strong>
-                                <span>{{ $application->service?->name ?? 'Layanan aplikasi' }}</span>
+                                <span>{{ $application->service?->name ?? 'Layanan pengajuan' }}</span>
                             </div>
                             <div>
                                 <strong>{{ $history->created_at?->format('d M Y') }}</strong>
@@ -77,7 +77,7 @@
                         @php($application = $order['application'])
                         <article class="bd-activity-row bd-activity-row--order">
                             <div>
-                                <strong>{{ $application->service?->name ?? 'Layanan aplikasi' }}</strong>
+                                <strong>{{ $application->service?->name ?? 'Layanan pengajuan' }}</strong>
                                 <span>{{ $application->public_id }}</span>
                             </div>
                             <div>

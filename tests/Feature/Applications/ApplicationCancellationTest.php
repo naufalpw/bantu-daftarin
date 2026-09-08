@@ -218,7 +218,7 @@ class ApplicationCancellationTest extends TestCase
         $this->actingAs($client)
             ->get(route('client.services.index'))
             ->assertOk()
-            ->assertSee('Lihat persyaratan &amp; mulai', false)
+            ->assertSee('Lihat persyaratan')
             ->assertDontSee('Pengajuan aktif');
     }
 

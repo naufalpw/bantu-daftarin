@@ -1,6 +1,6 @@
 # Database Design
 
-MariaDB 10.4 bawaan XAMPP adalah database development dan application database lokal, menggunakan InnoDB, `utf8mb4`/`utf8mb4_unicode_ci`, dan port 3306. Laravel memakai connection name `mysql` untuk PDO MariaDB. Semua schema change tetap wajib melalui Laravel migration. Migration, constraints, indexes, defaults, JSON fields, dan locking telah diverifikasi pada MariaDB aktif.
+PostgreSQL adalah database development, runtime lokal, dan testing pada `127.0.0.1:5432`, menggunakan schema `public`. Laravel memakai connection name `pgsql`; database runtime bernama `bantu_daftarin_mvp` dan database test bernama `bantu_daftarin_mvp_test`. Semua schema change tetap wajib melalui Laravel migration. Migration PostgreSQL menghindari atribut MySQL-only seperti table charset, collation `utf8mb4_unicode_ci`, dan urutan kolom `after()`.
 
 Domain tables: authentication (`users`, `admins`, `auth_challenges`, `sessions`), catalog (`services`, `service_requirements`), applications/details/requirements, documents/reviews/access logs, payments/webhooks, workflow histories/consents, chat/notifications, audit, dan queue tables.
 

@@ -12,6 +12,16 @@ class ServiceCatalogTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_seeded_catalog_contains_only_the_current_product_services(): void
+    {
+        $this->seed();
+
+        $this->assertSame(
+            ['NPWP_PERSONAL', 'NPWP_BUSINESS', 'TAX_REPORTING'],
+            Service::query()->orderBy('sort_order')->pluck('code')->all(),
+        );
+    }
+
     public function test_active_service_is_bookable_only_with_price_and_required_active_requirement(): void
     {
         $service = Service::factory()->create(['status' => ServiceStatus::ACTIVE, 'price_amount' => null]);

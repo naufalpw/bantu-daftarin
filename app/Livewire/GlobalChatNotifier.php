@@ -7,6 +7,7 @@ use App\Models\ChatMessage;
 use App\Models\ChatThread;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class GlobalChatNotifier extends Component
@@ -20,7 +21,7 @@ class GlobalChatNotifier extends Component
     public int $unreadThreadCount = 0;
 
     /**
-     * @var array<string, array{thread_id:string,title:string,context:string,preview:string,count:int,href:string,action_label:string}>
+     * @var array<string, array{thread_id:string,title:string,context:string,preview:string,count:int,message_ids:list<int>,href:string,action_label:string}>
      */
     public array $toasts = [];
 
@@ -49,12 +50,19 @@ class GlobalChatNotifier extends Component
             $this->lastObservedMessageId = $latestMessageId;
         }
 
+        $this->reconcileToasts();
         $this->refreshUnreadThreadCount();
     }
 
     public function dismissToast(string $threadId): void
     {
         unset($this->toasts[$threadId]);
+    }
+
+    #[On('chat-unread-updated')]
+    public function refreshUnreadCounter(): void
+    {
+        $this->refreshUnreadThreadCount();
     }
 
     public function render()
@@ -87,6 +95,7 @@ class GlobalChatNotifier extends Component
 
         return ChatMessage::query()
             ->whereNull('read_at')
+            ->whereNull('deleted_at')
             ->where('sender_user_id', '!=', $user->getKey())
             ->with(['thread.application.service', 'thread.client'])
             ->when(
@@ -94,6 +103,35 @@ class GlobalChatNotifier extends Component
                 fn (Builder $messages) => $messages->whereHas('sender', fn (Builder $senders) => $senders->where('role', UserRole::CLIENT->value)),
                 fn (Builder $messages) => $messages->whereHas('thread', fn (Builder $threads) => $threads->where('client_user_id', $user->getKey())),
             );
+    }
+
+    private function reconcileToasts(): void
+    {
+        if ($this->toasts === []) {
+            return;
+        }
+
+        foreach ($this->toasts as $threadId => $toast) {
+            $messages = $this->incomingUnreadMessages()
+                ->whereHas('thread', fn (Builder $threads) => $threads->where('public_id', $threadId))
+                ->whereIn('id', $toast['message_ids'] ?? [])
+                ->orderBy('id')
+                ->get();
+
+            if ($messages->isEmpty()) {
+                unset($this->toasts[$threadId]);
+
+                continue;
+            }
+
+            $latest = $messages->last();
+            $this->toasts[$threadId] = [
+                ...$toast,
+                'count' => $messages->count(),
+                'message_ids' => $messages->pluck('id')->all(),
+                'preview' => Str::limit((string) preg_replace('/\s+/', ' ', trim($latest->body)), 100),
+            ];
+        }
     }
 
     private function addOrUpdateToast(ChatMessage $message): void
@@ -107,6 +145,10 @@ class GlobalChatNotifier extends Component
         $threadId = (string) $thread->public_id;
         $existing = $this->toasts[$threadId] ?? null;
         unset($this->toasts[$threadId]);
+        $messageIds = array_values(array_unique([
+            ...($existing['message_ids'] ?? []),
+            $message->getKey(),
+        ]));
 
         $this->toasts[$threadId] = [
             'thread_id' => $threadId,
@@ -115,11 +157,12 @@ class GlobalChatNotifier extends Component
                 : 'Tim Bantu Daftarin',
             'context' => $this->threadContext($thread),
             'preview' => Str::limit((string) preg_replace('/\s+/', ' ', trim($message->body)), 100),
-            'count' => (int) ($existing['count'] ?? 0) + 1,
+            'count' => count($messageIds),
+            'message_ids' => $messageIds,
             'href' => auth()->user()->isAdmin()
                 ? route('admin.chat.show', $threadId)
                 : route('client.chat.show', $threadId),
-            'action_label' => auth()->user()->isAdmin() ? 'Buka percakapan' : 'Buka chat',
+            'action_label' => 'Buka percakapan',
         ];
 
         while (count($this->toasts) > self::MAX_VISIBLE_TOASTS) {

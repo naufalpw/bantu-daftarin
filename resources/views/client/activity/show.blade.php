@@ -36,7 +36,7 @@
                     <span class="bd-activity-detail-icon" aria-hidden="true">Rp</span>
                     <div>
                         <p>Detail Pembayaran</p>
-                        <h1>{{ $application->service?->name ?? 'Layanan aplikasi' }}</h1>
+                        <h1>{{ $application->service?->name ?? 'Layanan pengajuan' }}</h1>
                     </div>
                 </div>
                 <dl class="bd-activity-detail-list">

@@ -29,7 +29,7 @@ class HelpCenterTest extends TestCase
             ->assertOk()
             ->assertSee('Pusat Bantuan')
             ->assertSee('data-help-search', false)
-            ->assertSee('Cari pertanyaan, mis. dokumen, pembayaran, revisi...')
+            ->assertSee('Cari pertanyaan, mis. dokumen, pembayaran, revisi…')
             ->assertSee('Data &amp; Dokumen', false)
             ->assertSee('Privasi &amp; Bantuan', false)
             ->assertSee('Pertanyaan tidak ditemukan')
@@ -115,7 +115,7 @@ class HelpCenterTest extends TestCase
 
         $this->actingAs($owner)->get(route('client.chat.show', $thread->public_id))
             ->assertOk()
-            ->assertSee('Percakapan dengan Admin')
+            ->assertSee('Percakapan dengan Tim Bantu Daftarin')
             ->assertDontSee('ID …');
         $this->actingAs($other)->get(route('client.chat.show', $thread->public_id))->assertForbidden();
         $this->actingAs($adminUser)->get(route('admin.chat.show', $thread->public_id))

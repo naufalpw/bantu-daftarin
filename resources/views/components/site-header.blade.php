@@ -13,7 +13,7 @@
             <a href="{{ $homeAnchor('beranda') }}" @if($isHome) aria-current="page" class="is-active" @endif>Beranda</a>
             <a href="{{ $homeAnchor('layanan') }}">Layanan</a>
             <a href="{{ $homeAnchor('cara-kerja') }}">Cara Kerja</a>
-            <a href="{{ $homeAnchor('qna') }}">FAQ</a>
+            <a href="{{ $homeAnchor('qna') }}">Bantuan</a>
         </nav>
 
         <div class="pb-public-header__actions">
@@ -34,7 +34,7 @@
             <a href="{{ $homeAnchor('beranda') }}">Beranda</a>
             <a href="{{ $homeAnchor('layanan') }}">Layanan</a>
             <a href="{{ $homeAnchor('cara-kerja') }}">Cara Kerja</a>
-            <a href="{{ $homeAnchor('qna') }}">FAQ</a>
+            <a href="{{ $homeAnchor('qna') }}">Bantuan</a>
             <a href="{{ route('login') }}">Masuk</a>
             <a class="pb-button pb-button--primary" href="{{ route('register') }}">Daftar</a>
         </div>

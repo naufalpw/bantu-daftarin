@@ -56,7 +56,7 @@ final class HelpFaq
             self::item('unduh-hasil', 'results', 'Bagaimana cara mengunduh hasil?', 'Saat hasil terverifikasi tersedia, buka bagian Hasil pada ruang pengajuan lalu gunakan tindakan Unduh. Akses tetap dibatasi kepada pemilik pengajuan dan admin yang berwenang.', ['download', 'simpan hasil', 'lihat hasil']),
 
             self::item('penyimpanan-data', 'privacy-support', 'Bagaimana data dan dokumen saya disimpan?', 'Dokumen pengajuan disimpan melalui penyimpanan privat. Akses dibatasi sesuai otorisasi pengguna, dan dokumen tidak dibuka melalui tautan publik permanen. Pengguna lain tidak dapat mengakses dokumen pengajuan Anda melalui akun mereka.', ['privasi', 'private storage', 'aman', 'akses dokumen', 'pengguna lain']),
-            self::item('bantuan-pengajuan', 'privacy-support', 'Bagaimana jika saya mengalami kendala saat proses pengajuan?', 'Untuk kendala yang terkait satu pengajuan, gunakan Tanya tentang pengajuan ini agar percakapan tetap memiliki konteks yang tepat. Jika masalah tidak terkait pengajuan atau jawabannya belum tersedia di QnA, gunakan Hubungi Admin untuk membuka Bantuan Umum.', ['chat', 'admin', 'kendala', 'bantuan umum', 'pertanyaan tidak tersedia']),
+            self::item('bantuan-pengajuan', 'privacy-support', 'Bagaimana jika saya mengalami kendala saat proses pengajuan?', 'Untuk kendala yang terkait satu pengajuan, gunakan Tanya tentang pengajuan ini agar percakapan tetap memiliki konteks yang tepat. Jika masalah tidak terkait pengajuan atau jawabannya belum tersedia di Pusat Bantuan, gunakan Hubungi Admin untuk membuka Bantuan Umum.', ['chat', 'admin', 'kendala', 'bantuan umum', 'pertanyaan tidak tersedia']),
         ];
     }
 

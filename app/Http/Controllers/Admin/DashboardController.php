@@ -19,6 +19,7 @@ class DashboardController extends Controller
         $period = in_array($period, [7, 30, 90], true) ? $period : 30;
         $unreadClientMessages = ChatMessage::query()
             ->whereNull('read_at')
+            ->whereNull('deleted_at')
             ->whereHas('sender', fn ($query) => $query->where('role', UserRole::CLIENT->value))
             ->count();
 

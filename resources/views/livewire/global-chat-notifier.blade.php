@@ -3,8 +3,8 @@
         <span class="bd-chat-unread-badge" aria-label="{{ $unreadThreadCount }} percakapan belum dibaca">{{ $unreadThreadCount }}</span>
     @endif
 
-    @teleport('body')
-        @if($toasts !== [])
+    @if($toasts !== [])
+        @teleport('body')
             <aside @class(['bd-chat-toast-stack', 'bd-chat-toast-stack--admin' => $isAdmin, 'bd-chat-toast-stack--client' => ! $isAdmin, 'is-chat-active' => $hasActiveChat]) aria-label="Pesan chat baru" aria-live="polite">
                 @foreach($toasts as $toast)
                     <article class="bd-chat-toast" wire:key="chat-toast-{{ $toast['thread_id'] }}" role="status" x-data="{ timer: null, startTimer() { this.stopTimer(); this.timer = window.setTimeout(() => $wire.dismissToast('{{ $toast['thread_id'] }}'), 8000) }, stopTimer() { if (this.timer) window.clearTimeout(this.timer) } }" x-init="startTimer()" @mouseenter="stopTimer()" @mouseleave="startTimer()" @focusin="stopTimer()" @focusout="startTimer()">
@@ -19,6 +19,6 @@
                     </article>
                 @endforeach
             </aside>
-        @endif
-    @endteleport
+        @endteleport
+    @endif
 </span>

@@ -45,8 +45,11 @@ class AuthenticatedClientUiTest extends TestCase
         }
 
         $responses[0]->assertSee('Langkah berikutnya');
-        $responses[1]->assertSee('Pilih layanan sesuai kebutuhan Anda');
-        $responses[2]->assertSee('Persyaratan &amp; mulai', false);
+        $responses[1]->assertSee('Pilih layanan');
+        $responses[2]
+            ->assertSee('Persyaratan pengajuan')
+            ->assertSee('Lihat biaya dan dokumen yang perlu disiapkan.')
+            ->assertSee('Dokumen disimpan secara privat dan hanya dapat dibuka oleh pihak yang berwenang dalam pengajuan.');
         $responses[3]->assertSee('Jenis badan usaha');
         $responses[4]->assertSee('Data &amp; Dokumen', false);
     }

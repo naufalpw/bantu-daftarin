@@ -19,6 +19,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Chat Presence Store
+    |--------------------------------------------------------------------------
+    |
+    | Presence heartbeats are intentionally ephemeral. Keep them out of the
+    | application database even if the default cache store changes later.
+    |
+    */
+
+    'presence_store' => env('CHAT_PRESENCE_CACHE_STORE', 'file'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache Stores
     |--------------------------------------------------------------------------
     |

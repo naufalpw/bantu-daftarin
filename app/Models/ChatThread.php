@@ -65,6 +65,11 @@ class ChatThread extends BaseModel
         return $this->hasOne(ChatMessage::class)->latestOfMany();
     }
 
+    public function participantStates()
+    {
+        return $this->hasMany(ChatThreadUserState::class);
+    }
+
     public function isGeneralSupport(): bool
     {
         return $this->context_type === ChatThreadType::GENERAL_SUPPORT;

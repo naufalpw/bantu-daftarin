@@ -11,17 +11,17 @@ final class ChatQuickReplyPresenter
     {
         if ($thread->isGeneralSupport()) {
             return [
-                'general-information' => 'Terima kasih telah menghubungi Tim Bantu Daftarin. Mohon jelaskan kendala yang Anda alami agar kami dapat membantu.',
+                'general-information' => 'Terima kasih sudah menghubungi kami. Ceritakan kendala yang Anda alami.',
             ];
         }
 
         return [
-            'documents-incomplete' => 'Dokumen pada pengajuan Anda belum lengkap. Silakan periksa kembali dokumen yang diperlukan pada halaman pengajuan.',
-            'reupload-document' => 'Silakan unggah ulang dokumen melalui bagian Dokumen pada halaman pengajuan agar dapat kami periksa kembali.',
-            'documents-under-review' => 'Dokumen Anda sudah kami terima dan sedang dalam proses pemeriksaan.',
-            'payment-received' => 'Pembayaran untuk pengajuan Anda telah diterima. Silakan pantau perkembangan selanjutnya melalui halaman pengajuan.',
-            'process-ongoing' => 'Pengajuan Anda masih dalam proses. Perkembangan terbaru dapat dipantau melalui halaman pengajuan.',
-            'result-available' => 'Hasil pengajuan Anda sudah tersedia. Silakan buka halaman pengajuan untuk melihat hasil yang telah diverifikasi.',
+            'documents-incomplete' => 'Dokumen Anda belum lengkap. Periksa kembali dokumen yang masih diperlukan pada pengajuan.',
+            'reupload-document' => 'Dokumen perlu diunggah ulang. Anda dapat menggantinya dari bagian Dokumen pada pengajuan.',
+            'documents-under-review' => 'Dokumen Anda sudah kami terima dan sedang diperiksa.',
+            'payment-received' => 'Pembayaran pengajuan Anda sudah diterima. Perkembangan berikutnya dapat dilihat di ruang pengajuan.',
+            'process-ongoing' => 'Pengajuan Anda masih diproses. Perkembangan terbaru dapat dilihat di ruang pengajuan.',
+            'result-available' => 'Hasil pengajuan Anda sudah tersedia. Buka ruang pengajuan untuk melihat hasil yang telah diverifikasi.',
         ];
     }
 

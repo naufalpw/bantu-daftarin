@@ -1,5 +1,12 @@
 # Verification Baseline
 
+## PostgreSQL runtime migration — 2026-09-06
+
+- Runtime connection verified through Laravel as `pgsql`, database `bantu_daftarin_mvp`, user `bantu_daftarin_app`.
+- PostgreSQL migration and seeder completed with all seven migrations `Ran` on `bantu_daftarin_mvp`.
+- PostgreSQL test database `bantu_daftarin_mvp_test` completed `migrate:fresh --seed`; full suite passed: 231 tests and 1331 assertions.
+- MariaDB verification below is historical evidence only; MariaDB/MySQL is no longer the runtime or test database.
+
 Tanggal pemeriksaan: 2026-08-26.
 
 ## Berhasil pada checkout ini
@@ -19,12 +26,12 @@ Tanggal pemeriksaan: 2026-08-26.
 ## Belum terverifikasi
 
 - Rollback migration penuh pada database operasional; `down()` sudah tersedia dan destructive rollback tidak dijalankan terhadap database aplikasi berisi data.
-- Webhook/payment transaction provider live; database transaction dan locking sudah diuji pada MariaDB XAMPP.
+- Webhook/payment transaction provider live; database transaction dan locking tetap memerlukan verifikasi PostgreSQL automated test terbaru.
 - Upload, quarantine, ClamAV, purge fisik, dan private streaming pada environment operasional.
 - SMTP, worker queue, scheduler, dan Xendit live callback.
 - Browser/manual interactive acceptance test dan pemetaan frame Figma.
 
-Port `127.0.0.1:3306` aktif dengan `MariaDB 10.4.32` (`mariadb.org binary distribution`) dan collation tabel `utf8mb4_unicode_ci`. MariaDB XAMPP adalah keputusan arsitektur authoritative untuk development dan application database lokal.
+Catatan berikutnya adalah baseline historis MariaDB sebelum ADR-0003 dan bukan kontrak runtime saat ini.
 
 ## Hasil verifikasi database terbaru
 

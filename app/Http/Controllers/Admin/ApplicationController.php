@@ -13,44 +13,16 @@ use App\Models\Application;
 use App\Models\Document;
 use App\Models\ResultDocument;
 use App\Services\AdminWorkflowService;
-use App\Support\AdminApplicationPresenter;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ApplicationController extends Controller
 {
     public function __construct(private readonly AdminWorkflowService $workflow) {}
 
-    public function index(Request $request): View
+    public function index(): View
     {
-        $filter = $request->string('filter', 'all')->toString();
-        $filters = AdminApplicationPresenter::filters();
-        $filter = array_key_exists($filter, $filters) ? $filter : 'all';
-        $search = trim($request->string('q')->toString());
-
-        $applications = Application::query()
-            ->with(['user', 'service'])
-            ->when($filter !== 'all', fn (Builder $query) => $query->whereIn('status', AdminApplicationPresenter::statusesFor($filter)))
-            ->when($search !== '', function (Builder $query) use ($search): void {
-                $query->where(function (Builder $matching) use ($search): void {
-                    $matching->where('public_id', 'like', "%{$search}%")
-                        ->orWhereHas('user', fn (Builder $users) => $users->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
-                        ->orWhereHas('service', fn (Builder $services) => $services->where('name', 'like', "%{$search}%"));
-                });
-            })
-            ->orderByRaw("case
-                when status in ('DOCUMENTS_SUBMITTED', 'REVISION_SUBMITTED', 'UNDER_REVIEW', 'RESULT_REVIEW') then 1
-                when status in ('DOCUMENTS_ACCEPTED', 'ESTIMATE_PENDING', 'IN_PROGRESS', 'WAITING_EXTERNAL_PROCESS', 'RESULT_UPLOADED') then 2
-                when status in ('COMPLETED', 'ARCHIVED') then 4
-                when status = 'CANCELLED' then 5
-                else 3 end")
-            ->orderByDesc('updated_at')
-            ->paginate(15)
-            ->withQueryString();
-
-        return view('admin.applications.index', compact('applications', 'filter', 'filters', 'search'));
+        return view('admin.applications.index');
     }
 
     public function show(string $publicId): View
@@ -81,7 +53,7 @@ class ApplicationController extends Controller
         $action = DocumentReviewAction::from($request->string('action')->toString());
         $this->workflow->reviewDocument($document, $request->user()->admin, $action, $request->input('reason'), $request->input('instruction'));
 
-        return back()->with('status', 'Review dokumen tersimpan.');
+        return back()->with('status', 'Keputusan dokumen tersimpan.');
     }
 
     public function finalizeReview(string $publicId): RedirectResponse
@@ -144,7 +116,7 @@ class ApplicationController extends Controller
         $this->authorize('adminAction', $application);
         $this->workflow->complete($application, request()->user()->admin);
 
-        return back()->with('status', 'Aplikasi ditandai selesai.');
+        return back()->with('status', 'Pengajuan ditandai selesai.');
     }
 
     public function archive(string $publicId): RedirectResponse
@@ -153,7 +125,7 @@ class ApplicationController extends Controller
         $this->authorize('adminAction', $application);
         $this->workflow->archive($application, request()->user()->admin);
 
-        return back()->with('status', 'Aplikasi diarsipkan.');
+        return back()->with('status', 'Pengajuan diarsipkan.');
     }
 
     private function find(string $publicId): Application

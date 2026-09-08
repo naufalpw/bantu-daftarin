@@ -10,7 +10,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('chat_threads', function (Blueprint $table): void {
-            $table->string('context_type', 32)->default('APPLICATION')->after('public_id');
+            $table->string('context_type', 32)->default('APPLICATION');
         });
 
         Schema::table('chat_threads', function (Blueprint $table): void {

@@ -207,6 +207,8 @@ class ApplicationWorkflowTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(ApplicationDetailsForm::class, ['application' => $application])
+            ->assertSee('Perubahan disimpan otomatis setelah Anda selesai mengisi kolom.')
+            ->assertDontSee('Anda juga dapat menyimpan secara manual.')
             ->set('details.name', 'Synthetic Autosave Client')
             ->call('save')
             ->assertSet('saveState', 'Tersimpan otomatis.');

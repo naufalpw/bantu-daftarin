@@ -10,7 +10,7 @@ return new class extends Migration
     {
         if (! Schema::hasColumn('payments', 'payment_method')) {
             Schema::table('payments', function (Blueprint $table): void {
-                $table->string('payment_method', 32)->nullable()->after('provider');
+                $table->string('payment_method', 32)->nullable();
             });
         }
     }

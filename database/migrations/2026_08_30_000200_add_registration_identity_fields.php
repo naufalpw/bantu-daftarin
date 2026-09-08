@@ -11,12 +11,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('personal_application_details', function (Blueprint $table): void {
-            $table->text('nik')->nullable()->after('name');
-            $table->text('family_card_number')->nullable()->after('nik');
+            $table->text('nik')->nullable();
+            $table->text('family_card_number')->nullable();
         });
 
         Schema::table('business_application_details', function (Blueprint $table): void {
-            $table->text('business_type_other')->nullable()->after('business_type');
+            $table->text('business_type_other')->nullable();
         });
 
         $personalService = DB::table('services')->where('code', 'NPWP_PERSONAL')->first();

@@ -48,6 +48,7 @@ class AdminPhaseBTest extends TestCase
             ->assertOk()
             ->assertSee('VERIFIKASI ADMIN')
             ->assertSee('Masukkan kode OTP')
+            ->assertSee('class="bd-otp-input"', false)
             ->assertSee(route('auth.otp.verify'), false)
             ->assertSee(route('auth.otp.resend'), false);
 
@@ -101,9 +102,9 @@ class AdminPhaseBTest extends TestCase
             ->assertViewHas('priorityQueue', fn ($queue): bool => $queue->count() === 4)
             ->assertViewHas('period', 30)
             ->assertSee('Ruang kerja admin')
-            ->assertSee('PERLU PERHATIAN')
+            ->assertSee('Perlu ditindaklanjuti')
             ->assertSee('AKTIVITAS OPERASIONAL')
-            ->assertSee('ANTRIAN PRIORITAS')
+            ->assertSee('Antrian prioritas')
             ->assertDontSee('Aktivitas Pengunjung')
             ->assertSee('NPWP Perseorangan');
     }
@@ -175,7 +176,7 @@ class AdminPhaseBTest extends TestCase
             ->assertSee(route('admin.activity.index'), false)
             ->assertSee(route('admin.users.index'), false)
             ->assertSee('aria-current="page"', false)
-            ->assertSee('Logout')
+            ->assertSee('Keluar')
             ->assertDontSee('Pesanan produk')
             ->assertDontSee('Get Help')
             ->assertDontSee('Settings')

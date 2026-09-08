@@ -1,7 +1,9 @@
-# ADR-0002: Gunakan MariaDB XAMPP untuk Development Lokal
+# ADR-0002: Gunakan MariaDB XAMPP untuk Development Lokal (Historical)
 
 Tanggal: 2026-08-26  
-Status: Accepted and authoritative for local development and the local application database
+Status: Superseded by [ADR-0003](ADR-0003-postgresql-local-runtime.md) on 2026-09-06.
+
+> Catatan historis: ADR ini menjelaskan keputusan awal. MariaDB/MySQL tidak dihapus, tetapi bukan lagi runtime database aplikasi.
 
 ## Konteks
 

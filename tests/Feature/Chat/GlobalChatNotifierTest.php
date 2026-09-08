@@ -13,6 +13,7 @@ use App\Models\ChatMessage;
 use App\Models\ChatThread;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\ChatMessageManagementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -36,6 +37,8 @@ class GlobalChatNotifierTest extends TestCase
         $notifier->call('poll')
             ->assertSee('Tim Bantu Daftarin')
             ->assertSee('Mohon periksa kelengkapan dokumen Anda.')
+            ->assertSee('Buka percakapan')
+            ->assertDontSee('Buka chat')
             ->assertSee(route('client.chat.show', $thread->public_id), false);
 
         $this->assertSame(1, $notifier->get('toasts')[$thread->public_id]['count']);
@@ -62,6 +65,22 @@ class GlobalChatNotifierTest extends TestCase
             ->assertSet('toasts', []);
 
         $this->assertNull($first->fresh()->read_at);
+    }
+
+    public function test_notifier_reconciles_an_edited_or_deleted_unread_message_without_marking_it_read(): void
+    {
+        [$client, $adminUser, $thread] = $this->applicationThread();
+        $notifier = Livewire::actingAs($client)->test(GlobalChatNotifier::class);
+        $message = $this->message($thread, $adminUser, 'Pesan awal untuk notifier.');
+
+        $notifier->call('poll')->assertSee('Pesan awal untuk notifier.');
+
+        app(ChatMessageManagementService::class)->edit($thread, $message->id, $adminUser, 'Pesan yang telah diperbarui.');
+        $notifier->call('poll')->assertSee('Pesan yang telah diperbarui.');
+
+        app(ChatMessageManagementService::class)->delete($thread, $message->id, $adminUser);
+        $notifier->call('poll')->assertSet('toasts', [])->assertSet('unreadThreadCount', 0);
+        $this->assertNull($message->fresh()->read_at);
     }
 
     public function test_notifier_suppresses_the_active_thread_but_alerts_for_a_different_thread(): void
@@ -131,6 +150,34 @@ class GlobalChatNotifierTest extends TestCase
         $notifier->call('poll')->assertSet('unreadThreadCount', 0);
     }
 
+    public function test_sidebar_badge_counts_unread_threads_and_refreshes_after_a_thread_is_read(): void
+    {
+        [$client, $adminUser, $firstThread] = $this->applicationThread();
+        $secondThread = $this->applicationThreadFor($client);
+        $notifier = Livewire::actingAs($client)->test(GlobalChatNotifier::class);
+
+        foreach (range(1, 4) as $number) {
+            $this->message($firstThread, $adminUser, 'Pesan pertama '.$number.'.');
+        }
+        foreach (range(1, 2) as $number) {
+            $this->message($secondThread, $adminUser, 'Pesan kedua '.$number.'.');
+        }
+
+        $notifier->call('poll')->assertSet('unreadThreadCount', 2);
+
+        Livewire::actingAs($client)
+            ->test(ChatThreadComponent::class, ['threadId' => $firstThread->public_id]);
+
+        $notifier->dispatch('chat-unread-updated')->assertSet('unreadThreadCount', 1);
+
+        Livewire::actingAs($client)
+            ->test(ChatThreadComponent::class, ['threadId' => $secondThread->public_id]);
+
+        $notifier->dispatch('chat-unread-updated')
+            ->assertSet('unreadThreadCount', 0)
+            ->assertDontSee('bd-chat-unread-badge', false);
+    }
+
     public function test_client_cannot_receive_another_clients_chat_notification(): void
     {
         [$client, $adminUser] = $this->users();
@@ -162,6 +209,16 @@ class GlobalChatNotifierTest extends TestCase
             ->assertSee('wire:poll.12s', false);
 
         $this->get(route('home'))->assertDontSee('bd-chat-notifier', false);
+    }
+
+    public function test_empty_notifier_does_not_render_an_empty_alpine_teleport_template(): void
+    {
+        [$client] = $this->users();
+
+        Livewire::actingAs($client)
+            ->test(GlobalChatNotifier::class)
+            ->assertSet('toasts', [])
+            ->assertDontSee('x-teleport="body"', false);
     }
 
     /**

@@ -11,13 +11,13 @@
     <header class="pb-page-heading pb-help-center__heading">
         <p class="pb-kicker">Bantuan</p>
         <h1>Pusat Bantuan</h1>
-        <p>Temukan jawaban untuk pertanyaan umum atau dapatkan bantuan terkait pengajuan yang sedang Anda proses.</p>
+        <p>Cari jawaban umum atau bantuan untuk pengajuan Anda.</p>
     </header>
 
     <div class="pb-help-search">
         <label class="pb-sr-only" for="help-search">Cari pertanyaan</label>
         <span class="pb-help-search__icon" aria-hidden="true"></span>
-        <input id="help-search" type="search" autocomplete="off" placeholder="Cari pertanyaan, mis. dokumen, pembayaran, revisi..." data-help-search>
+        <input id="help-search" type="search" autocomplete="off" placeholder="Cari pertanyaan, mis. dokumen, pembayaran, revisi…" data-help-search>
     </div>
 
     <div class="pb-help-filters" role="group" aria-label="Filter kategori pertanyaan">
@@ -51,7 +51,7 @@
 
             <div class="pb-help-empty" data-help-empty hidden>
                 <h3>Pertanyaan tidak ditemukan</h3>
-                <p>Kami belum menemukan jawaban yang sesuai dengan “<span data-help-empty-query></span>”. Coba gunakan kata kunci lain atau tanyakan langsung kepada admin.</p>
+                <p>Tidak ada jawaban untuk “<span data-help-empty-query></span>”. Coba kata kunci lain atau hubungi admin jika masih perlu bantuan.</p>
                 <div class="pb-help-empty__actions">
                     <button class="pb-button pb-button--secondary" type="button" data-help-clear>Hapus pencarian</button>
                     @if($isClient)
@@ -67,8 +67,8 @@
             <aside class="pb-help-sidebar" aria-label="Jalur bantuan">
                 <section class="pb-help-support-card pb-help-support-card--applications" aria-labelledby="application-help-title">
                     <p class="pb-kicker">Bantuan pengajuan</p>
-                    <h2 id="application-help-title">Tanyakan sesuai konteks</h2>
-                    <p class="pb-help-support-card__intro">Pilih pengajuan agar admin menerima konteks yang tepat.</p>
+                    <h2 id="application-help-title">Pilih pengajuan</h2>
+                    <p class="pb-help-support-card__intro">Tim kami dapat melihat konteksnya.</p>
                     <div class="pb-help-applications">
                         @forelse($helpApplications as $item)
                             @php($application = $item['application'])
@@ -88,6 +88,26 @@
                         @endforelse
                     </div>
                     @if($hasMoreApplications)<a class="pb-help-all-applications" href="{{ route('client.applications.index') }}">Lihat semua pengajuan</a>@endif
+                </section>
+
+                <section class="pb-help-support-card pb-help-support-card--conversations" aria-labelledby="conversation-list-title">
+                    <p class="pb-kicker">Percakapan</p>
+                    <h2 id="conversation-list-title">{{ $conversationFilter === 'archived' ? 'Arsip percakapan' : 'Percakapan tersimpan' }}</h2>
+                    <nav class="pb-help-conversation-filters" aria-label="Filter percakapan">
+                        <a href="{{ route('qna', ['conversation_filter' => 'active']) }}" @if($conversationFilter === 'active') aria-current="page" @endif>Percakapan</a>
+                        <a href="{{ route('qna', ['conversation_filter' => 'archived']) }}" @if($conversationFilter === 'archived') aria-current="page" @endif>Arsip</a>
+                    </nav>
+                    <div class="pb-help-conversations">
+                        @forelse($helpThreads as $thread)
+                            <a href="{{ route('client.chat.show', $thread->public_id) }}" class="pb-help-conversation">
+                                <strong>{{ $thread->isGeneralSupport() ? 'Bantuan Umum' : ($thread->application?->service?->name ?? 'Pengajuan') }}</strong>
+                                <span>{{ $thread->latestMessage?->displayBody() ?? 'Belum ada pesan.' }}</span>
+                                <small>{{ ($thread->last_message_at ?? $thread->updated_at)->translatedFormat('d M, H:i') }}</small>
+                            </a>
+                        @empty
+                            <p class="pb-help-support-card__intro">{{ $conversationFilter === 'archived' ? 'Belum ada percakapan di arsip.' : 'Belum ada percakapan tersimpan.' }}</p>
+                        @endforelse
+                    </div>
                 </section>
 
                 <section class="pb-help-support-card pb-help-support-card--general" aria-labelledby="general-help-title">

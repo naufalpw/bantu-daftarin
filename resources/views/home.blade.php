@@ -34,7 +34,7 @@
             <p class="pb-home-hero__tag">#BantuUrusanPajakJadiMudah</p>
             <img class="pb-home-hero__wordmark" src="{{ asset('images/figma/home/logo-color.png') }}" alt="Bantu Daftarin">
             <h1 id="home-title">Urusan NPWP jadi lebih terarah</h1>
-            <p class="pb-home-hero__description">Layanan online yang membantu Anda menyiapkan pengajuan NPWP Perseorangan dan NPWP Badan Usaha, mulai dari data, dokumen, hingga pemantauan proses.</p>
+            <p class="pb-home-hero__description">Siapkan pengajuan NPWP Perseorangan atau Badan Usaha, mulai dari data dan dokumen hingga melihat perkembangan proses.</p>
             <div class="pb-home-hero__actions">
                 <a class="pb-button pb-button--primary" href="{{ route('register') }}">Daftar untuk mulai</a>
                 <a class="pb-button pb-button--secondary" href="#layanan">Lihat layanan</a>
@@ -43,7 +43,7 @@
         <div class="pb-home-hero__art">
             <img src="{{ asset('images/figma/home/hero-image.png') }}" alt="Ilustrasi layanan administrasi NPWP Bantu Daftarin" fetchpriority="high" decoding="async">
         </div>
-        <ul class="pb-home-hero__benefits" aria-label="Kemampuan Bantu Daftarin">
+        <ul class="pb-home-hero__benefits" aria-label="Bantuan pengajuan">
             <li>
                 <span class="pb-home-hero__benefit-icon"><img src="{{ asset('images/figma/home/trust-icon.svg') }}" alt="" aria-hidden="true" loading="lazy"></span>
                 <span>Data &amp; Dokumen<br>Terstruktur</span>
@@ -63,7 +63,7 @@
         <div class="pb-home-section-heading">
             <div>
                 <p class="pb-kicker">Layanan</p>
-                <h2 id="home-services-title">Pilih layanan sesuai kebutuhan pengajuan</h2>
+                <h2 id="home-services-title">Pilih layanan pengajuan</h2>
             </div>
         </div>
 
@@ -184,7 +184,7 @@
     <section id="qna" class="pb-home-qna" aria-labelledby="home-qna-title">
         <div class="pb-home-qna__heading">
             <div>
-                <p class="pb-kicker">FAQ</p>
+                <p class="pb-kicker">Pertanyaan umum</p>
                 <h2 id="home-qna-title">Pertanyaan sebelum memulai</h2>
             </div>
         </div>
@@ -222,9 +222,8 @@
 
     <section class="pb-home-closing" aria-labelledby="home-closing-title">
         <div>
-            <p class="pb-kicker pb-kicker--inverse">Siap memulai?</p>
-            <h2 id="home-closing-title">Mulai pengajuan sesuai kebutuhan Anda</h2>
-            <p>Buat akun untuk melihat persyaratan dan memulai pengajuan NPWP Perseorangan atau Badan Usaha.</p>
+            <h2 id="home-closing-title">Siap memulai pengajuan?</h2>
+            <p>Buat akun untuk melihat persyaratan NPWP Perseorangan atau Badan Usaha.</p>
         </div>
         <div class="pb-home-closing__actions">
             <a class="pb-button pb-button--light" href="{{ route('register') }}">Daftar untuk mulai</a>

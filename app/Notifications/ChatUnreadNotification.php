@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\TransactionalEmail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -11,8 +12,10 @@ class ChatUnreadNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public readonly string $threadId)
-    {
+    public function __construct(
+        public readonly string $threadId,
+        public readonly ?string $conversationContext = null,
+    ) {
         $this->afterCommit();
     }
 
@@ -23,6 +26,21 @@ class ChatUnreadNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)->subject('Pesan baru di Bantu Daftarin')->greeting('Halo '.$notifiable->name.',')->line('Ada pesan baru pada percakapan bantuan Anda.')->line('Buka aplikasi Bantu Daftarin untuk membacanya.');
+        return TransactionalEmail::make(
+            subject: 'Ada pesan baru di BantuDaftarin',
+            preheader: 'Anda memiliki pesan yang belum dibaca di BantuDaftarin.',
+            greeting: TransactionalEmail::greetingFor($notifiable),
+            title: 'Ada pesan baru',
+            paragraphs: ['Anda memiliki pesan yang belum dibaca.'],
+            context: $this->conversationContext === null ? [] : ['Percakapan' => $this->conversationContext],
+            actionText: 'Buka percakapan',
+            actionUrl: $this->conversationUrl($notifiable),
+            secondaryLines: ['Isi percakapan tidak ditampilkan di email untuk menjaga privasi Anda.'],
+        );
+    }
+
+    private function conversationUrl(object $notifiable): string
+    {
+        return route($notifiable->isAdmin() ? 'admin.chat.show' : 'client.chat.show', $this->threadId);
     }
 }

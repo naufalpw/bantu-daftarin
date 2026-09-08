@@ -11,7 +11,7 @@
         @csrf
         <label class="bd-admin-field bd-admin-field--otp">
             <span>Kode OTP</span>
-            <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus autocomplete="one-time-code">
+            <input class="bd-otp-input" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus autocomplete="one-time-code">
         </label>
         <button class="bd-admin-button bd-admin-button--primary bd-admin-button--wide" type="submit">Verifikasi kode</button>
     </form>
@@ -35,7 +35,7 @@
 <p class="mt-2 text-sm text-slate-600">Masukkan 6 digit OTP yang dikirim ke email terdaftar. Satu OTP hanya dapat dipakai sekali.</p>
 <form method="post" action="{{ route('auth.otp.verify') }}" class="mt-6 space-y-4 pb-auth-form">
     @csrf
-    <label class="block text-sm font-medium">Kode OTP<input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus class="mt-1 w-full rounded-lg border-slate-300 text-center text-2xl tracking-[0.4em]"></label>
+    <label class="block text-sm font-medium">Kode OTP<input class="bd-otp-input mt-1" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus></label>
     <button class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white pb-button pb-button--primary pb-button--wide">Verifikasi kode</button>
 </form>
 <div class="mt-4 text-center text-sm text-slate-600" data-otp-resend data-otp-resend-remaining="{{ $resendCooldownSeconds }}">

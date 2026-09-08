@@ -17,6 +17,7 @@ use App\Support\ApplicationStatusPresenter;
 use App\Support\ApplicationTimelinePresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class ApplicationController extends Controller
@@ -128,7 +129,7 @@ class ApplicationController extends Controller
         $details = $request->only(['name', 'nik', 'family_card_number', 'email', 'marital_status', 'family_status', 'gender', 'business_name', 'business_type', 'business_type_other', 'purpose']);
         $this->workflow->saveDetails($application, $details, $request->input('representative'), $request->user(), $request->input('additional_representative'));
 
-        return back()->with('status', 'Data aplikasi tersimpan.');
+        return back()->with('status', 'Data pengajuan tersimpan.');
     }
 
     public function submit(string $publicId): RedirectResponse
@@ -137,7 +138,7 @@ class ApplicationController extends Controller
         $this->authorize('submit', $application);
         $this->workflow->submitForDocuments($application, request()->user());
 
-        return back()->with('status', 'Aplikasi masuk ke tahap pengumpulan dokumen.');
+        return back()->with('status', 'Pengajuan masuk ke tahap pengumpulan dokumen.');
     }
 
     public function payment(Request $request, string $publicId): RedirectResponse
@@ -185,6 +186,8 @@ class ApplicationController extends Controller
 
     private function find(string $publicId): Application
     {
+        abort_unless(Str::isUuid($publicId), 404);
+
         return Application::query()->where('public_id', $publicId)->where('user_id', request()->user()->getKey())->firstOrFail();
     }
 }

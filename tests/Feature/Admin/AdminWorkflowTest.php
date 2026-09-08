@@ -102,10 +102,10 @@ class AdminWorkflowTest extends TestCase
         $message = $notification->toMail($setup['client']);
         $content = implode(' ', array_map('strval', array_merge($message->introLines, $message->outroLines)));
 
-        $this->assertSame('Hasil layanan tersedia', $message->subject);
-        $this->assertSame('Lihat hasil layanan', $message->actionText);
+        $this->assertSame('Hasil pengajuan Anda sudah tersedia', $message->subject);
+        $this->assertSame('Lihat hasil pengajuan', $message->actionText);
         $this->assertSame(route('client.applications.show', $setup['application']->public_id), $message->actionUrl);
-        $this->assertStringContainsString('Hasil layanan Anda telah tersedia.', $content);
+        $this->assertStringContainsString('Hasil pengajuan Anda sudah tersedia untuk ditinjau.', $content);
         $this->assertStringNotContainsString('3173055501010001', $content);
         $this->assertStringNotContainsString('3173055501010002', $content);
         $this->actingAs($setup['client'])

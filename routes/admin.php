@@ -15,6 +15,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
     Route::get('/support', [SupportController::class, 'index'])->name('support.index');
+    Route::post('/support/{publicId}/archive', [SupportController::class, 'archive'])->name('support.archive');
+    Route::post('/support/{publicId}/unarchive', [SupportController::class, 'unarchive'])->name('support.unarchive');
     Route::get('/chat/{publicId}', [ChatController::class, 'show'])->name('chat.show');
     Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
     Route::get('/applications/{publicId}', [ApplicationController::class, 'show'])->name('applications.show');

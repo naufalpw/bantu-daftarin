@@ -34,6 +34,7 @@
     </main>
 
     <x-mobile-bottom-nav />
+    <x-presence-heartbeat />
     @livewireScripts
     @stack('scripts')
 </body>

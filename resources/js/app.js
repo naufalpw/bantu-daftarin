@@ -42,6 +42,114 @@ document.addEventListener('click', async (event) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+    // ── Chat auto-scroll ──────────────────────────────────────────────────────
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const scrollBehavior = () => reducedMotion.matches ? 'instant' : 'smooth';
+
+    const chatScrollBottom = (messagesEl) => {
+        const sentinel = messagesEl.querySelector('[data-chat-bottom]');
+        if (sentinel) {
+            sentinel.scrollIntoView({ behavior: scrollBehavior(), block: 'end' });
+        } else {
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+    };
+
+    const isNearBottom = (messagesEl, threshold = 140) =>
+        messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight <= threshold;
+
+    // Scroll to bottom on initial page load for all visible chat message containers.
+    document.querySelectorAll('[data-chat-messages]').forEach((el) => chatScrollBottom(el));
+
+    // After the authenticated user successfully sends a message, Livewire
+    // dispatches 'chat-message-sent' as a browser event. Scroll to bottom.
+    document.addEventListener('chat-message-sent', () => {
+        document.querySelectorAll('[data-chat-messages]').forEach((el) => chatScrollBottom(el));
+    });
+
+    // When an incoming message arrives via wire:poll morphing, auto-follow only
+    // if the user was already near the bottom. A MutationObserver on the
+    // messages container detects newly added child nodes (new message rows or
+    // date separators). We store the "near-bottom" state just before the DOM
+    // mutation so we don't read a stale scrollTop after morphing.
+    document.querySelectorAll('[data-chat-messages]').forEach((el) => {
+        let wasNearBottom = isNearBottom(el);
+
+        // Re-evaluate near-bottom whenever the user scrolls.
+        el.addEventListener('scroll', () => { wasNearBottom = isNearBottom(el); }, { passive: true });
+
+        const observer = new MutationObserver(() => {
+            if (wasNearBottom) {
+                chatScrollBottom(el);
+            }
+            // Always refresh near-bottom state after morph.
+            wasNearBottom = isNearBottom(el);
+        });
+
+        observer.observe(el, { childList: true, subtree: true });
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
+    document.querySelectorAll('[data-presence-heartbeat]').forEach((heartbeatElement) => {
+        const url = heartbeatElement.dataset.presenceHeartbeatUrl;
+        const token = heartbeatElement.dataset.presenceHeartbeatToken;
+        const interval = Number(heartbeatElement.dataset.presenceHeartbeatInterval || 40000);
+        if (!url || !token || Number.isNaN(interval)) {
+            return;
+        }
+
+        let timer = null;
+        let inFlight = false;
+
+        const heartbeat = () => {
+            if (document.visibilityState !== 'visible' || inFlight) {
+                return;
+            }
+
+            inFlight = true;
+            fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            }).catch(() => {
+                // Presence is optional; a failed heartbeat must not interrupt the workspace.
+            }).finally(() => {
+                inFlight = false;
+            });
+        };
+
+        const stopHeartbeat = () => {
+            if (timer !== null) {
+                window.clearInterval(timer);
+                timer = null;
+            }
+        };
+
+        const startHeartbeat = () => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
+
+            stopHeartbeat();
+            heartbeat();
+            timer = window.setInterval(heartbeat, interval);
+        };
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                startHeartbeat();
+            } else {
+                stopHeartbeat();
+            }
+        });
+
+        startHeartbeat();
+    });
+
     document.querySelectorAll('[data-admin-shell]').forEach((shell) => {
         const drawer = shell.querySelector('[data-admin-drawer]');
         const openButton = shell.querySelector('[data-admin-drawer-open]');

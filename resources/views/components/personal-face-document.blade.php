@@ -27,7 +27,7 @@
             <video data-face-preview playsinline hidden></video>
         </div>
         <div class="pb-personal-face__content">
-            <div><h4>Tips Foto yang Baik</h4><ul class="pb-personal-face__tips"><li>Pastikan wajah terlihat jelas</li><li>Gunakan pencahayaan yang cukup</li><li>Hindari ruangan yang gelap</li></ul></div>
+            <div><h4>Tips foto</h4><ul class="pb-personal-face__tips"><li>Pastikan wajah terlihat jelas</li><li>Gunakan pencahayaan yang cukup</li><li>Hindari ruangan yang gelap</li></ul></div>
             @if($activeDocument)
                 <p class="pb-personal-face__file">Foto wajah tersedia &middot; Versi {{ $activeDocument->version_number }}</p>
                 @if($activeDocument->rejection_reason || $activeDocument->revision_instruction)

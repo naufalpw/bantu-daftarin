@@ -217,7 +217,7 @@ final class AdminActivityPresenter
             'result_verification' => $detail === ResultVerificationStatus::VERIFIED->value
                 ? ['result', 'Hasil diverifikasi', 'Hasil telah diverifikasi oleh admin.']
                 : ['result', 'Hasil perlu diperbaiki', 'Hasil belum dapat diverifikasi dan memerlukan perbaikan.'],
-            default => ['application', 'Pembaruan pengajuan', 'Terdapat pembaruan pada workflow pengajuan.'],
+            default => ['application', 'Pembaruan pengajuan', 'Terdapat pembaruan pada proses pengajuan.'],
         };
 
         return [
@@ -236,7 +236,7 @@ final class AdminActivityPresenter
         $status = ApplicationStatus::tryFrom($value);
 
         if (! $status instanceof ApplicationStatus) {
-            return ['application', 'Status pengajuan diperbarui', 'Terdapat pembaruan pada workflow pengajuan.'];
+            return ['application', 'Status pengajuan diperbarui', 'Terdapat pembaruan pada proses pengajuan.'];
         }
 
         return [
@@ -269,7 +269,7 @@ final class AdminActivityPresenter
     private static function labelForStatus(ApplicationStatus $status): string
     {
         return match ($status) {
-            ApplicationStatus::DOCUMENTS_SUBMITTED => 'Dokumen dikirim untuk review',
+            ApplicationStatus::DOCUMENTS_SUBMITTED => 'Dokumen dikirim untuk pemeriksaan',
             ApplicationStatus::UNDER_REVIEW => 'Pemeriksaan dokumen dimulai',
             ApplicationStatus::DOCUMENTS_ACCEPTED => 'Dokumen diterima',
             ApplicationStatus::REVISION_REQUIRED => 'Revisi dokumen diminta',
@@ -277,7 +277,7 @@ final class AdminActivityPresenter
             ApplicationStatus::IN_PROGRESS => 'Proses pengajuan dimulai',
             ApplicationStatus::WAITING_EXTERNAL_PROCESS => 'Menunggu proses instansi',
             ApplicationStatus::RESULT_UPLOADED => 'Hasil diunggah',
-            ApplicationStatus::RESULT_REVIEW => 'Review hasil dimulai',
+            ApplicationStatus::RESULT_REVIEW => 'Pemeriksaan hasil dimulai',
             ApplicationStatus::COMPLETED => 'Pengajuan selesai',
             ApplicationStatus::ARCHIVED => 'Pengajuan diarsipkan',
             ApplicationStatus::CANCELLED => 'Pengajuan dibatalkan oleh klien',

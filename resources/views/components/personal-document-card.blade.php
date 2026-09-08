@@ -16,6 +16,7 @@
     $extensions = collect($requirement->allowed_extensions ?? [])->map(fn ($extension) => '.'.strtolower($extension))->implode(',');
     $formats = collect($requirement->allowed_extensions ?? [])->map(fn ($extension) => strtoupper($extension))->implode(', ');
     $maxMegabytes = $requirement->max_size_bytes ? (int) round($requirement->max_size_bytes / 1024 / 1024) : null;
+    $requirementLabel = $requirement->is_required ? 'Wajib' : ($requirement->condition_snapshot ? 'Kondisional' : 'Opsional');
 @endphp
 
 <article class="pb-personal-document-card{{ $activeDocument ? ' pb-personal-document-card--uploaded' : '' }}" data-requirement-code="{{ $requirement->code }}">
@@ -25,9 +26,12 @@
     </div>
     <div class="pb-personal-document-card__heading">
         <h3>{{ $title }}</h3>
-        <span class="pb-personal-document-card__requirement">{{ $requirement->is_required ? 'Wajib' : 'Opsional' }}</span>
+        <span class="pb-personal-document-card__requirement">{{ $requirementLabel }}</span>
     </div>
     <p class="pb-personal-document-card__description">{{ $description }}</p>
+    @if($requirement->condition_snapshot)
+        <p class="pb-personal-document-card__condition">{{ ucfirst($requirement->condition_snapshot) }}</p>
+    @endif
 
     @if($activeDocument)
         <p class="pb-personal-document-card__file">Versi {{ $activeDocument->version_number }} &middot; {{ $activeDocument->review_status->label() }}</p>

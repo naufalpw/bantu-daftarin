@@ -34,6 +34,7 @@
     </div>
 </div>
 
+<x-presence-heartbeat />
 @livewireScripts
 </body>
 </html>

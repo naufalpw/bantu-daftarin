@@ -22,9 +22,9 @@
     </a>
 
     <header class="pb-page-heading">
-        <p class="pb-kicker">Persyaratan &amp; mulai</p>
+        <p class="pb-kicker">Persyaratan pengajuan</p>
         <h1>{{ $service->name }}</h1>
-        <p>Tinjau biaya dan dokumen yang perlu disiapkan. Draft dibuat setelah data awal dan persetujuan disimpan.</p>
+        <p>Lihat biaya dan dokumen yang perlu disiapkan. Setelah data awal dan persetujuan disimpan, draft pengajuan dibuat.</p>
     </header>
 
     <div class="pb-start-layout">
@@ -49,7 +49,7 @@
                     </dd>
                 </div>
             </dl>
-            <p class="pb-private-note">Dokumen akan disimpan secara private dan hanya dapat dibuka oleh pihak yang berwenang dalam pengajuan.</p>
+            <p class="pb-private-note">Dokumen disimpan secara privat dan hanya dapat dibuka oleh pihak yang berwenang dalam pengajuan.</p>
         </aside>
 
         <form method="post" action="{{ route('client.applications.store') }}" class="pb-form-surface">

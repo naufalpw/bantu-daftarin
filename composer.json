@@ -6,6 +6,8 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
+        "ext-pdo_pgsql": "*",
+        "ext-pgsql": "*",
         "php": "^8.2",
         "chillerlan/php-qrcode": "6.0",
         "laravel/framework": "^12.0",

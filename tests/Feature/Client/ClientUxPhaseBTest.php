@@ -108,13 +108,13 @@ class ClientUxPhaseBTest extends TestCase
 
         $this->actingAs($user)->get(route('client.services.index'))
             ->assertOk()
-            ->assertSee('Pilih layanan sesuai kebutuhan Anda')
-            ->assertSee('Bandingkan layanan, persyaratan utama, dan lanjutkan pengajuan.')
+            ->assertSee('Pilih layanan')
+            ->assertSee('Bandingkan persyaratan sebelum memulai pengajuan.')
             ->assertSee('IDR 150.000')
             ->assertSee('IDR 500.000')
             ->assertSee('Kartu Keluarga')
             ->assertSee('Akta notaris')
-            ->assertSee('Lihat persyaratan &amp; mulai', false)
+            ->assertSee('Lihat persyaratan')
             ->assertSee(route('client.applications.create', $personal->public_id), false)
             ->assertSee(route('client.applications.create', $business->public_id), false)
             ->assertSee('Lapor Pajak')
@@ -182,7 +182,9 @@ class ClientUxPhaseBTest extends TestCase
             ->assertSee('Tahap 1 dari 6')
             ->assertSee('Ringkasan')
             ->assertSee('Data &amp; Dokumen', false)
+            ->assertSee('File disimpan secara privat')
             ->assertSee('Butuh bantuan?')
+            ->assertSee('Bantuan umum tersedia di Pusat Bantuan.')
             ->assertSee('pb-sidebar-summary', false)
             ->assertSee('Lanjutkan pengajuan')
             ->assertDontSee('Bagian pengajuan')
@@ -239,6 +241,7 @@ class ClientUxPhaseBTest extends TestCase
             ->assertSee('Dokumen perlu diperbaiki')
             ->assertSee('Foto terlalu gelap.')
             ->assertSee('Unggah ulang foto yang terbaca jelas.')
+            ->assertSee('Pastikan semua perbaikan sudah selesai sebelum dikirim.')
             ->assertSee('Ganti dokumen');
     }
 
@@ -261,6 +264,8 @@ class ClientUxPhaseBTest extends TestCase
             ->assertSee('Unggah KK')
             ->assertSee('Unggah NPWP')
             ->assertSee('Foto Wajah')
+            ->assertSee('Tips foto')
+            ->assertDontSee('Tips Foto yang Baik')
             ->assertSee('Ambil foto wajah')
             ->assertSee('Unggah foto')
             ->assertDontSee('Unggah file')
@@ -273,6 +278,52 @@ class ClientUxPhaseBTest extends TestCase
             ->assertSee('data-face-start', false)
             ->assertSee(route('client.documents.store', [$application->public_id, $faceRequirement->public_id]), false)
             ->assertDontSee('biometr', false);
+    }
+
+    public function test_business_workspace_uses_the_refined_layout_without_personal_requirement_leakage(): void
+    {
+        $user = User::factory()->create();
+        $service = Service::factory()->create([
+            'code' => 'NPWP_BUSINESS',
+            'name' => 'NPWP Badan Usaha',
+            'status' => ServiceStatus::ACTIVE,
+            'price_amount' => 225000,
+            'currency' => 'IDR',
+        ]);
+        $application = $this->application($user, $service, ApplicationStatus::DRAFT);
+
+        collect([
+            ['code' => 'KTP_PENANGGUNG_JAWAB', 'name' => 'KTP penanggung jawab utama', 'is_required' => true],
+            ['code' => 'AKTA_NOTARIS', 'name' => 'Akta notaris', 'is_required' => true],
+            ['code' => 'SK_AHU', 'name' => 'SK AHU', 'is_required' => true],
+            ['code' => 'SURAT_KUASA', 'name' => 'Surat kuasa', 'is_required' => false, 'condition_snapshot' => 'jika diwakilkan'],
+        ])->each(fn (array $attributes, int $index) => ApplicationRequirement::factory()->create([
+            ...$attributes,
+            'application_id' => $application->id,
+            'sort_order' => ($index + 1) * 10,
+        ]));
+
+        $this->actingAs($user)->get(route('client.applications.show', $application->public_id))
+            ->assertOk()
+            ->assertSee('pb-workspace--business', false)
+            ->assertSee('pb-sidebar-summary', false)
+            ->assertSee('Data badan usaha')
+            ->assertSee('Pastikan dokumen terlihat jelas dan sesuai persyaratan.')
+            ->assertSee('Penanggung jawab utama')
+            ->assertSee('Penanggung jawab tambahan')
+            ->assertSee('pb-business-document-grid', false)
+            ->assertSee('Isi data penanggung jawab utama pengajuan.')
+            ->assertDontSee('Anda juga dapat menyimpan secara manual.')
+            ->assertSee('KTP penanggung jawab utama')
+            ->assertSee('Akta notaris')
+            ->assertSee('SK AHU')
+            ->assertSee('Surat kuasa')
+            ->assertSee('Kondisional')
+            ->assertSee('Jika diwakilkan')
+            ->assertDontSee('Bagian pengajuan')
+            ->assertDontSee('pb-document-row', false)
+            ->assertDontSee('Kartu Keluarga')
+            ->assertDontSee('Foto Wajah');
     }
 
     public function test_personal_document_card_shows_revision_context_without_changing_document_rules(): void
@@ -356,7 +407,8 @@ class ClientUxPhaseBTest extends TestCase
 
         $this->actingAs($owner)->get(route('qna'))
             ->assertOk()
-            ->assertSee('Tanyakan sesuai konteks')
+            ->assertSee('Pilih pengajuan')
+            ->assertSee('Tim kami dapat melihat konteksnya.')
             ->assertSee('Tanya tentang pengajuan ini')
             ->assertSee(route('client.chat.show', $ownedThread->public_id), false)
             ->assertDontSee(route('client.chat.show', $foreignThread->public_id), false);

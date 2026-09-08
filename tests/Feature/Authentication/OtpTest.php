@@ -236,6 +236,7 @@ class OtpTest extends TestCase
         ])->get(route('auth.otp'));
 
         $response->assertOk()
+            ->assertSee('class="bd-otp-input mt-1"', false)
             ->assertSee('data-otp-resend-remaining="60"', false)
             ->assertSee('Kirim ulang OTP tersedia dalam', false)
             ->assertSee('data-otp-resend-button', false)

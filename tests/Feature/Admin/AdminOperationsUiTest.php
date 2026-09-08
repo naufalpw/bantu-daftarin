@@ -88,7 +88,7 @@ class AdminOperationsUiTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Antrian review pengajuan')
+            ->assertSee('Dokumen untuk ditinjau')
             ->assertSee($application->service->name)
             ->assertSee('2 dari 2 dokumen tersedia')
             ->assertSee(route('admin.applications.show', $application->public_id).'#documents-title', false)
@@ -128,7 +128,7 @@ class AdminOperationsUiTest extends TestCase
             ->assertSee('PDF')
             ->assertSee(route('admin.documents.view', $document->public_id), false)
             ->assertSee(route('admin.documents.review', $document->public_id), false)
-            ->assertSee('Catat keputusan review')
+            ->assertSee('Catat keputusan')
             ->assertDontSee('Setujui pembayaran')
             ->assertDontSee('Nomor NIK');
     }
@@ -203,9 +203,11 @@ class AdminOperationsUiTest extends TestCase
         $this->actingAs($admin->user)
             ->get(route('admin.support.index'))
             ->assertOk()
+            ->assertSee('Bantuan Umum dan Dukungan Pengajuan dalam satu daftar.')
+            ->assertSee('Pesan yang belum dibaca tampil lebih dulu.')
             ->assertSee('Dukungan Pengajuan')
             ->assertSee('Bantuan Umum')
-            ->assertSee('Buka')
+            ->assertDontSee('bd-admin-support-row__open', false)
             ->assertSee('is-unread', false)
             ->assertSee(route('admin.chat.show', $generalThread->public_id), false);
 
@@ -241,13 +243,13 @@ class AdminOperationsUiTest extends TestCase
             ->assertSee('bd-chat-message--incoming', false)
             ->assertSee('bd-chat-message--outgoing', false)
             ->assertSee('Dibaca')
-            ->assertDontSee('Online');
+            ->assertSee('Sedang tidak aktif');
 
         $this->actingAs($admin->user)
             ->get(route('admin.chat.show', $generalThread->public_id))
             ->assertOk()
             ->assertSee('BANTUAN UMUM')
-            ->assertSee('Percakapan tanpa konteks pengajuan.')
+            ->assertSee('Percakapan umum.')
             ->assertSee('Belum ada percakapan')
             ->assertDontSee('Buka pengajuan');
     }

@@ -85,7 +85,7 @@ class ApplicationWorkflowService
     public function saveDetails(Application $application, array $details, ?array $representative, User $actor, ?array $additionalRepresentative = null): Application
     {
         if (! in_array($application->status, [ApplicationStatus::DRAFT, ApplicationStatus::AWAITING_DOCUMENTS], true)) {
-            throw new \DomainException('Data aplikasi sudah dikunci pada tahap ini.');
+            throw new \DomainException('Data pengajuan sudah dikunci pada tahap ini.');
         }
 
         if ($application->service->code === 'NPWP_PERSONAL') {
@@ -169,7 +169,7 @@ class ApplicationWorkflowService
                 throw new \DomainException('Nama, NIK, dan Nomor KK wajib diisi sebelum konfirmasi.');
             }
         } elseif (! $application->businessDetails || ! $application->representatives->firstWhere('is_primary', true)) {
-            throw new \DomainException('Lengkapi data aplikasi terlebih dahulu.');
+            throw new \DomainException('Lengkapi data pengajuan terlebih dahulu.');
         }
 
         if ($application->service->code === 'NPWP_BUSINESS') {

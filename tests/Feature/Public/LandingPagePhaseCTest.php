@@ -16,6 +16,7 @@ class LandingPagePhaseCTest extends TestCase
             ->assertSee('<meta name="description" content="Bantuan administrasi untuk menyiapkan pengajuan NPWP Perseorangan dan NPWP Badan Usaha.">', false)
             ->assertSee('#BantuUrusanPajakJadiMudah')
             ->assertSee('Urusan NPWP jadi lebih terarah')
+            ->assertSee('Siapkan pengajuan NPWP Perseorangan atau Badan Usaha, mulai dari data dan dokumen hingga melihat perkembangan proses.')
             ->assertSee('images/figma/home/logo-color.png', false)
             ->assertSee('Data &amp; Dokumen', false)
             ->assertSee('Pantau Status', false)
@@ -97,7 +98,8 @@ class LandingPagePhaseCTest extends TestCase
     {
         $this->get(route('home'))
             ->assertOk()
-            ->assertSee('Pilih layanan sesuai kebutuhan pengajuan')
+            ->assertSee('Pilih layanan pengajuan')
+            ->assertSee('Siap memulai pengajuan?')
             ->assertDontSee('Biaya dan persyaratan ditampilkan sebelum Anda memulai pengajuan.')
             ->assertSee('pb-service-preview--personal', false)
             ->assertSee('pb-service-preview--business', false)

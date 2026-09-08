@@ -7,8 +7,8 @@
 <div class="pb-page">
     <header class="pb-page-heading pb-services-heading">
         <p class="pb-kicker">Layanan</p>
-        <h1>Pilih layanan sesuai kebutuhan Anda</h1>
-        <p>Bandingkan layanan, persyaratan utama, dan lanjutkan pengajuan.</p>
+        <h1>Pilih layanan</h1>
+        <p>Bandingkan persyaratan sebelum memulai pengajuan.</p>
     </header>
 
     <section class="pb-service-catalog" aria-label="Layanan pengajuan NPWP">
@@ -54,7 +54,7 @@
                         </div>
                         <a class="pb-button pb-button--primary pb-button--wide" href="{{ route('client.applications.show', $activeApplication->public_id) }}">Lanjutkan pengajuan</a>
                     @else
-                        <a class="pb-button pb-button--primary pb-button--wide" href="{{ route('client.applications.create', $service->public_id) }}">Lihat persyaratan &amp; mulai</a>
+                        <a class="pb-button pb-button--primary pb-button--wide" href="{{ route('client.applications.create', $service->public_id) }}">Lihat persyaratan</a>
                     @endif
                 </div>
             </article>

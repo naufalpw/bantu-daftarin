@@ -15,7 +15,7 @@ final class AdminApplicationPresenter
             'revision' => 'Revisi masuk',
             'accepted' => 'Dokumen diterima',
             'processing' => 'Sedang diproses',
-            'result' => 'Hasil perlu review',
+            'result' => 'Hasil perlu ditinjau',
             'completed' => 'Selesai',
             'cancelled' => 'Dibatalkan',
         ];
@@ -66,12 +66,12 @@ final class AdminApplicationPresenter
             ApplicationStatus::ESTIMATE_PENDING => ['label' => 'Tetapkan estimasi', 'description' => 'Dokumen telah diterima.'],
             ApplicationStatus::IN_PROGRESS => ['label' => 'Perbarui proses', 'description' => 'Tandai saat proses berlanjut ke instansi.'],
             ApplicationStatus::WAITING_EXTERNAL_PROCESS => ['label' => 'Unggah hasil', 'description' => 'Hasil dapat diunggah saat tersedia.'],
-            ApplicationStatus::RESULT_UPLOADED => ['label' => 'Mulai review hasil', 'description' => 'Hasil menunggu pemeriksaan.'],
+            ApplicationStatus::RESULT_UPLOADED => ['label' => 'Tinjau hasil', 'description' => 'Hasil menunggu pemeriksaan.'],
             ApplicationStatus::RESULT_REVIEW => ['label' => 'Verifikasi hasil', 'description' => 'Pastikan hasil utama telah diverifikasi.'],
             ApplicationStatus::COMPLETED => ['label' => 'Arsipkan bila perlu', 'description' => 'Hasil terverifikasi tersedia untuk klien.'],
             ApplicationStatus::ARCHIVED => ['label' => 'Riwayat baca-saja', 'description' => 'Pengajuan telah diarsipkan.'],
             ApplicationStatus::CANCELLED => ['label' => 'Tidak ada tindakan', 'description' => 'Pengajuan dibatalkan oleh klien dan tetap tersimpan sebagai riwayat.'],
-            default => ['label' => 'Pantau pengajuan', 'description' => 'Belum ada tindakan admin pada tahap ini.'],
+            default => ['label' => 'Tidak ada tindakan', 'description' => 'Belum ada tindakan admin pada tahap ini.'],
         };
     }
 }

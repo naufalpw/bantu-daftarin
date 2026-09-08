@@ -40,7 +40,7 @@
         </div>
         <form method="post" action="{{ route('logout') }}">
             @csrf
-            <button class="bd-admin-logout" type="submit">Logout</button>
+            <button class="bd-admin-logout" type="submit">Keluar</button>
         </form>
     </div>
 </aside>

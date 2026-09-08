@@ -12,19 +12,19 @@ Tidak ada integrasi DJP/Coretax, pendaftaran otomatis, OCR, AI verification, bio
 
 ## Quick start lokal
 
-Persyaratan utama: PHP 8.2+, Composer, dan Node/npm bila asset tooling diperlukan. MariaDB 10.4 bawaan XAMPP adalah database development dan application database lokal yang ditetapkan. Laravel tetap memakai koneksi/PDO bernama `mysql` untuk terhubung ke MariaDB.
+Persyaratan utama: PHP 8.2+, Composer, Node/npm bila asset tooling diperlukan, PostgreSQL 17, serta ekstensi PHP `pdo_pgsql` dan `pgsql`. XAMPP boleh tetap digunakan untuk Apache dan PHP, tetapi PostgreSQL pada `127.0.0.1:5432` adalah database development dan application database lokal. Laravel memakai koneksi `pgsql`, schema `public`, database `bantu_daftarin_mvp`, dan user aplikasi `bantu_daftarin_app`.
 
 ```powershell
 copy .env.example .env
 composer install
 php artisan key:generate
-# isi DB_*, ADMIN_SEED_PASSWORD, XENDIT_*, dan SMTP dengan konfigurasi secret lokal. Gunakan database terisolasi, misalnya bantu_daftarin_mvp:
+# isi DB_*, ADMIN_SEED_PASSWORD, XENDIT_*, dan SMTP dengan secret lokal. Gunakan PostgreSQL terisolasi: `bantu_daftarin_mvp` untuk runtime dan `bantu_daftarin_mvp_test` untuk test.
 php artisan migrate --seed
 php artisan db:seed --force
 php artisan serve
 ```
 
-Provisioning database/user MariaDB ada di `docs/08-operations/mysql-provisioning.md`. Seeder menolak password admin kosong atau pendek.
+Provisioning PostgreSQL ada di `docs/08-operations/postgresql-provisioning.md`. Panduan MariaDB lama dipertahankan sebagai catatan historis dan bukan runtime contract. Seeder menolak password admin kosong atau pendek.
 
 Queue lokal dapat dijalankan dengan `php artisan queue:work database`; scheduler dengan `php artisan schedule:work`. Detail konfigurasi, hardening, dan verifikasi ada di `docs/08-operations/` dan `SECURITY.md`.
 

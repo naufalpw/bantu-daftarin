@@ -5,7 +5,10 @@ use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Client\RegistrationController;
 use App\Http\Controllers\HelpCenterController;
+use App\Http\Controllers\PresenceHeartbeatController;
 use App\Http\Controllers\Testing\FakePaymentController;
+use App\Http\Middleware\ReadOnlySession;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -41,6 +44,11 @@ Route::post('/admin/login', [AuthController::class, 'login'])->middleware('throt
 Route::get('/admin/otp', [AuthController::class, 'showOtp'])->name('admin.otp');
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+
+Route::post('/presence/heartbeat', PresenceHeartbeatController::class)
+    ->withoutMiddleware(StartSession::class)
+    ->middleware([ReadOnlySession::class, 'auth'])
+    ->name('presence.heartbeat');
 
 Route::middleware(['auth', 'verified', 'client'])->group(function (): void {
     Route::get('/jenis-badan', [RegistrationController::class, 'businessTypes'])->name('npwp.business.types');
