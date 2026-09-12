@@ -11,6 +11,7 @@ use App\Models\WebhookEvent;
 use App\Services\ApplicationTransitionService;
 use App\Services\AuditService;
 use App\Services\NotificationService;
+use App\Services\PaymentPayloadMinimizer;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,7 @@ class XenditWebhookController extends Controller
         private readonly ApplicationTransitionService $transitions,
         private readonly AuditService $audit,
         private readonly NotificationService $notifications,
+        private readonly PaymentPayloadMinimizer $paymentPayloads,
     ) {}
 
     public function handle(Request $request): JsonResponse
@@ -43,6 +45,7 @@ class XenditWebhookController extends Controller
         }
 
         $payload = $request->json()->all();
+        $storedPayload = $this->paymentPayloads->webhookEvent($payload);
         $eventId = $this->eventId($request, $payload);
 
         try {
@@ -50,7 +53,7 @@ class XenditWebhookController extends Controller
                 ['provider' => 'xendit', 'event_id' => $eventId],
                 [
                     'event_type' => $this->eventType($payload),
-                    'payload' => $payload,
+                    'payload' => $storedPayload,
                     'received_at' => now(),
                     'status' => 'RECEIVED',
                 ],
@@ -151,16 +154,17 @@ class XenditWebhookController extends Controller
                 }
 
                 $targetStatus = $this->targetStatus($normalized['event'], $status, $normalized['is_v3']);
+                $paymentPayload = $this->paymentPayloads->paymentFromWebhook($payload, $payment->provider_payload);
                 if ($targetStatus !== null && $payment->status !== $targetStatus && $payment->status->canTransitionTo($targetStatus)) {
                     if ($targetStatus === PaymentStatus::PAID) {
-                        $payment->forceFill(['status' => PaymentStatus::PAID, 'paid_at' => now(), 'provider_payload' => $payload])->save();
+                        $payment->forceFill(['status' => PaymentStatus::PAID, 'paid_at' => now(), 'provider_payload' => $paymentPayload])->save();
                     } else {
-                        $payment->forceFill(['status' => $targetStatus, 'failed_at' => now(), 'provider_payload' => $payload])->save();
+                        $payment->forceFill(['status' => $targetStatus, 'failed_at' => now(), 'provider_payload' => $paymentPayload])->save();
                     }
                 } elseif ($targetStatus !== null && $payment->status !== $targetStatus) {
                     $this->audit->record('payment.webhook_ignored', $payment, ['event_id' => $event->event_id, 'current_status' => $payment->status->value, 'incoming_status' => $targetStatus->value]);
-                } elseif ($targetStatus === null) {
-                    $payment->forceFill(['provider_payload' => $payload])->save();
+                } else {
+                    $payment->forceFill(['provider_payload' => $paymentPayload])->save();
                 }
 
                 if ($targetStatus === PaymentStatus::PAID && $payment->status === PaymentStatus::PAID) {

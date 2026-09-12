@@ -42,6 +42,202 @@ document.addEventListener('click', async (event) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-otp-resend]').forEach((container) => {
+        const button = container.querySelector('[data-otp-resend-button]');
+        const countdown = container.querySelector('[data-otp-countdown]');
+        const waiting = container.querySelector('[data-otp-resend-waiting]');
+        const ready = container.querySelector('[data-otp-resend-ready]');
+        if (!button || !countdown || !waiting || !ready) return;
+
+        let remaining = Math.max(0, Number.parseInt(container.dataset.otpResendRemaining || '0', 10));
+        const render = () => {
+            const isWaiting = remaining > 0;
+            countdown.textContent = String(remaining);
+            waiting.hidden = !isWaiting;
+            ready.hidden = isWaiting;
+            button.disabled = isWaiting;
+            button.setAttribute('aria-disabled', isWaiting ? 'true' : 'false');
+        };
+
+        render();
+        if (remaining === 0) return;
+
+        const timer = window.setInterval(() => {
+            remaining -= 1;
+            render();
+
+            if (remaining === 0) window.clearInterval(timer);
+        }, 1000);
+    });
+
+    const businessType = document.getElementById('business-type');
+    const businessTypeOtherField = document.getElementById('business-type-other-field');
+    const businessTypeOtherInput = document.getElementById('business-type-other');
+    if (businessType && businessTypeOtherField && businessTypeOtherInput) {
+        const updateBusinessType = () => {
+            const isOther = businessType.value === 'OTHER';
+            businessTypeOtherField.hidden = !isOther;
+            businessTypeOtherInput.required = isOther;
+            if (!isOther) businessTypeOtherInput.value = '';
+        };
+        businessType.addEventListener('change', updateBusinessType);
+        updateBusinessType();
+    }
+
+    document.querySelectorAll('[data-registration-face-upload]').forEach((form) => {
+        const input = form.querySelector('#face-file');
+        const preview = document.getElementById('face-camera-preview');
+        const guide = document.getElementById('face-guide-image');
+        const startButton = document.getElementById('face-camera-button');
+        const captureButton = document.getElementById('face-capture-button');
+        const fileName = document.getElementById('face-file-name');
+        if (!input || !preview || !guide || !startButton || !captureButton || !fileName) return;
+
+        let stream = null;
+        const stopCamera = () => {
+            stream?.getTracks().forEach((track) => track.stop());
+            stream = null;
+        };
+        const submitFile = () => {
+            if (!input.files?.length) return;
+            fileName.textContent = input.files[0].name;
+            form.submit();
+        };
+
+        input.addEventListener('change', submitFile);
+        startButton.addEventListener('click', async () => {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                input.click();
+                return;
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                preview.srcObject = stream;
+                preview.hidden = false;
+                guide.hidden = true;
+                captureButton.hidden = false;
+                await preview.play();
+            } catch {
+                input.click();
+            }
+        });
+        captureButton.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = preview.videoWidth || 640;
+            canvas.height = preview.videoHeight || 480;
+            canvas.getContext('2d').drawImage(preview, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([blob], 'foto-wajah.jpg', { type: 'image/jpeg' }));
+                input.files = transfer.files;
+                stopCamera();
+                submitFile();
+            }, 'image/jpeg', 0.9);
+        });
+        window.addEventListener('pagehide', stopCamera);
+    });
+
+    const cancellationDialog = document.querySelector('[data-cancel-dialog]');
+    if (cancellationDialog) {
+        const cancellationTrigger = document.querySelector('[data-cancel-dialog-open]');
+        const cancellationClose = cancellationDialog.querySelector('[data-cancel-dialog-close]');
+        const cancellationReason = cancellationDialog.querySelector('[data-cancellation-reason]');
+        const cancellationOther = cancellationDialog.querySelector('[data-cancellation-other]');
+        const updateCancellationOther = () => {
+            if (!cancellationOther || !cancellationReason) return;
+            const isOther = cancellationReason.value === 'OTHER';
+            cancellationOther.hidden = !isOther;
+            cancellationOther.querySelector('textarea')?.toggleAttribute('required', isOther);
+        };
+
+        cancellationTrigger?.addEventListener('click', () => cancellationDialog.showModal());
+        cancellationClose?.addEventListener('click', () => cancellationDialog.close());
+        cancellationReason?.addEventListener('change', updateCancellationOther);
+        cancellationDialog.addEventListener('click', (event) => {
+            if (event.target === cancellationDialog) cancellationDialog.close();
+        });
+        updateCancellationOther();
+        if (cancellationDialog.dataset.openOnLoad === 'true') cancellationDialog.showModal();
+    }
+
+    document.querySelectorAll('[data-file-input]').forEach((input) => {
+        input.addEventListener('change', () => {
+            const target = input.dataset.fileNameTarget
+                ? document.getElementById(input.dataset.fileNameTarget)
+                : null;
+            if (target) target.textContent = input.files?.[0]?.name || 'Belum ada file dipilih.';
+            if (input.files?.length && input.dataset.autoSubmit !== undefined) input.form?.submit();
+        });
+    });
+
+    document.querySelectorAll('[data-face-upload]').forEach((surface) => {
+        const form = surface.querySelector('[data-face-form]');
+        const cameraInput = surface.querySelector('[data-face-camera-input]');
+        const fileInput = surface.querySelector('[data-face-file-input]');
+        const preview = surface.querySelector('[data-face-preview]');
+        const guide = surface.querySelector('[data-face-guide]');
+        const start = surface.querySelector('[data-face-start]');
+        const capture = surface.querySelector('[data-face-capture]');
+        const message = surface.querySelector('[data-face-message]');
+        if (!form || !cameraInput || !fileInput || !preview || !guide || !start || !capture || !message) return;
+
+        let stream = null;
+        const stopCamera = () => {
+            stream?.getTracks().forEach((track) => track.stop());
+            stream = null;
+        };
+
+        fileInput.addEventListener('change', () => {
+            const target = fileInput.dataset.fileNameTarget
+                ? document.getElementById(fileInput.dataset.fileNameTarget)
+                : null;
+            if (target) target.textContent = fileInput.files?.[0]?.name || 'Belum ada file dipilih.';
+            if (fileInput.files?.length) form.submit();
+        });
+
+        start.addEventListener('click', async () => {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                message.textContent = 'Kamera tidak tersedia di browser ini. Pilih file foto sebagai alternatif.';
+                fileInput.click();
+                return;
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                preview.srcObject = stream;
+                preview.hidden = false;
+                guide.hidden = true;
+                capture.hidden = false;
+                message.textContent = '';
+                await preview.play();
+            } catch {
+                message.textContent = 'Izin kamera tidak tersedia. Anda tetap dapat mengunggah file foto.';
+                fileInput.click();
+            }
+        });
+
+        capture.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = preview.videoWidth || 640;
+            canvas.height = preview.videoHeight || 480;
+            canvas.getContext('2d').drawImage(preview, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([blob], 'foto-wajah.jpg', { type: 'image/jpeg' }));
+                cameraInput.files = transfer.files;
+                cameraInput.name = 'file';
+                fileInput.removeAttribute('name');
+                stopCamera();
+                form.submit();
+            }, 'image/jpeg', 0.9);
+        });
+
+        window.addEventListener('pagehide', stopCamera);
+    });
+
     // ── Chat auto-scroll ──────────────────────────────────────────────────────
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const scrollBehavior = () => reducedMotion.matches ? 'instant' : 'smooth';
@@ -468,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let testimonials;
 
         try {
-            testimonials = JSON.parse(data.textContent || '[]');
+            testimonials = JSON.parse(data.content?.textContent || data.textContent || '[]');
         } catch {
             return;
         }

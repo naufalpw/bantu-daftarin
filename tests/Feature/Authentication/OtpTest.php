@@ -225,22 +225,29 @@ class OtpTest extends TestCase
     public function test_otp_page_displays_server_calculated_resend_countdown(): void
     {
         Notification::fake();
-        $user = User::factory()->create();
-        $service = app(AuthOtpService::class);
-        $challenge = $service->issue($user, AuthChallengeType::CLIENT_LOGIN);
+        $now = Carbon::create(2026, 8, 31, 10, 0, 0, 'Asia/Jakarta');
+        Carbon::setTestNow($now);
 
-        $response = $this->withSession([
-            'pending_auth_user_id' => $user->id,
-            'pending_auth_challenge_id' => $challenge->public_id,
-            'pending_auth_type' => AuthChallengeType::CLIENT_LOGIN->value,
-        ])->get(route('auth.otp'));
+        try {
+            $user = User::factory()->create();
+            $service = app(AuthOtpService::class);
+            $challenge = $service->issue($user, AuthChallengeType::CLIENT_LOGIN);
 
-        $response->assertOk()
-            ->assertSee('class="bd-otp-input mt-1"', false)
-            ->assertSee('data-otp-resend-remaining="60"', false)
-            ->assertSee('Kirim ulang OTP tersedia dalam', false)
-            ->assertSee('data-otp-resend-button', false)
-            ->assertSee('disabled', false);
+            $response = $this->withSession([
+                'pending_auth_user_id' => $user->id,
+                'pending_auth_challenge_id' => $challenge->public_id,
+                'pending_auth_type' => AuthChallengeType::CLIENT_LOGIN->value,
+            ])->get(route('auth.otp'));
+
+            $response->assertOk()
+                ->assertSee('class="bd-otp-input mt-1"', false)
+                ->assertSee('data-otp-resend-remaining="60"', false)
+                ->assertSee('Kirim ulang OTP tersedia dalam', false)
+                ->assertSee('data-otp-resend-button', false)
+                ->assertSee('disabled', false);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_login_cooldown_error_reports_remaining_seconds(): void

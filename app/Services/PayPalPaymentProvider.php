@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Contracts\PaymentProvider;
 use App\Enums\PaymentMethod;
-use App\Exceptions\PaymentGatewayException;
+use App\Exceptions\PaymentGatewayDefinitiveException;
 use App\Models\Application;
 use App\Models\Payment;
 
@@ -23,6 +23,6 @@ class PayPalPaymentProvider implements PaymentProvider
 
     public function createPayment(Application $application, Payment $payment, PaymentMethod $method): array
     {
-        throw new PaymentGatewayException('PayPal belum tersedia.');
+        throw new PaymentGatewayDefinitiveException('PayPal belum tersedia.');
     }
 }

@@ -15,6 +15,7 @@ use App\Services\ApplicationTransitionService;
 use App\Services\ApplicationWorkflowService;
 use App\Services\AuditService;
 use App\Services\NotificationService;
+use App\Services\PaymentPayloadMinimizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
@@ -125,6 +126,7 @@ class XenditWebhookTest extends TestCase
             new ApplicationTransitionService($audit, $notifications),
             $audit,
             $notifications,
+            app(PaymentPayloadMinimizer::class),
         );
         $request = Request::create(
             '/webhooks/xendit',
@@ -250,6 +252,46 @@ class XenditWebhookTest extends TestCase
         $this->assertSame(PaymentStatus::PENDING, $payment->fresh()->status);
         $this->assertSame(ApplicationStatus::AWAITING_PAYMENT, $application->fresh()->status);
         $this->assertDatabaseCount('webhook_events', 4);
+        $this->assertDatabaseCount('audit_logs', 0);
+    }
+
+    public function test_same_status_failed_webhook_cannot_replace_existing_provider_identity(): void
+    {
+        $user = User::factory()->create(['email' => 'payer@example.test']);
+        $service = Service::factory()->create();
+        $application = Application::create(['user_id' => $user->id, 'service_id' => $service->id, 'status' => ApplicationStatus::AWAITING_PAYMENT, 'price_amount_snapshot' => 100000, 'currency' => 'IDR']);
+        $providerPayload = ['id' => 'invoice-existing', 'reference_id' => 'BD-identity-conflict', 'status' => 'FAILED'];
+        $payment = Payment::create([
+            'application_id' => $application->id,
+            'provider' => 'xendit',
+            'external_id' => 'invoice-existing',
+            'reference_id' => 'BD-identity-conflict',
+            'amount' => 100000,
+            'currency' => 'IDR',
+            'status' => PaymentStatus::FAILED,
+            'provider_payload' => $providerPayload,
+        ]);
+
+        $this->postJson(route('webhooks.xendit'), [
+            'id' => 'invoice-other',
+            'external_id' => $payment->reference_id,
+            'status' => 'FAILED',
+            'amount' => 100000,
+            'currency' => 'IDR',
+            'payer_email' => $user->email,
+        ], [
+            'x-callback-token' => 'testing-callback-token',
+            'x-event-id' => 'event-failed-identity-conflict',
+        ])->assertUnprocessable();
+
+        $payment->refresh();
+        $this->assertSame(PaymentStatus::FAILED, $payment->status);
+        $this->assertSame('invoice-existing', $payment->external_id);
+        $this->assertSame($providerPayload, $payment->provider_payload);
+        $this->assertDatabaseHas('webhook_events', [
+            'event_id' => 'event-failed-identity-conflict',
+            'status' => 'REJECTED',
+        ]);
         $this->assertDatabaseCount('audit_logs', 0);
     }
 

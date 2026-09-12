@@ -4,10 +4,12 @@ namespace App\Services;
 
 use App\Contracts\PaymentProvider;
 use App\Enums\PaymentMethod;
-use App\Exceptions\PaymentGatewayException;
+use App\Exceptions\PaymentGatewayAmbiguousException;
+use App\Exceptions\PaymentGatewayDefinitiveException;
 use App\Models\Application;
 use App\Models\Payment;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -24,7 +26,7 @@ class XenditPaymentProvider implements PaymentProvider
         $channelCode = $method->xenditChannelCode();
         $secret = (string) config('services.xendit.secret_key');
         if (blank($channelCode) || blank($secret)) {
-            throw new PaymentGatewayException('Payment provider belum dikonfigurasi.');
+            throw new PaymentGatewayDefinitiveException('Payment provider belum dikonfigurasi.');
         }
 
         $paymentUrl = route('client.payments.show', $application->public_id);
@@ -66,24 +68,33 @@ class XenditPaymentProvider implements PaymentProvider
                 ->asJson()
                 ->timeout((int) config('services.xendit.timeout', 20))
                 ->post($this->endpoint(), $requestPayload);
-        } catch (\Throwable $exception) {
+        } catch (ConnectionException $exception) {
             logger()->error('xendit_payment_provider_failure', ['exception_class' => $exception::class]);
-            throw new PaymentGatewayException('Payment provider tidak dapat dihubungi.');
+            throw new PaymentGatewayAmbiguousException('Payment provider tidak dapat dihubungi.', previous: $exception);
         }
 
         if (! $response->successful()) {
-            logger()->error('xendit_payment_provider_http_failure', ['status' => $response->status()]);
-            throw new PaymentGatewayException('Payment provider tidak dapat memproses pembayaran.');
+            $errorCode = strtoupper((string) ($response->json('error_code') ?? ''));
+            logger()->error('xendit_payment_provider_http_failure', [
+                'status' => $response->status(),
+                'error_code' => $errorCode !== '' ? $errorCode : null,
+            ]);
+
+            if ($this->isDefinitiveRejection($response->status(), $errorCode)) {
+                throw new PaymentGatewayDefinitiveException('Payment provider menolak permintaan pembayaran.');
+            }
+
+            throw new PaymentGatewayAmbiguousException('Payment provider tidak dapat memastikan hasil permintaan pembayaran.');
         }
 
         $payload = $response->json();
         if (! is_array($payload)) {
-            throw new PaymentGatewayException('Respons payment provider tidak valid.');
+            throw new PaymentGatewayAmbiguousException('Respons payment provider tidak valid.');
         }
 
         $externalId = (string) ($payload['payment_request_id'] ?? $payload['id'] ?? $payload['payment_id'] ?? '');
         if (blank($externalId)) {
-            throw new PaymentGatewayException('Respons payment provider tidak memiliki identitas pembayaran.');
+            throw new PaymentGatewayAmbiguousException('Respons payment provider tidak memiliki identitas pembayaran.');
         }
 
         return [
@@ -91,7 +102,91 @@ class XenditPaymentProvider implements PaymentProvider
             'checkout_url' => $this->checkoutUrl($payload),
             'expires_at' => $this->expiresAt($payload, $payment),
             'payload' => $payload,
+            'payload' => $this->minimizePayload($payload),
         ];
+    }
+
+    private function isDefinitiveRejection(int $status, string $errorCode): bool
+    {
+        $knownRejections = [
+            400 => [
+                'INVALID_VALUE_ERROR',
+                'API_VALIDATION_ERROR',
+                'CARD_EXPIRED',
+                'INVALID_PAYMENT_DETAILS',
+                'INVALID_TOKEN',
+            ],
+            401 => [
+                'INVALID_API_KEY',
+                'INVALID_MERCHANT_CREDENTIALS',
+                'INVALID_TOKEN',
+            ],
+            403 => [
+                'REQUEST_FORBIDDEN_ERROR',
+                'CHANNEL_NOT_ACTIVATED',
+                'UNSUPPORTED_CONTENT_TYPE',
+                'SKIP_3DS_FORBIDDEN',
+                'INVALID_MERCHANT_SETTINGS',
+                'ACCOUNT_ACCESS_BLOCKED',
+            ],
+            404 => ['DATA_NOT_FOUND', 'CALLBACK_URL_NOT_FOUND'],
+        ];
+
+        return in_array($errorCode, $knownRejections[$status] ?? [], true);
+    }
+
+    private function minimizePayload(array $payload): array
+    {
+        $allowedKeys = [
+            'id',
+            'payment_request_id',
+            'payment_id',
+            'reference_id',
+            'type',
+            'status',
+            'country',
+            'currency',
+            'request_amount',
+            'amount',
+            'capture_amount',
+            'channel_code',
+            'channel_properties',
+            'actions',
+            'description',
+            'expires_at',
+            'created',
+            'updated',
+        ];
+
+        $minimized = Arr::only($payload, $allowedKeys);
+
+        if (isset($minimized['channel_properties']) && is_array($minimized['channel_properties'])) {
+            $minimized['channel_properties'] = Arr::only($minimized['channel_properties'], [
+                'expires_at',
+                'customer_name',
+                'display_name',
+            ]);
+        }
+
+        if (isset($minimized['actions']) && is_array($minimized['actions'])) {
+            $minimized['actions'] = array_values(array_filter(array_map(function ($action) {
+                if (! is_array($action)) {
+                    return null;
+                }
+
+                return Arr::only($action, [
+                    'action',
+                    'type',
+                    'descriptor',
+                    'url',
+                    'value',
+                    'qr_string',
+                    'virtual_account_number',
+                ]);
+            }, $minimized['actions'])));
+        }
+
+        return $minimized;
     }
 
     private function endpoint(): string

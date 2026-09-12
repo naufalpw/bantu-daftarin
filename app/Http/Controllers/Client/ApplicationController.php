@@ -8,6 +8,7 @@ use App\Enums\PaymentMethod;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Client\CancelApplicationRequest;
 use App\Http\Requests\Client\StoreApplicationRequest;
+use App\Http\Requests\Client\StorePaymentRequest;
 use App\Http\Requests\Client\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Models\Service;
@@ -136,12 +137,14 @@ class ApplicationController extends Controller
     {
         $application = $this->find($publicId);
         $this->authorize('submit', $application);
-        $this->workflow->submitForDocuments($application, request()->user());
+        $application = $this->workflow->submitForDocuments($application, request()->user());
 
-        return back()->with('status', 'Pengajuan masuk ke tahap pengumpulan dokumen.');
+        return back()->with('status', $application->status === ApplicationStatus::DOCUMENTS_READY_FOR_PAYMENT
+            ? 'Data dan dokumen lengkap. Silakan lanjut ke pembayaran.'
+            : 'Pengajuan masuk ke tahap pengumpulan dokumen.');
     }
 
-    public function payment(Request $request, string $publicId): RedirectResponse
+    public function payment(StorePaymentRequest $request, string $publicId): RedirectResponse
     {
         $application = $this->find($publicId);
         $this->authorize('submit', $application);
@@ -149,10 +152,13 @@ class ApplicationController extends Controller
             return redirect()->route('client.applications.show', $application->public_id)
                 ->withErrors(['payment' => 'Pembayaran tidak dapat dilanjutkan untuk pengajuan yang telah dibatalkan.']);
         }
-        $method = PaymentMethod::tryFrom(strtoupper($request->string('payment_method')->toString())) ?? PaymentMethod::BCA;
-        $this->workflow->createPayment($application, $request->user(), $method);
+        $method = PaymentMethod::from($request->string('payment_method')->toString());
+        $payment = $this->workflow->createPayment($application, $request->user(), $method);
 
-        return redirect()->route('client.payments.show', $application->public_id);
+        return redirect()->route('client.payments.show', $application->public_id)
+            ->with('status', $payment->checkout_url
+                ? 'Instruksi pembayaran dibuat. Lanjutkan melalui halaman pembayaran yang tersedia.'
+                : 'Instruksi pembayaran berhasil disiapkan.');
     }
 
     public function submitDocuments(string $publicId): RedirectResponse

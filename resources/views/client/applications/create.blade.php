@@ -146,22 +146,4 @@
     </div>
 </div>
 
-@if($service->code === 'NPWP_BUSINESS')
-<script>
-    (() => {
-        const type = document.getElementById('business-type');
-        const otherField = document.getElementById('business-type-other-field');
-        const otherInput = document.getElementById('business-type-other');
-        if (!type || !otherField || !otherInput) return;
-        const update = () => {
-            const isOther = type.value === 'OTHER';
-            otherField.hidden = !isOther;
-            otherInput.required = isOther;
-            if (!isOther) otherInput.value = '';
-        };
-        type.addEventListener('change', update);
-        update();
-    })();
-</script>
-@endif
 @endsection

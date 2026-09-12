@@ -1,3 +1,8 @@
+---
+name: antislop
+description: "Anti Slop: Rules for AI Coding Agents. The core filter. Load always to stop generic AI slop."
+allowed-tools: Read Write Edit Glob Grep
+---
 # antislop
 
 > Anti Slop: Rules for AI Coding Agents
@@ -24,7 +29,7 @@ If no antislop pointer exists and this file is being read for the first time, ru
    - **2. `antislop-ui`** (UI / visual): pick this for building or editing a website, web app, or interface: color, layout, components, decoration, motion.
    - **3. `antislop-copywriting`** (copy & text): pick this for writing or editing copy: headlines, CTAs, value propositions, tone, landing-page text, product prose.
    - **4. `antislop-human`** (people): pick this for making sure a UI works for people with different eyes, hands, and setups: contrast, keyboard, focus, states.
-   - **5. `antislop-layoutmobile`** (mobile / responsive): pick this for layouts that have to hold up on a phone: breakpoints, scale, grids, overflow, tap targets.
+   - **5. `antislop-layoutmobile`** (mobile / responsive): pick this for layouts that have to reflow across screen sizes, phone to desktop: breakpoints, scale, grids, overflow, tap targets.
    - **6. `antislop-code`** (code comments): pick this for writing or editing code comments: remove generic AI-slop comments, keep the valuable ones, never touch the code.
    - New skills appear here as they ship; never offer a skill that does not exist in this version.
 
@@ -349,11 +354,13 @@ If an element genuinely cannot have a destination yet, remove it instead of ship
 
 #### R-35 — Verify Before You Deliver
 
-- Run or build the app before declaring the task done
-- Check the console for errors
-- Exercise every interactive element
-- Check every theme and the mobile breakpoints
-- A design that has never been run is not finished
+- Run or build the app before declaring the task done; a design that has never been run is not finished
+- Check the console for errors after running
+- Click through every interactive element, one at a time, and watch what it does: buttons, links, dropdowns, forms, tabs, modals, toggles, accordions, and navigation
+- An element passes only when its action really happens: a link navigates somewhere that exists, a form submit shows validation or success, a toggle changes state, a modal opens and closes. Code that only looks interactive is a dead control (see R-26)
+- If the deliverable cannot be run (a static mockup or a chat-only output), say so and verify each element by code inspection instead of claiming it was clicked
+- Exercise every theme and the mobile breakpoints while clicking through
+- Report the click-through as evidence with the deliverable, element by element (e.g. "Signup -> opens /signup with no console errors", "empty form -> shows validation", "mobile menu -> opens and closes"). A PASS claimed without that recorded list is not a PASS
 
 #### R-36 — No Fabricated Claims
 
@@ -368,6 +375,9 @@ If an element genuinely cannot have a destination yet, remove it instead of ship
 - If no direction exists AND the user cannot be asked, the output MUST be labeled *"draft without direction"* AND use the honest default dials **ENERGY 1 / RHYTHM 1 / MOTION 1** (see Part 3). Never silently fall back to a neutral, sterile default
 - **FORBIDDEN**: designing without direction and silently falling into a neutral, sterile default
 - Style direction is the product owner's identity, not a slop pattern; this filter only applies on top of it
+- If `DESIGN.md` itself asks for a named slop pattern, do not silently follow it and do not silently override it: name the element, name the rule it collides with, and ask the owner to keep it or drop it
+- Ask only about a named pattern, never about a stylistic choice the direction is entitled to make: a bold palette or an unusual typeface is identity, not slop
+- Record the answer in one line: if the owner keeps it, proceed and note the override; if they drop it, apply the rule
 - A design built without direction is a draft, not a shippable result
 
 #### R-38 — Real Content or Honest Placeholder
@@ -592,7 +602,7 @@ If none of these applies to an element, the element should not exist.
 
 ## Delivery Gate (Mandatory)
 
-Run this gate BEFORE delivering. Output its status with your deliverable as a **PASS/FAIL report**: one line per item, and every `PASS` backed by concrete evidence (e.g. "R-26 PASS: every button has a real `href` or `onClick`; no dead controls").
+Run this gate BEFORE delivering. Output its status with your deliverable as a **PASS/FAIL report**: one line per item, and every `PASS` backed by concrete evidence (e.g. "R-26 PASS: every button has a real `href` or `onClick`; no dead controls", "R-35 PASS: ran the build and clicked every control: Signup -> /signup, empty form -> validation, mobile menu -> opens, no console errors").
 If any item is **FAIL** (or any answer is **yes**), do not deliver: fix it first, then re-run. A report containing a FAIL must never be shipped.
 
 The gate has four blocks: Hard Gate (absolute), Purpose-Gate (technique + written reason), Liveliness (dials + levers), Craftsmanship & Quality Locks (C-1..C-5 plus the consistency locks R-05, R-11, R-15, R-16, R-20, R-21, R-29, R-30, R-31).
@@ -614,7 +624,7 @@ Before declaring the design done, answer every question below. All answers must 
 - [ ] Can the UI not be navigated by keyboard (Tab, Enter, Escape) or is there no visible focus state? *(R-32)*
 - [ ] Was any feature added by patching source/CSS with an external script instead of writing it in source? *(R-33)*
 - [ ] If a theme toggle exists, does one mode (light or dark) break styles, fonts, or layout? *(R-34)*
-- [ ] Was the app delivered without being run or built, or with any interactive element left unexercised? *(R-35)*
+- [ ] Was the app delivered without being run or built, or without a recorded click-through of every interactive element? *(R-35)*
 - [ ] Are there any fabricated security, compliance, performance, or customer claims? *(R-36)*
 - [ ] Was the design built without direction and not labeled *"draft without direction"* with honest default dials ENERGY 1 / RHYTHM 1 / MOTION 1? *(R-37)*
 - [ ] Is there any realistically-styled content that was fabricated (testimonials, features, statistics, ghost links, fictional team) without a real source? *(R-38)*

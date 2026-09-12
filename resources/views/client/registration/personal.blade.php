@@ -98,7 +98,7 @@
                     </ul>
 
                     @if($faceRequirement)
-                        <form id="face-upload-form" method="post" enctype="multipart/form-data" action="{{ route('client.documents.store', [$application->public_id, $faceRequirement->public_id]) }}">
+                        <form id="face-upload-form" data-registration-face-upload method="post" enctype="multipart/form-data" action="{{ route('client.documents.store', [$application->public_id, $faceRequirement->public_id]) }}">
                             @csrf
                             <input id="face-file" type="file" name="file" accept="image/jpeg,image/png" capture="user" hidden>
                             <div class="bd-face-actions">
@@ -133,63 +133,4 @@
     </main>
 </div>
 
-@if($faceRequirement)
-<script>
-(() => {
-    const form = document.getElementById('face-upload-form');
-    const input = document.getElementById('face-file');
-    const preview = document.getElementById('face-camera-preview');
-    const guide = document.getElementById('face-guide-image');
-    const startButton = document.getElementById('face-camera-button');
-    const captureButton = document.getElementById('face-capture-button');
-    const name = document.getElementById('face-file-name');
-    let stream = null;
-
-    const stopCamera = () => {
-        if (stream) stream.getTracks().forEach((track) => track.stop());
-        stream = null;
-    };
-
-    const submitFile = () => {
-        if (input.files?.length) {
-            name.textContent = input.files[0].name;
-            form.submit();
-        }
-    };
-
-    input.addEventListener('change', submitFile);
-    startButton.addEventListener('click', async () => {
-        if (!navigator.mediaDevices?.getUserMedia) {
-            input.click();
-            return;
-        }
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-            preview.srcObject = stream;
-            preview.hidden = false;
-            guide.hidden = true;
-            captureButton.hidden = false;
-            await preview.play();
-        } catch (error) {
-            input.click();
-        }
-    });
-    captureButton.addEventListener('click', () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = preview.videoWidth || 640;
-        canvas.height = preview.videoHeight || 480;
-        canvas.getContext('2d').drawImage(preview, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => {
-            if (!blob) return;
-            const transfer = new DataTransfer();
-            transfer.items.add(new File([blob], 'foto-wajah.jpg', { type: 'image/jpeg' }));
-            input.files = transfer.files;
-            stopCamera();
-            submitFile();
-        }, 'image/jpeg', 0.9);
-    });
-    window.addEventListener('pagehide', stopCamera);
-})();
-</script>
-@endif
 @endsection

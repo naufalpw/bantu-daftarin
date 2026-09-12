@@ -52,37 +52,4 @@
 </div>
 </div>
 @endif
-<script>
-    (() => {
-        const container = document.querySelector('[data-otp-resend]');
-        if (!container) return;
-
-        const button = container.querySelector('[data-otp-resend-button]');
-        const countdown = container.querySelector('[data-otp-countdown]');
-        const waiting = container.querySelector('[data-otp-resend-waiting]');
-        const ready = container.querySelector('[data-otp-resend-ready]');
-        let remaining = Math.max(0, Number.parseInt(container.dataset.otpResendRemaining || '0', 10));
-
-        const render = () => {
-            const isWaiting = remaining > 0;
-            countdown.textContent = String(remaining);
-            waiting.hidden = !isWaiting;
-            ready.hidden = isWaiting;
-            button.disabled = isWaiting;
-            button.setAttribute('aria-disabled', isWaiting ? 'true' : 'false');
-        };
-
-        render();
-        if (remaining === 0) return;
-
-        const timer = window.setInterval(() => {
-            remaining -= 1;
-            render();
-
-            if (remaining === 0) {
-                window.clearInterval(timer);
-            }
-        }, 1000);
-    })();
-</script>
 @endsection

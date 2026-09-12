@@ -177,7 +177,7 @@
                 </button>
             </div>
 
-            <script type="application/json" data-testimonial-data>@json($demoTestimonials)</script>
+            <template data-testimonial-data>@json($demoTestimonials)</template>
         </div>
     </section>
 

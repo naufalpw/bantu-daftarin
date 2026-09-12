@@ -38,7 +38,7 @@
                 <div class="pb-priority__action">
                     @if($priorityPresentation['cta_label'])
                         @if($priorityPresentation['cta_method'] === 'post')
-                            <form method="post" action="{{ route('client.applications.documents.submit', $priorityApplication->public_id) }}">
+                            <form method="post" action="{{ $priorityPresentation['cta_url'] }}">
                                 @csrf
                                 <button class="pb-button pb-button--light" type="submit">{{ $priorityPresentation['cta_label'] }}</button>
                             </form>
