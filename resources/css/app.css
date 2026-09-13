@@ -9793,17 +9793,93 @@
         display: none;
     }
 
-    .bd-phone-records--applications td:nth-child(2) {
-        padding: 9px 10px;
-        border-radius: 9px;
-        background: #f6f8fb;
+    /* Activity, applications and users are separate operational entities on phone. */
+    .bd-phone-records--activity,
+    .bd-phone-records--applications,
+    .bd-phone-records--users {
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .bd-phone-records--activity tbody,
+    .bd-phone-records--applications tbody,
+    .bd-phone-records--users tbody {
+        display: grid;
+        gap: 14px;
+    }
+
+    .bd-phone-records--activity tr,
+    .bd-phone-records--applications tr,
+    .bd-phone-records--users tr {
+        min-width: 0;
+        padding: 16px;
+        border: 1px solid #dce5f0;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: none;
+    }
+
+    .bd-phone-records--activity .bd-admin-table-link,
+    .bd-phone-records--applications .bd-admin-table-link,
+    .bd-phone-records--users .bd-admin-table-link {
+        min-height: 44px;
+    }
+
+    /* Application records lead with workflow identity and end in one clear action. */
+    .bd-phone-records--applications tr {
+        gap: 10px;
+    }
+
+    .bd-phone-records--applications td:first-child {
+        margin-bottom: 2px;
+    }
+
+    .bd-phone-records--applications td:nth-child(2),
+    .bd-phone-records--applications td:nth-child(3),
+    .bd-phone-records--applications td:nth-child(5) {
+        display: grid;
+        grid-template-columns: 76px minmax(0, 1fr);
+        gap: 2px 10px;
+        align-items: start;
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .bd-phone-records--applications td:nth-child(2)::before {
+        grid-row: 1 / span 2;
+    }
+
+    .bd-phone-records--applications td:nth-child(2) > strong,
+    .bd-phone-records--applications td:nth-child(2) > small {
+        grid-column: 2;
+    }
+
+    .bd-phone-records--applications td:nth-child(2)::before,
+    .bd-phone-records--applications td:nth-child(3)::before,
+    .bd-phone-records--applications td:nth-child(5)::before {
+        margin: 2px 0 0;
     }
 
     .bd-phone-records--applications td:nth-child(4) {
-        padding: 10px;
+        display: grid;
+        gap: 5px;
+        margin-top: 2px;
+        padding: 12px 0 0;
         border: 0;
-        border-radius: 10px;
-        background: #fff8e7;
+        border-top: 1px solid #e3eaf3;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .bd-phone-records--applications td:nth-child(4)::before {
+        margin-bottom: 0;
+    }
+
+    .bd-phone-records--applications td:last-child {
+        padding-top: 2px;
     }
 
     .bd-phone-records--documents .bd-phone-record-icon {
@@ -9840,8 +9916,41 @@
         padding: 13px 14px;
     }
 
+    /* User records stay identity-led; status and count form one compact scan row. */
     .bd-phone-records--users tr {
-        gap: 7px 12px;
+        gap: 10px 14px;
+    }
+
+    .bd-phone-records--users td:first-child {
+        margin-bottom: -3px;
+    }
+
+    .bd-phone-records--users td:nth-child(2) {
+        padding-left: 48px;
+        color: #617087;
+        overflow-wrap: anywhere;
+    }
+
+    .bd-phone-records--users td:nth-child(3),
+    .bd-phone-records--users td:nth-child(4) {
+        padding-top: 11px;
+        border-top: 1px solid #e3eaf3;
+    }
+
+    .bd-phone-records--users td:nth-child(5) {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: 76px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+    }
+
+    .bd-phone-records--users td:nth-child(5)::before {
+        margin: 2px 0 0;
+    }
+
+    .bd-phone-records--users td:last-child {
+        padding-top: 2px;
     }
 
     .bd-phone-records--users .bd-phone-record-icon {
@@ -9849,26 +9958,71 @@
         background: #f0edff;
     }
 
-    .bd-phone-records--activity {
-        border: 0;
-        border-radius: 0;
-        background: transparent;
+    .bd-phone-records--users .bd-admin-table-link {
+        border: 1px solid #c9d9ee;
+        color: var(--admin-primary-hover);
+        background: #f2f6fd;
     }
 
+    /* Chronology is carried by source order and time; the former rail no longer taxes width. */
     .bd-phone-records--activity tr {
-        margin-left: 18px;
-        padding: 13px 0 14px 18px;
-        border-left: 1px solid #cedcf0;
-        border-bottom: 0;
+        gap: 9px;
+        margin-left: 0;
+    }
+
+    .bd-phone-records--activity td:first-child {
+        min-height: 40px;
+        margin-bottom: 3px;
+        padding-bottom: 0;
     }
 
     .bd-phone-records--activity .bd-phone-record-icon {
-        left: -19px;
-        width: 36px;
-        height: 36px;
-        border: 4px solid #f3f6fb;
-        border-radius: 50%;
+        left: 0;
+        width: 38px;
+        height: 38px;
+        border: 0;
+        border-radius: 10px;
         background: #e6efff;
+    }
+
+    .bd-phone-records--activity td:nth-child(2),
+    .bd-phone-records--activity td:nth-child(3),
+    .bd-phone-records--activity td:nth-child(4),
+    .bd-phone-records--activity td:nth-child(5) {
+        display: grid;
+        grid-template-columns: 76px minmax(0, 1fr);
+        gap: 2px 10px;
+        align-items: start;
+    }
+
+    .bd-phone-records--activity td:nth-child(2)::before {
+        grid-row: 1 / span 2;
+    }
+
+    .bd-phone-records--activity td:nth-child(2) > strong,
+    .bd-phone-records--activity td:nth-child(2) > small {
+        grid-column: 2;
+    }
+
+    .bd-phone-records--activity td:nth-child(2)::before,
+    .bd-phone-records--activity td:nth-child(3)::before,
+    .bd-phone-records--activity td:nth-child(4)::before,
+    .bd-phone-records--activity td:nth-child(5)::before {
+        margin: 2px 0 0;
+    }
+
+    .bd-phone-records--activity td:last-child {
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 3px;
+    }
+
+    .bd-phone-records--activity .bd-admin-table-link {
+        width: auto;
+        min-width: 88px;
+        border: 1px solid #c9d9ee;
+        color: var(--admin-primary-hover);
+        background: #f2f6fd;
     }
 
     /* Deliberate review: identity and next operation are visually distinct. */

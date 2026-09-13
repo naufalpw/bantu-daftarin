@@ -3850,7 +3850,7 @@
     gap: clamp(32px, 5vw, 64px);
     border-radius: 20px;
     color: var(--pb-white);
-    background: var(--pb-navy);
+    background: linear-gradient(135deg, #031a5a 0%, #08429b 58%, #0b62c9 100%);
 }
 
 .pb-home-closing h2 {
@@ -3865,7 +3865,7 @@
 .pb-home-closing p:not(.pb-kicker) {
     max-width: 590px;
     margin: 0;
-    color: #d3e2fb;
+    color: #dbe9ff;
 }
 
 .pb-home-closing__actions {
@@ -5236,6 +5236,7 @@
 
 .pb-service-preview--coming-soon {
     border-color: #d8e0ea;
+    background: var(--pb-white);
 }
 
 .pb-service-preview__availability {
@@ -10453,7 +10454,7 @@
 
     .pb-service-preview--coming-soon {
         border-color: #e8d7ad;
-        background: #fffaf0;
+        background: var(--pb-white);
     }
 
     .pb-home-qna__question[data-active='true'] {
