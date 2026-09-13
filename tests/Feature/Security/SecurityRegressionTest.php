@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\RateLimiter;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Tests\TestCase;
 
 class SecurityRegressionTest extends TestCase
@@ -92,6 +93,28 @@ class SecurityRegressionTest extends TestCase
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->assertHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
         $response->assertHeaderMissing('Strict-Transport-Security');
+    }
+
+    public function test_livewire_uses_the_csp_safe_client_without_weakening_the_script_policy(): void
+    {
+        $response = $this->get('/');
+
+        $this->assertTrue(config('livewire.csp_safe'));
+        preg_match('/<script src="([^"]+\/livewire\.csp\.js\?id=[^"]+)"/', $response->getContent(), $scriptMatch);
+
+        $this->assertArrayHasKey(1, $scriptMatch);
+        $this->assertStringContainsString('/livewire.csp.js?', $scriptMatch[1]);
+        $scriptResponse = $this->get(parse_url($scriptMatch[1], PHP_URL_PATH));
+        $scriptResponse->assertOk();
+        $this->assertInstanceOf(BinaryFileResponse::class, $scriptResponse->baseResponse);
+        $this->assertSame(
+            realpath(base_path('vendor/livewire/livewire/dist/livewire.csp.js')),
+            realpath($scriptResponse->baseResponse->getFile()->getPathname()),
+        );
+        $this->assertStringNotContainsString(
+            "'unsafe-eval'",
+            (string) $response->headers->get('Content-Security-Policy'),
+        );
     }
 
     public function test_blade_sources_do_not_embed_executable_inline_scripts_or_dom_event_handlers(): void

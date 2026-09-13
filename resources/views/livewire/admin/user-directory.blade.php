@@ -1,10 +1,10 @@
 <section class="bd-admin-list-surface mt-8 bd-admin-reactive-region" aria-labelledby="user-list-title">
     <div class="bd-admin-list-toolbar"><div><h2 id="user-list-title">Pelanggan</h2><p>Direktori ini bersifat baca-saja.</p></div><form class="bd-admin-search" method="get" action="{{ route('admin.users.index') }}" wire:submit.prevent="applySearch"><label class="sr-only" for="user-search">Cari pengguna</label><input id="user-search" name="q" type="search" value="{{ $search }}" wire:model.live.debounce.350ms="search" placeholder="Cari nama atau email"><input type="hidden" name="filter" value="{{ $filter }}"></form></div>
-    <nav class="bd-admin-filter-bar" aria-label="Filter pengguna">
+    <div class="bd-admin-filter-bar" role="group" aria-label="Filter pengguna">
         @foreach($filters as $key => $label)
-            <a href="{{ route('admin.users.index', array_filter(['filter' => $key === 'all' ? null : $key, 'q' => $search ?: null])) }}" wire:click.prevent="setFilter('{{ $key }}')" @class(['is-active' => $filter === $key]) @if($filter === $key) aria-current="page" @endif>{{ $label }}</a>
+            <x-admin.filter-control action="setFilter" :value="$key" :active="$filter === $key">{{ $label }}</x-admin.filter-control>
         @endforeach
-    </nav>
+    </div>
     <div class="bd-admin-reactive-results" wire:loading.class="bd-admin-reactive-results--loading" wire:loading.attr="aria-busy" wire:target="setFilter,search,applySearch,setPage,gotoPage,previousPage,nextPage">
         <div class="bd-admin-reactive-loading" wire:loading.delay.flex style="display: none" wire:target="setFilter,search,applySearch,setPage,gotoPage,previousPage,nextPage" role="status" aria-live="polite">
             <span class="bd-admin-reactive-loading__spinner" aria-hidden="true"></span>

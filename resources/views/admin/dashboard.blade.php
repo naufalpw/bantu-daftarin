@@ -11,26 +11,41 @@
 
     @php
         $attentionItems = [
-            ['key' => 'review', 'label' => 'Pengajuan perlu ditinjau', 'action' => 'Buka pengajuan', 'href' => route('admin.applications.index', ['filter' => 'review'])],
-            ['key' => 'revision', 'label' => 'Revisi masuk', 'action' => 'Tinjau dokumen', 'href' => route('admin.documents.index', ['filter' => 'revision'])],
-            ['key' => 'result', 'label' => 'Hasil perlu diverifikasi', 'action' => 'Tinjau hasil', 'href' => route('admin.applications.index', ['filter' => 'result'])],
-            ['key' => 'support', 'label' => 'Pesan belum dibaca', 'action' => 'Buka dukungan', 'href' => route('admin.support.index', ['filter' => 'unread'])],
+            ['key' => 'review', 'label' => 'Pengajuan perlu ditinjau', 'description' => 'Menunggu keputusan admin', 'action' => 'Buka pengajuan', 'href' => route('admin.applications.index', ['filter' => 'review'])],
+            ['key' => 'revision', 'label' => 'Revisi masuk', 'description' => 'Dokumen perlu diperiksa', 'action' => 'Tinjau dokumen', 'href' => route('admin.documents.index', ['filter' => 'revision'])],
+            ['key' => 'result', 'label' => 'Hasil perlu diverifikasi', 'description' => 'Menunggu pemeriksaan admin', 'action' => 'Tinjau hasil', 'href' => route('admin.applications.index', ['filter' => 'result'])],
+            ['key' => 'support', 'label' => 'Pesan belum dibaca', 'description' => 'Percakapan membutuhkan respons', 'action' => 'Buka dukungan', 'href' => route('admin.support.index', ['filter' => 'unread'])],
         ];
+        $hasPriorityAttention = collect($attention)->contains(fn ($count) => $count > 0);
     @endphp
 
-    <section class="bd-admin-surface bd-admin-attention-panel" aria-labelledby="attention-title">
-        <div class="bd-admin-surface__header">
-            <div><h2 id="attention-title">Perlu ditindaklanjuti</h2></div>
+    <section class="bd-admin-surface bd-admin-attention-panel" data-admin-command-board aria-labelledby="attention-title">
+        <div class="bd-admin-attention-panel__summary">
+            <p class="bd-admin-kicker">Perlu ditindaklanjuti</p>
+            <h2 id="attention-title">
+                {{ $hasPriorityAttention ? 'Ada pekerjaan yang perlu ditindaklanjuti' : 'Tidak ada antrean prioritas' }}
+            </h2>
+            <p>
+                {{ $hasPriorityAttention ? 'Buka area dengan antrean untuk melanjutkan pekerjaan.' : 'Semua area operasional sedang terkendali.' }}
+            </p>
         </div>
         <div class="bd-admin-attention-panel__items">
             @foreach($attentionItems as $item)
-                <article class="bd-admin-attention-item" data-admin-attention="{{ $item['key'] }}">
-                    <strong>{{ $attention[$item['key']] }}</strong>
-                    <div>
-                        <h3>{{ $item['label'] }}</h3>
-                        <a href="{{ $item['href'] }}">{{ $item['action'] }} <span aria-hidden="true">&rarr;</span></a>
-                    </div>
-                </article>
+                <a
+                    class="bd-admin-attention-item {{ $attention[$item['key']] > 0 ? 'has-attention' : '' }}"
+                    data-admin-attention="{{ $item['key'] }}"
+                    data-admin-attention-count="{{ $attention[$item['key']] }}"
+                    href="{{ $item['href'] }}"
+                >
+                    <span class="bd-admin-attention-item__marker" aria-hidden="true"></span>
+                    <span class="bd-admin-attention-item__content">
+                        <span class="bd-admin-attention-item__title">{{ $item['label'] }}</span>
+                        <span class="bd-admin-attention-item__description">{{ $item['description'] }}</span>
+                        <span class="bd-admin-attention-item__action">{{ $item['action'] }}</span>
+                    </span>
+                    <strong class="bd-admin-attention-item__count">{{ $attention[$item['key']] }}</strong>
+                    <x-ui-icon class="bd-admin-attention-item__arrow" name="arrow-right" :size="18" />
+                </a>
             @endforeach
         </div>
     </section>

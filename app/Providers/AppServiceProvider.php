@@ -26,8 +26,10 @@ use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
+use Livewire\Mechanisms\HandleRequests\EndpointResolver;
 use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
@@ -63,6 +65,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (config('livewire.csp_safe')) {
+            Livewire::setScriptRoute(fn ($handle) => Route::get(
+                EndpointResolver::prefix().'/livewire.csp.js',
+                $handle,
+            ));
+        }
+
         Gate::policy(Application::class, ApplicationPolicy::class);
         Gate::policy(Document::class, DocumentPolicy::class);
         Gate::policy(Payment::class, PaymentPolicy::class);

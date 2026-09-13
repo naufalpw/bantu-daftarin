@@ -1,10 +1,10 @@
 <section class="bd-admin-list-surface mt-8 bd-admin-reactive-region" aria-labelledby="activity-list-title">
     <div class="bd-admin-list-toolbar"><div><h2 id="activity-list-title">Pembaruan terbaru</h2><p>Gunakan detail pengajuan untuk meninjau konteks dan tindakan yang tersedia.</p></div></div>
-    <nav class="bd-admin-filter-bar" aria-label="Filter aktivitas">
+    <div class="bd-admin-filter-bar" role="group" aria-label="Filter aktivitas">
         @foreach($categories as $key => $label)
-            <a href="{{ route('admin.activity.index', ['category' => $key === 'all' ? null : $key]) }}" wire:click.prevent="setCategory('{{ $key }}')" @class(['is-active' => $category === $key]) @if($category === $key) aria-current="page" @endif>{{ $label }}</a>
+            <x-admin.filter-control action="setCategory" :value="$key" :active="$category === $key">{{ $label }}</x-admin.filter-control>
         @endforeach
-    </nav>
+    </div>
     <div class="bd-admin-reactive-results" wire:loading.class="bd-admin-reactive-results--loading" wire:loading.attr="aria-busy" wire:target="setCategory,setPage,gotoPage,previousPage,nextPage">
         <div class="bd-admin-reactive-loading" wire:loading.delay.flex style="display: none" wire:target="setCategory,setPage,gotoPage,previousPage,nextPage" role="status" aria-live="polite">
             <span class="bd-admin-reactive-loading__spinner" aria-hidden="true"></span>

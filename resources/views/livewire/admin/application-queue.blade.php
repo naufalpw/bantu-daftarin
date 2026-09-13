@@ -7,11 +7,11 @@
             <input type="hidden" name="filter" value="{{ $filter }}">
         </form>
     </div>
-    <nav class="bd-admin-filter-bar" aria-label="Filter pengajuan">
+    <div class="bd-admin-filter-bar" role="group" aria-label="Filter pengajuan">
         @foreach($filters as $key => $label)
-            <a href="{{ route('admin.applications.index', array_filter(['filter' => $key === 'all' ? null : $key, 'q' => $search ?: null])) }}" wire:click.prevent="setFilter('{{ $key }}')" @class(['is-active' => $filter === $key]) @if($filter === $key) aria-current="page" @endif>{{ $label }}</a>
+            <x-admin.filter-control action="setFilter" :value="$key" :active="$filter === $key">{{ $label }}</x-admin.filter-control>
         @endforeach
-    </nav>
+    </div>
     <div class="bd-admin-reactive-results" wire:loading.class="bd-admin-reactive-results--loading" wire:loading.attr="aria-busy" wire:target="setFilter,search,applySearch,setPage,gotoPage,previousPage,nextPage">
         <div class="bd-admin-reactive-loading" wire:loading.delay.flex style="display: none" wire:target="setFilter,search,applySearch,setPage,gotoPage,previousPage,nextPage" role="status" aria-live="polite">
             <span class="bd-admin-reactive-loading__spinner" aria-hidden="true"></span>
