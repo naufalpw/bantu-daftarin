@@ -205,7 +205,8 @@
             @endif
 
             @if($showProcessSection)
-            <section id="proses" class="pb-workspace-section" tabindex="-1" aria-labelledby="process-title">
+            <details open data-phone-disclosure id="proses" class="pb-workspace-section" tabindex="-1" aria-labelledby="process-title">
+                <summary>Riwayat pengajuan @if($timeline->first())<small>{{ $timeline->first()['label'] }} · {{ $timeline->first()['timestamp']->translatedFormat('d M Y, H:i') }}</small>@endif</summary>
                 <div class="pb-section-heading"><div><p class="pb-kicker">Proses</p><h2 id="process-title">Riwayat pengajuan</h2></div></div>
                 <ol class="pb-timeline">
                     @forelse($timeline as $event)
@@ -221,7 +222,7 @@
                         <li class="pb-inline-empty">Belum ada riwayat proses.</li>
                     @endforelse
                 </ol>
-            </section>
+            </details>
             @endif
 
             @if($showResultSection)
@@ -246,7 +247,8 @@
         </div>
 
         <aside class="pb-workspace-aside" aria-label="Tindakan dan bantuan pengajuan">
-            <section class="pb-sidebar-summary" aria-labelledby="summary-title">
+            <details open data-phone-disclosure id="ringkasan" class="pb-sidebar-summary" aria-labelledby="summary-title">
+                <summary>Ringkasan pengajuan</summary>
                 <p class="pb-kicker">Ringkasan</p>
                 <h2 id="summary-title" class="sr-only">Ringkasan pengajuan</h2>
                 <dl>
@@ -268,7 +270,7 @@
                         <p>{{ $statusPresentation['description'] }}</p>
                     @endif
                 </div>
-            </section>
+            </details>
             <section class="pb-help-panel">
                 <h2>Butuh bantuan?</h2>
                 <p>Bantuan umum tersedia di Pusat Bantuan. Pertanyaan khusus pengajuan ini dapat dikirim melalui chat.</p>

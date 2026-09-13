@@ -9180,3 +9180,1371 @@
     .bd-admin-reactive-content { transition: none; }
     .bd-admin-reactive-loading__spinner { animation: none; }
 }
+
+/* Phone presentation only. Existing tablet/desktop layout rules remain owners above 430px. */
+.bd-phone-only { display: none !important; }
+[data-phone-disclosure] > summary { display: none; }
+.bd-phone-operation:empty { display: none; }
+
+@media (max-width: 1023px) {
+    .bd-admin-sidebar:not(.is-open) { visibility: hidden; }
+}
+
+/* Existing drawer boundary, short-height phones in landscape; no desktop sidebar change. */
+@media (max-width: 1023px) and (max-height: 560px) {
+    .bd-admin-sidebar { overflow-y: auto; overscroll-behavior: contain; }
+    .bd-admin-sidebar > * { flex-shrink: 0; }
+}
+
+@media (max-width: 430px) {
+    .bd-phone-only { display: block !important; }
+    .bd-phone-form-feedback { background: #fff0f0; border: 1px solid #efb7b7; border-radius: 8px; color: #a62929; font-size: 14px; line-height: 1.5; margin: 10px 0; padding: 12px; scroll-margin-top: 84px; }
+    .bd-phone-form-feedback ul { margin: 0; padding-left: 18px; }
+    [data-phone-disclosure] > summary {
+        align-items: center;
+        color: #031a5a;
+        cursor: pointer;
+        display: list-item;
+        font-size: 15px;
+        font-weight: 700;
+        min-height: 44px;
+        padding: 12px 0;
+    }
+    [data-phone-disclosure] > summary:focus-visible { outline: 2px solid #084fc7; outline-offset: 3px; }
+    .bd-admin-main { padding: 20px 16px 32px; }
+    .bd-admin-main :is(h1, h2, h3, dd, p, small, strong) { overflow-wrap: anywhere; }
+    .bd-admin-header { gap: 12px; }
+    .bd-admin-header__context { display: grid; min-width: 0; }
+    .bd-admin-header__context > span { display: none; }
+    .bd-admin-header__context strong { font-size: 13px; overflow-wrap: anywhere; }
+    .bd-admin-sidebar { overflow-y: auto; overscroll-behavior: contain; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+    .bd-admin-sidebar__footer { flex-shrink: 0; }
+    .bd-admin-body :is(a, button, summary, input, select, textarea):focus-visible {
+        outline: 2px solid #084fc7;
+        outline-offset: 3px;
+    }
+    .bd-admin-body :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { font-size: 16px; max-width: 100%; }
+    .bd-admin-body :is(input:not([type="checkbox"]):not([type="radio"]), select) { min-height: 46px; }
+    .bd-admin-filter-bar a,
+    .bd-admin-table-link,
+    .bd-admin-document__actions a,
+    .bd-admin-review-form summary,
+    .bd-admin-version-history summary {
+        align-items: center;
+        display: inline-flex;
+        min-height: 44px;
+    }
+    .bd-admin-filter-bar { gap: 8px; }
+    .bd-admin-surface__header { flex-wrap: wrap; gap: 12px; }
+    .bd-admin-detail-header h1 { font-size: 26px; }
+    .bd-admin-document header { flex-wrap: wrap; gap: 10px; }
+    .bd-admin-document { padding: 14px; }
+    .bd-admin-document__actions { gap: 8px 20px; }
+    .bd-admin-document__actions a { font-size: 14px; }
+    .bd-admin-document__preview { padding: 8px; }
+    .bd-admin-document__meta { font-size: 12px; }
+    .bd-admin-compact-row { align-items: flex-start; flex-wrap: wrap; }
+    .bd-admin-compact-row strong { overflow: visible; white-space: normal; }
+    .bd-admin-pagination { padding: 16px 0; }
+    .bd-phone-only.bd-phone-section-links { display: flex !important; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; }
+    .bd-phone-section-links a { align-items: center; color: var(--admin-primary-hover); display: inline-flex; font-size: 13px; min-height: 44px; }
+    .bd-phone-operation:not(:empty) { margin-top: 16px; }
+    .bd-admin-detail-content > * { order: 0; }
+    .bd-admin-detail-content > .bd-phone-operation { margin-top: 0; }
+    .bd-admin-surface[data-phone-disclosure] { padding-top: 4px; padding-bottom: 4px; }
+    .bd-admin-surface[data-phone-disclosure][open] { padding-bottom: 16px; }
+    .bd-admin-surface[data-phone-disclosure] > .bd-admin-surface__header h2 { display: none; }
+    #admin-next-action, #documents-title, #history-title { scroll-margin-top: 84px; }
+
+    .bd-phone-records { display: block; min-width: 0; width: 100%; }
+    .bd-phone-records thead {
+        clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px;
+    }
+    .bd-phone-records tbody { display: block; }
+    .bd-phone-records tr { border-bottom: 1px solid var(--admin-border); display: grid; gap: 12px; padding: 18px 16px; }
+    .bd-phone-records tr:last-child { border-bottom: 0; }
+    .bd-phone-records td { border: 0; display: block; font-size: 14px; min-width: 0; padding: 0; overflow-wrap: anywhere; }
+    .bd-phone-records.bd-admin-table td { white-space: normal; }
+    .bd-phone-records td[data-label]::before { color: var(--admin-text-muted); content: attr(data-label); display: block; font-size: 12px; line-height: 1.4; margin-bottom: 4px; }
+    .bd-phone-records td strong { font-size: 15px; }
+    .bd-phone-records td small { font-size: 12px; max-width: none; }
+    .bd-phone-records .bd-admin-table-link { border: 1px solid var(--admin-border); border-radius: 8px; font-size: 14px; justify-content: center; padding: 8px 16px; width: 100%; white-space: normal; }
+    .bd-phone-records--applications td:nth-child(4) { border-top: 1px solid var(--admin-border); padding-top: 12px; }
+    .bd-phone-records--documents td:nth-child(2) { background: var(--admin-primary-soft); border-radius: 8px; padding: 12px; }
+    .bd-phone-records--documents td:nth-child(3)::before { display: none; }
+    .bd-phone-records .bd-admin-status { max-width: 100%; white-space: normal; }
+    .bd-admin-support-row { grid-template-columns: 32px minmax(0, 1fr); gap: 10px; padding: 16px; }
+    .bd-admin-support-row__body small { white-space: normal; }
+    .bd-admin-support-row__meta { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-right: 48px; }
+    .bd-admin-support-item__archive { bottom: 10px; right: 16px; opacity: 1; }
+    .bd-admin-support-item__archive form button { min-height: 44px; font-size: 14px; }
+
+    /* app.css owns phone chat sizing; role-specific visual composition layers elsewhere. */
+    .phase-b.pb-chat-body .pb-chat-page .bd-chat-card {
+        height: clamp(300px, calc(100dvh - 198px - env(safe-area-inset-bottom)), 680px);
+        min-height: 0;
+        max-height: none;
+        border-radius: 12px;
+    }
+    .bd-admin-body .bd-admin-chat-surface .bd-chat-card--admin {
+        height: clamp(240px, calc(100dvh - 230px), 640px);
+        min-height: 0;
+        max-height: none;
+        border-radius: 12px;
+    }
+    .phase-b.pb-chat-body .pb-chat-page { gap: 12px; padding: 16px 0; }
+    .phase-b.pb-chat-body .pb-page-heading { margin-bottom: 0; }
+    .phase-b.pb-chat-body .pb-page-heading h1 { font-size: 20px; }
+    .phase-b.pb-chat-body .pb-page-heading .pb-kicker { display: none; }
+    .bd-admin-chat-page .bd-admin-chat-context { gap: 10px; }
+    .bd-admin-chat-page .bd-admin-chat-context h1 { font-size: 22px; }
+    .bd-admin-chat-page .bd-admin-chat-surface { padding: 0; margin-top: 16px; border: 0; }
+    .phase-b.pb-chat-body .bd-chat-card__header,
+    .bd-admin-body .bd-admin-chat-surface .bd-chat-card__header { padding: 12px; gap: 8px; flex-wrap: wrap; min-height: 0; flex-basis: auto; }
+    .phase-b.pb-chat-body .bd-chat-messages,
+    .bd-admin-body .bd-admin-chat-surface .bd-chat-messages { min-height: 0; padding: 14px 12px; overscroll-behavior: contain; }
+    .phase-b.pb-chat-body .bd-chat-composer,
+    .bd-admin-body .bd-admin-chat-surface .bd-chat-composer { flex-shrink: 0; padding: 10px 12px; }
+    .phase-b.pb-chat-body .bd-chat-composer textarea,
+    .bd-admin-body .bd-admin-chat-surface .bd-chat-composer textarea,
+    .bd-chat-message__editor textarea { font-size: 16px; }
+    .bd-chat-card__thread-actions button, .bd-chat-message__actions summary,
+    .bd-chat-message__actions button, .bd-chat-message__editor button { min-height: 44px; }
+    .bd-chat-message__actions summary { width: 44px; height: 44px; }
+    .bd-admin-chat-surface .bd-chat-quick-reply select { font-size: 16px; min-height: 44px; }
+    .bd-chat-delete-confirmation { position: fixed; inset: 0; z-index: 100; padding: 16px; overflow-y: auto; }
+    .bd-chat-delete-confirmation > div { max-height: calc(100dvh - 32px); overflow-y: auto; width: 100%; max-width: 398px; }
+    .bd-chat-delete-confirmation button { min-height: 44px; }
+    .bd-phone-records--users tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .bd-phone-records--users td:nth-child(1), .bd-phone-records--users td:nth-child(2), .bd-phone-records--users td:last-child { grid-column: 1 / -1; }
+    .bd-phone-records--users td:nth-child(1)::before, .bd-phone-records--users td:nth-child(2)::before { display: none; }
+    .bd-phone-records--activity tr { gap: 10px; }
+    .bd-phone-records--activity td:first-child { padding-bottom: 4px; }
+    .bd-phone-records--activity td:first-child::before { display: none; }
+    .bd-phone-records--activity td:nth-child(4) { font-size: 12px; }
+    .bd-phone-records--priority tr { padding: 16px 0; gap: 10px; }
+    .bd-phone-records--priority td:first-child::before { display: none; }
+    .bd-admin-attention-item a { align-items: center; display: inline-flex; min-height: 44px; }
+    .bd-admin-dashboard .bd-admin-operational-grid { margin-top: 24px; }
+    .bd-admin-dashboard #dashboard-recent-position { margin-top: 0; }
+    .bd-admin-dashboard .bd-admin-priority-queue { margin-top: 0; }
+}
+
+/* Inline phone icons are presentation-only and never duplicate an action. */
+.bd-mobile-icon,
+.bd-phone-record-icon {
+    display: none;
+}
+
+/* Final Admin phone visual pass; desktop remains owned by the rules above. */
+@media (max-width: 430px) {
+    .bd-admin-body,
+    .bd-admin-auth-body {
+        background: #f3f6fb;
+    }
+
+    .bd-mobile-icon {
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.8;
+    }
+
+    .bd-admin-header {
+        height: 60px;
+        padding: 0 14px;
+        gap: 10px;
+        border-bottom-color: #dfe7f1;
+        background: #ffffff;
+        box-shadow: 0 3px 14px rgba(3, 26, 90, .045);
+    }
+
+    .bd-admin-menu-button {
+        width: 40px;
+        min-width: 40px;
+        min-height: 40px;
+        padding: 0;
+        justify-content: center;
+        border: 0;
+        border-radius: 10px;
+        color: var(--admin-primary-hover);
+        background: var(--admin-primary-soft);
+    }
+
+    .bd-admin-menu-button > span:last-child {
+        display: none;
+    }
+
+    .bd-admin-menu-button__icon {
+        gap: 4px;
+    }
+
+    .bd-admin-menu-button__icon i {
+        height: 2px;
+        width: 18px;
+        border-radius: 2px;
+    }
+
+    .bd-admin-header__context {
+        gap: 1px;
+        margin-right: auto;
+    }
+
+    .bd-admin-header__context > span {
+        display: block;
+        color: #6f7e92;
+        font-size: 8.5px;
+        letter-spacing: .11em;
+    }
+
+    .bd-admin-header__context strong {
+        color: var(--admin-navy);
+        font-size: 12.5px;
+        line-height: 1.25;
+    }
+
+    .bd-admin-header .bd-admin-avatar {
+        flex-basis: 34px;
+        height: 34px;
+        border: 1px solid #c7daf6;
+        background: #eef5ff;
+        font-size: 12px;
+    }
+
+    .bd-admin-sidebar {
+        width: min(286px, calc(100vw - 34px));
+        padding: 18px 16px max(20px, env(safe-area-inset-bottom));
+        border-right: 0;
+        box-shadow: 18px 0 42px rgba(3, 26, 90, .24);
+    }
+
+    .bd-admin-sidebar__brand-row {
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e2e9f3;
+    }
+
+    .bd-admin-sidebar__brand img {
+        height: 28px;
+    }
+
+    .bd-admin-sidebar__nav {
+        margin-top: 17px;
+    }
+
+    .bd-admin-sidebar__nav ul {
+        gap: 3px;
+    }
+
+    .bd-admin-nav-link {
+        min-height: 44px;
+        padding: 8px 10px;
+        border-radius: 9px;
+        font-size: 13px;
+    }
+
+    .bd-admin-nav-link.is-active {
+        position: relative;
+        background: #edf4ff;
+    }
+
+    .bd-admin-nav-link.is-active::after {
+        position: absolute;
+        top: 11px;
+        right: 7px;
+        bottom: 11px;
+        width: 3px;
+        border-radius: 3px;
+        background: var(--admin-primary);
+        content: '';
+    }
+
+    .bd-admin-main {
+        padding: 18px 14px 34px;
+    }
+
+    .bd-admin-page-header {
+        gap: 14px;
+    }
+
+    .bd-admin-kicker {
+        margin-bottom: 5px !important;
+        font-size: 9.5px !important;
+        letter-spacing: .1em;
+    }
+
+    .bd-admin-page-header h1,
+    .bd-admin-detail-header h1 {
+        font-size: 24px;
+        letter-spacing: -.03em;
+        line-height: 1.15;
+    }
+
+    .bd-admin-page-header > div:first-child > p:last-child,
+    .bd-admin-detail-header > div:first-child > p:last-child {
+        margin-top: 6px;
+        font-size: 12.5px;
+        line-height: 1.48;
+    }
+
+    .bd-admin-page-header__actions .bd-admin-button {
+        width: auto;
+        min-height: 40px;
+        padding: 8px 12px;
+    }
+
+    .bd-admin-button {
+        min-height: 42px;
+        padding: 9px 13px;
+        border-radius: 9px;
+        font-size: 12.5px;
+    }
+
+    .bd-admin-button--primary {
+        box-shadow: 0 5px 12px rgba(0, 98, 253, .15);
+    }
+
+    .bd-admin-status {
+        align-items: center;
+        gap: 5px;
+        max-width: 100%;
+        padding: 5px 7px;
+        border-radius: 7px;
+        font-size: 10.5px;
+    }
+
+    .bd-admin-status::before {
+        width: 6px;
+        height: 6px;
+        flex: 0 0 6px;
+        border-radius: 50%;
+        background: currentColor;
+        content: '';
+    }
+
+    .bd-admin-surface {
+        padding: 15px 14px;
+        border-color: #dce5f0;
+        border-radius: 14px;
+        box-shadow: none;
+    }
+
+    .bd-admin-surface__header {
+        gap: 10px;
+    }
+
+    .bd-admin-surface__header h2,
+    .bd-admin-list-toolbar h2,
+    .bd-admin-activity-chart__header h2 {
+        font-size: 16px;
+    }
+
+    .bd-admin-surface__header p:not(.bd-admin-kicker),
+    .bd-admin-list-toolbar p,
+    .bd-admin-muted-copy,
+    .bd-admin-activity-chart__header p:not(.bd-admin-kicker) {
+        margin-top: 4px;
+        font-size: 11.5px;
+        line-height: 1.45;
+    }
+
+    /* Dashboard: attention is the opening task, trends remain supporting. */
+    .bd-admin-attention-panel {
+        margin-top: 17px;
+        padding: 16px;
+        border: 0;
+        border-radius: 16px;
+        background: #eef4ff;
+    }
+
+    .bd-admin-attention-panel__items {
+        margin-top: 11px;
+        border-top-color: #cad9ee;
+    }
+
+    .bd-admin-attention-item,
+    .bd-admin-attention-item:nth-child(odd),
+    .bd-admin-attention-item:nth-child(even) {
+        min-height: 64px;
+        padding: 10px 0;
+        gap: 11px;
+        grid-template-columns: 42px minmax(0, 1fr);
+        border-right: 0;
+        border-bottom: 1px solid #d3dfef;
+    }
+
+    .bd-admin-attention-item:last-child {
+        border-bottom: 0;
+    }
+
+    .bd-admin-attention-item > strong {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border-radius: 11px;
+        color: #8a5a00;
+        background: #fff2cf;
+        font-size: 20px;
+    }
+
+    .bd-admin-attention-item[data-admin-attention='support'] > strong {
+        color: #135c3b;
+        background: #dff3e7;
+    }
+
+    .bd-admin-attention-item h3 {
+        font-size: 12.5px;
+    }
+
+    .bd-admin-attention-item a {
+        min-height: 32px;
+        margin-top: 2px;
+        font-size: 11.5px;
+    }
+
+    .bd-admin-dashboard .bd-admin-operational-grid {
+        gap: 14px;
+        margin-top: 18px;
+    }
+
+    .bd-admin-priority-queue {
+        padding: 0;
+        overflow: hidden;
+        border-radius: 15px;
+    }
+
+    .bd-admin-priority-queue > .bd-admin-surface__header {
+        padding: 15px 14px 11px;
+    }
+
+    .bd-admin-priority-queue .bd-admin-table-wrap {
+        margin-top: 0;
+        border-top-color: #dce5f0;
+    }
+
+    .bd-admin-recent-activity {
+        padding: 14px;
+    }
+
+    .bd-admin-recent-activity__list {
+        margin-top: 10px;
+    }
+
+    .bd-admin-recent-activity__list a {
+        position: relative;
+        padding: 11px 0 11px 21px;
+        gap: 2px;
+    }
+
+    .bd-admin-recent-activity__list a::before {
+        position: absolute;
+        top: 16px;
+        left: 1px;
+        width: 8px;
+        height: 8px;
+        border: 3px solid #e2edff;
+        border-radius: 50%;
+        background: var(--admin-primary);
+        content: '';
+    }
+
+    .bd-admin-activity-chart {
+        padding: 14px;
+    }
+
+    .bd-admin-activity-chart__header {
+        gap: 10px;
+    }
+
+    .bd-admin-chart-figure {
+        min-height: 190px;
+        margin-top: 12px;
+    }
+
+    .bd-admin-chart-figure svg {
+        height: 184px;
+    }
+
+    /* Operational lists: compact records, no routine horizontal pan. */
+    .bd-admin-list-surface {
+        margin-top: 20px !important;
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    .bd-admin-list-toolbar {
+        padding: 0 0 12px;
+        gap: 12px;
+    }
+
+    .bd-admin-search input {
+        min-height: 46px;
+        padding: 10px 13px 10px 39px;
+        border-color: #c5d3e5;
+        border-radius: 12px;
+        background-color: #ffffff;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23667890' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 4 4'/%3E%3C/svg%3E");
+        background-position: 13px center;
+        background-repeat: no-repeat;
+        box-shadow: 0 6px 16px rgba(3, 26, 90, .04);
+    }
+
+    .bd-admin-filter-bar {
+        margin: 0 -14px 12px;
+        padding: 0 14px 4px;
+        gap: 5px;
+        border: 0;
+        scrollbar-width: none;
+    }
+
+    .bd-admin-filter-bar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .bd-admin-filter-bar a {
+        min-height: 34px;
+        padding: 7px 10px;
+        border: 1px solid #d4deea;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, .75);
+        font-size: 11px;
+    }
+
+    .bd-admin-filter-bar a.is-active {
+        border-color: var(--admin-primary-hover);
+        color: #ffffff;
+        background: var(--admin-primary-hover);
+    }
+
+    .bd-admin-reactive-results {
+        min-height: 160px;
+    }
+
+    .bd-phone-records {
+        overflow: hidden;
+        border: 1px solid #dce5f0;
+        border-radius: 15px;
+        background: #ffffff;
+    }
+
+    .bd-phone-records tr {
+        position: relative;
+        gap: 8px;
+        padding: 14px;
+        border-bottom-color: #e2eaf3;
+    }
+
+    .bd-phone-records td {
+        font-size: 12.5px;
+        line-height: 1.4;
+    }
+
+    .bd-phone-records td[data-label]::before {
+        margin-bottom: 2px;
+        color: #728096;
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: .055em;
+        text-transform: uppercase;
+    }
+
+    .bd-phone-records td strong {
+        font-size: 13.5px;
+    }
+
+    .bd-phone-records td small {
+        margin-top: 2px;
+        font-size: 10.8px;
+        line-height: 1.4;
+    }
+
+    .bd-phone-record-icon {
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        border-radius: 10px;
+        color: var(--admin-primary-hover);
+        background: var(--admin-primary-soft);
+    }
+
+    .bd-phone-record-icon .bd-mobile-icon {
+        display: block;
+    }
+
+    .bd-phone-records--applications td:first-child,
+    .bd-phone-records--documents td:first-child,
+    .bd-phone-records--users td:first-child,
+    .bd-phone-records--activity td:first-child {
+        position: relative;
+        min-height: 38px;
+        padding-left: 48px;
+    }
+
+    .bd-phone-records--applications td:first-child::before,
+    .bd-phone-records--documents td:first-child::before,
+    .bd-phone-records--users td:first-child::before,
+    .bd-phone-records--activity td:first-child::before {
+        display: none;
+    }
+
+    .bd-phone-records--applications td:nth-child(2) {
+        padding: 9px 10px;
+        border-radius: 9px;
+        background: #f6f8fb;
+    }
+
+    .bd-phone-records--applications td:nth-child(4) {
+        padding: 10px;
+        border: 0;
+        border-radius: 10px;
+        background: #fff8e7;
+    }
+
+    .bd-phone-records--documents .bd-phone-record-icon {
+        color: #176a46;
+        background: #e5f5eb;
+    }
+
+    .bd-phone-records--documents td:nth-child(2) {
+        padding: 10px;
+        border-radius: 10px;
+        background: #eef8f2;
+    }
+
+    .bd-phone-records--documents td:nth-child(3) {
+        padding-top: 1px;
+    }
+
+    .bd-phone-records .bd-admin-table-link {
+        min-height: 40px;
+        padding: 8px 13px;
+        border: 0;
+        border-radius: 9px;
+        color: #ffffff;
+        background: var(--admin-primary-hover);
+        text-decoration: none;
+    }
+
+    .bd-phone-records--priority {
+        border: 0;
+        border-radius: 0;
+    }
+
+    .bd-phone-records--priority tr {
+        padding: 13px 14px;
+    }
+
+    .bd-phone-records--users tr {
+        gap: 7px 12px;
+    }
+
+    .bd-phone-records--users .bd-phone-record-icon {
+        color: #5039a0;
+        background: #f0edff;
+    }
+
+    .bd-phone-records--activity {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .bd-phone-records--activity tr {
+        margin-left: 18px;
+        padding: 13px 0 14px 18px;
+        border-left: 1px solid #cedcf0;
+        border-bottom: 0;
+    }
+
+    .bd-phone-records--activity .bd-phone-record-icon {
+        left: -19px;
+        width: 36px;
+        height: 36px;
+        border: 4px solid #f3f6fb;
+        border-radius: 50%;
+        background: #e6efff;
+    }
+
+    /* Deliberate review: identity and next operation are visually distinct. */
+    .bd-admin-back-link {
+        min-height: 36px;
+        margin-bottom: 10px;
+        font-size: 11.5px;
+    }
+
+    .bd-admin-detail-header {
+        padding: 14px;
+        gap: 12px;
+        border: 1px solid #cddcf1;
+        border-radius: 15px;
+        background: #eef4ff;
+    }
+
+    .bd-admin-detail-header__status {
+        gap: 5px;
+    }
+
+    .bd-admin-detail-header__status p {
+        font-size: 11.5px;
+    }
+
+    .bd-admin-detail-header__status small {
+        font-size: 10.5px;
+    }
+
+    .bd-phone-only.bd-phone-section-links {
+        margin: 9px 0 2px;
+        padding: 0 2px;
+        gap: 4px 14px;
+        border-bottom: 1px solid #dce5f0;
+    }
+
+    .bd-phone-section-links a {
+        min-height: 38px;
+        font-size: 11.5px;
+    }
+
+    .bd-admin-detail-grid,
+    .bd-admin-detail-content,
+    .bd-admin-detail-aside {
+        gap: 14px;
+    }
+
+    #admin-next-action {
+        padding: 15px;
+        border: 1px solid #9dbff0;
+        border-radius: 15px;
+        background: #f4f8ff;
+        box-shadow: 0 7px 18px rgba(3, 26, 90, .055);
+    }
+
+    #admin-next-action .bd-admin-surface__header h2 {
+        color: var(--admin-primary-hover);
+    }
+
+    .bd-admin-action-stack {
+        gap: 10px;
+        margin-top: 13px;
+    }
+
+    .bd-admin-detail-content > .bd-admin-surface:not(.bd-admin-detail-section--documents):not(.bd-admin-detail-section--result),
+    .bd-admin-detail-content > details.bd-admin-surface {
+        box-shadow: none;
+    }
+
+    .bd-admin-surface[data-phone-disclosure] {
+        padding: 2px 0;
+        border: 0;
+        border-top: 1px solid #dce5f0;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .bd-admin-surface[data-phone-disclosure] > summary {
+        padding: 11px 2px;
+        color: var(--admin-navy);
+        font-size: 13px;
+    }
+
+    .bd-admin-document-list {
+        gap: 9px;
+        margin-top: 13px;
+    }
+
+    .bd-admin-document {
+        padding: 12px;
+        border-color: #dce5f0;
+        border-radius: 12px;
+        background: #ffffff;
+    }
+
+    .bd-admin-document h3 {
+        font-size: 13px;
+    }
+
+    .bd-admin-document__preview {
+        min-height: 112px;
+        margin-top: 10px;
+        padding: 8px;
+        border-radius: 9px;
+        background: #f4f7fb;
+    }
+
+    .bd-admin-document__preview img {
+        height: 126px;
+    }
+
+    .bd-admin-document__actions {
+        margin-top: 8px;
+        gap: 6px 16px;
+        border-top: 1px solid #e3eaf3;
+    }
+
+    .bd-admin-document__actions a {
+        min-height: 38px;
+        font-size: 12px;
+    }
+
+    .bd-admin-review-form,
+    .bd-admin-version-history {
+        margin-top: 8px;
+        padding-top: 8px;
+    }
+
+    .bd-admin-support-link {
+        padding: 14px;
+        border-radius: 13px;
+        background: #102d66;
+    }
+
+    /* Support and chat stay row-led rather than card-heavy. */
+    .bd-admin-support-surface {
+        overflow: hidden;
+        border: 1px solid #dce5f0;
+        border-radius: 15px;
+        background: #ffffff;
+    }
+
+    .bd-admin-support-surface .bd-admin-list-toolbar {
+        padding: 14px 14px 11px;
+    }
+
+    .bd-admin-support-surface .bd-admin-filter-bar {
+        margin: 0;
+        padding: 8px 14px;
+        border-top: 1px solid #e2eaf3;
+        border-bottom: 1px solid #e2eaf3;
+    }
+
+    .bd-admin-support-row {
+        padding: 13px 14px;
+        gap: 9px;
+        border-bottom-color: #e5ecf4;
+    }
+
+    .bd-admin-support-row.is-unread {
+        background: #f1f6ff;
+    }
+
+    .bd-admin-support-row.is-unread .bd-admin-service-mark {
+        color: #ffffff;
+        background: var(--admin-primary-hover);
+    }
+
+    .bd-admin-support-row__heading strong {
+        font-size: 13px;
+    }
+
+    .bd-admin-support-row__body {
+        gap: 3px;
+    }
+
+    .bd-admin-support-row__body small,
+    .bd-admin-support-row__body > span,
+    .bd-admin-support-row__meta {
+        font-size: 10.8px;
+    }
+
+    .bd-admin-support-item__archive {
+        right: 10px;
+        bottom: 8px;
+    }
+
+    .bd-admin-chat-page .bd-admin-chat-context {
+        padding: 13px;
+        border: 1px solid #d4e0ef;
+        border-radius: 14px;
+        background: #eef4ff;
+    }
+
+    .bd-admin-chat-page .bd-admin-chat-context h1 {
+        font-size: 19px;
+    }
+
+    .bd-admin-chat-page .bd-admin-chat-surface {
+        overflow: hidden;
+        border: 1px solid #dce5f0;
+        border-radius: 15px;
+        background: #ffffff;
+        box-shadow: 0 7px 18px rgba(3, 26, 90, .05);
+    }
+
+    .bd-admin-chat-surface .bd-chat-messages {
+        background: #f5f7fb;
+    }
+
+    .bd-admin-chat-surface .bd-chat-bubble {
+        max-width: 84%;
+        padding: 8px 10px;
+        border-radius: 13px;
+        font-size: 12.5px;
+        line-height: 1.45;
+    }
+
+    .bd-admin-chat-surface .bd-chat-message--incoming .bd-chat-bubble {
+        border: 1px solid #dce5f0;
+        border-bottom-left-radius: 5px;
+        background: #ffffff;
+    }
+
+    .bd-admin-chat-surface .bd-chat-message--outgoing .bd-chat-bubble {
+        border-bottom-right-radius: 5px;
+        background: #dfeeff;
+        color: #102a4d;
+    }
+
+    .bd-admin-chat-surface .bd-chat-composer {
+        gap: 8px;
+        background: #ffffff;
+    }
+
+    .bd-admin-chat-surface .bd-chat-composer textarea {
+        min-height: 44px;
+        border-radius: 13px;
+        background: #f7faff;
+    }
+
+    .bd-admin-chat-surface .bd-chat-composer__send {
+        min-width: 44px;
+        min-height: 44px;
+        border-radius: 12px;
+    }
+
+    /* Admin authentication remains restrained and single-purpose. */
+    .bd-admin-auth-shell {
+        align-items: center;
+        padding: 18px 14px;
+    }
+
+    .bd-admin-auth-card {
+        padding: 22px 18px;
+        border-color: #d9e3ef;
+        border-radius: 18px;
+        box-shadow: 0 12px 30px rgba(3, 26, 90, .075);
+    }
+
+    .bd-admin-auth-brand {
+        margin-bottom: 22px;
+    }
+
+    .bd-admin-auth-brand img {
+        height: 31px;
+    }
+
+    .bd-admin-auth-content h1 {
+        font-size: 25px;
+    }
+
+    .bd-admin-auth-content__intro {
+        margin-top: 8px;
+        font-size: 12.5px;
+        line-height: 1.5;
+    }
+
+    .bd-admin-auth-form {
+        gap: 14px;
+        margin-top: 20px;
+    }
+
+    .bd-admin-auth-note {
+        margin-top: 20px;
+        padding-top: 14px;
+    }
+}
+
+/* Shared functional icon foundation. Visual ownership stays with each role shell. */
+.bd-ui-icon {
+    display: inline-block;
+    flex: 0 0 auto;
+    overflow: visible;
+    vertical-align: middle;
+}
+
+.bd-desktop-action-icon,
+.bd-admin-nav-link__icon--shared {
+    display: none;
+}
+
+/* Desktop Admin harmonization. Drawer/mobile presentation remains unchanged below 1024px. */
+@media (min-width: 1024px) {
+    .bd-admin-body,
+    .bd-admin-auth-body {
+        --admin-cyan-bg: #e8f8fb;
+        --admin-cyan-text: #086d7f;
+        --admin-lilac-bg: #f0efff;
+        --admin-lilac-text: #5039a0;
+    }
+
+    .bd-desktop-action-icon {
+        display: block;
+    }
+
+    .bd-admin-body :is(a, button, summary, [role='button'], [role='menuitem']):focus-visible,
+    .bd-admin-auth-body :is(a, button, summary, [role='button'], [role='menuitem']):focus-visible {
+        outline: 2px solid var(--admin-primary-hover);
+        outline-offset: 3px;
+    }
+
+    .bd-admin-body :is(input, select, textarea):focus-visible,
+    .bd-admin-auth-body :is(input, select, textarea):focus-visible {
+        border-color: var(--admin-primary-hover);
+        box-shadow: 0 0 0 3px rgba(0, 98, 253, .16);
+        outline: 2px solid transparent;
+    }
+
+    /* Sidebar keeps its structure while adopting the shared currentColor stroke family. */
+    .bd-admin-nav-link {
+        position: relative;
+        border-radius: 9px;
+    }
+
+    .bd-admin-nav-link__icon--legacy {
+        display: none;
+    }
+
+    .bd-admin-nav-link__icon--shared {
+        display: block;
+        color: currentColor;
+        filter: none !important;
+        opacity: 1;
+    }
+
+    .bd-admin-nav-link.is-active::before {
+        position: absolute;
+        top: 10px;
+        bottom: 10px;
+        left: -14px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: var(--admin-primary);
+        content: '';
+    }
+
+    .bd-admin-nav-link:hover {
+        background: #f3f7fd;
+    }
+
+    .bd-admin-nav-link.is-active {
+        background: var(--admin-primary-soft);
+        box-shadow: inset 0 0 0 1px rgba(0, 98, 253, .06);
+    }
+
+    .bd-admin-page-header h1 {
+        font-size: clamp(30px, 2.4vw, 34px);
+    }
+
+    .bd-admin-detail-header h1 {
+        font-size: clamp(28px, 2.2vw, 32px);
+    }
+
+    .bd-admin-status {
+        align-items: center;
+        gap: 6px;
+        border-radius: 8px;
+        text-align: left;
+    }
+
+    .bd-admin-status::before {
+        width: 6px;
+        height: 6px;
+        flex: 0 0 6px;
+        border-radius: 50%;
+        background: currentColor;
+        content: '';
+    }
+
+    .bd-admin-button {
+        gap: 7px;
+    }
+
+    /* Attention leads the dashboard; charts remain neutral supporting evidence. */
+    .bd-admin-attention-panel {
+        border-color: #cbdcf2;
+        border-top: 3px solid var(--admin-primary);
+        background: #f8fbff;
+        box-shadow: 0 10px 26px rgba(15, 29, 56, .035);
+    }
+
+    .bd-admin-attention-item {
+        --attention-accent: #b8790b;
+        min-height: 96px;
+        padding: 18px 20px 18px 22px;
+        grid-template-columns: 56px minmax(0, 1fr);
+        align-items: center;
+        gap: 16px;
+        box-shadow: inset 3px 0 var(--attention-accent);
+    }
+
+    .bd-admin-attention-item:nth-child(odd),
+    .bd-admin-attention-item:nth-child(even) {
+        padding-right: 20px;
+        padding-left: 22px;
+    }
+
+    .bd-admin-attention-item[data-admin-attention='revision'] {
+        --attention-accent: #a94235;
+    }
+
+    .bd-admin-attention-item[data-admin-attention='result'] {
+        --attention-accent: #1d63bd;
+    }
+
+    .bd-admin-attention-item[data-admin-attention='support'] {
+        --attention-accent: #148298;
+    }
+
+    .bd-admin-attention-item > strong {
+        display: flex;
+        min-width: 48px;
+        min-height: 48px;
+        align-items: center;
+        justify-content: center;
+        color: var(--attention-accent);
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        text-align: center;
+    }
+
+    .bd-admin-attention-item > div {
+        display: grid;
+        min-width: 0;
+        align-content: center;
+        gap: 6px;
+    }
+
+    .bd-admin-attention-item h3,
+    .bd-admin-attention-item a {
+        margin: 0;
+    }
+
+    .bd-admin-recent-activity {
+        box-shadow: none;
+    }
+
+    .bd-admin-recent-activity__list a {
+        position: relative;
+        padding-left: 22px;
+    }
+
+    .bd-admin-recent-activity__list a::before {
+        position: absolute;
+        top: 19px;
+        left: 1px;
+        width: 8px;
+        height: 8px;
+        border: 3px solid #e1ecfd;
+        border-radius: 50%;
+        background: var(--admin-primary);
+        content: '';
+    }
+
+    .bd-admin-priority-queue {
+        border-top: 3px solid #7aa9e8;
+    }
+
+    /* Search, filters and tables retain desktop density with clearer state and action. */
+    .bd-admin-search input {
+        padding-left: 39px;
+        background-color: #fbfdff;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23667890' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 4 4'/%3E%3C/svg%3E");
+        background-position: 13px center;
+        background-repeat: no-repeat;
+    }
+
+    .bd-admin-filter-bar a {
+        border-color: transparent;
+    }
+
+    .bd-admin-filter-bar a:hover {
+        border-color: #c4d5eb;
+        background: #f4f8fd;
+    }
+
+    .bd-admin-filter-bar a.is-active {
+        border-color: #83ace3;
+        color: var(--admin-primary-hover);
+        background: var(--admin-primary-soft);
+        box-shadow: inset 0 -2px var(--admin-primary);
+    }
+
+    .bd-admin-table tbody tr {
+        transition: background-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .bd-admin-table tbody tr:hover,
+    .bd-admin-table tbody tr:focus-within {
+        background: #f4f8ff;
+        box-shadow: inset 3px 0 var(--admin-primary);
+    }
+
+    .bd-admin-table-link {
+        align-items: center;
+        display: inline-flex;
+        min-height: 36px;
+        padding: 7px 11px;
+        border: 1px solid #c5d8f3;
+        border-radius: 8px;
+        background: var(--admin-primary-soft);
+        text-decoration: none;
+    }
+
+    .bd-admin-table-link::after {
+        margin-left: 6px;
+        content: '→';
+    }
+
+    .bd-admin-table-link:hover,
+    .bd-admin-table-link:focus-visible {
+        border-color: #8bb0e5;
+        background: #dfeaff;
+        text-decoration: none;
+    }
+
+    /* Detail/review: current operation and evidence lead, read-only context recedes. */
+    .bd-admin-detail-header {
+        padding: 20px 22px;
+        border: 1px solid #c8d9f0;
+        border-radius: 15px;
+        background: #f4f8ff;
+    }
+
+    .bd-admin-detail-section--summary {
+        border-color: #cbdcf2;
+        background: #f8fbff;
+        box-shadow: none;
+    }
+
+    .bd-admin-detail-section--documents {
+        border-top: 3px solid var(--admin-primary);
+        box-shadow: 0 10px 26px rgba(15, 29, 56, .04);
+    }
+
+    .bd-admin-detail-section--payment,
+    .bd-admin-detail-section--history {
+        background: #fbfcfe;
+        box-shadow: none;
+    }
+
+    .bd-admin-detail-section--history {
+        order: 5;
+    }
+
+    #admin-next-action {
+        position: sticky;
+        top: 96px;
+        border-color: #a9c5eb;
+        border-top: 3px solid var(--admin-primary);
+        background: #f3f7ff;
+        box-shadow: 0 10px 26px rgba(15, 29, 56, .045);
+    }
+
+    .bd-admin-document {
+        border-left: 3px solid #c7d2e0;
+        box-shadow: none;
+    }
+
+    .bd-admin-document[data-document-tone='success'] {
+        border-color: #b7ddc5;
+        border-left-color: #2f8258;
+        background: #f5fbf7;
+    }
+
+    .bd-admin-document[data-document-tone='attention'] {
+        border-color: #ead7a3;
+        border-left-color: #c08417;
+        background: #fffdf8;
+    }
+
+    .bd-admin-document[data-document-tone='danger'] {
+        border-color: #edc1bb;
+        border-left-color: #b54a3d;
+        background: #fff9f8;
+    }
+
+    .bd-admin-document__preview {
+        background: #f4f7fb;
+    }
+
+    .bd-admin-document__actions a {
+        align-items: center;
+        display: inline-flex;
+        gap: 6px;
+        min-height: 36px;
+    }
+
+    .bd-admin-support-link {
+        border: 1px solid #a7d5df;
+        color: #0c4d59;
+        background: var(--admin-cyan-bg);
+    }
+
+    .bd-admin-support-link span {
+        color: #3b6870;
+    }
+
+    /* Support stays row-led; users and activity gain restrained scanning markers. */
+    .bd-admin-support-surface {
+        border-top: 3px solid #42aabd;
+    }
+
+    .bd-admin-support-row.is-unread {
+        background: #eef9fb;
+        box-shadow: inset 3px 0 #2394a8;
+    }
+
+    .bd-phone-records--users tbody td:first-child strong,
+    .bd-phone-records--activity tbody td:first-child strong {
+        align-items: center;
+        display: inline-flex;
+        gap: 8px;
+    }
+
+    .bd-phone-records--users tbody td:first-child strong::before {
+        width: 9px;
+        height: 9px;
+        flex: 0 0 9px;
+        border: 2px solid #d7d0ff;
+        border-radius: 50%;
+        background: var(--admin-lilac-bg);
+        content: '';
+    }
+
+    .bd-phone-records--activity tbody td:first-child strong::before {
+        width: 8px;
+        height: 8px;
+        flex: 0 0 8px;
+        border: 3px solid #dfeafe;
+        border-radius: 50%;
+        background: var(--admin-primary);
+        content: '';
+    }
+
+    /* Admin chat keeps one visible container boundary. */
+    .bd-admin-chat-page .bd-admin-chat-context {
+        border-color: #b8dfe7;
+        background: var(--admin-cyan-bg);
+    }
+
+    .bd-admin-chat-surface {
+        padding: 0;
+        border-top: 3px solid #42aabd;
+        box-shadow: 0 12px 30px rgba(15, 29, 56, .045);
+    }
+
+    .bd-admin-chat-surface .bd-chat-card--admin {
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .bd-admin-auth-card {
+        border-top: 3px solid #77aaf0;
+        box-shadow: 0 12px 30px rgba(15, 29, 56, .05);
+    }
+}

@@ -100,9 +100,12 @@
                     <div class="pb-help-conversations">
                         @forelse($helpThreads as $thread)
                             <a href="{{ route('client.chat.show', $thread->public_id) }}" class="pb-help-conversation">
-                                <strong>{{ $thread->isGeneralSupport() ? 'Bantuan Umum' : ($thread->application?->service?->name ?? 'Pengajuan') }}</strong>
-                                <span>{{ $thread->latestMessage?->displayBody() ?? 'Belum ada pesan.' }}</span>
-                                <small>{{ ($thread->last_message_at ?? $thread->updated_at)->translatedFormat('d M, H:i') }}</small>
+                                <span class="pb-help-conversation__content">
+                                    <strong>{{ $thread->isGeneralSupport() ? 'Bantuan Umum' : ($thread->application?->service?->name ?? 'Pengajuan') }}</strong>
+                                    <span class="pb-help-conversation__preview">{{ $thread->latestMessage?->displayBody() ?? 'Belum ada pesan.' }}</span>
+                                    <small>{{ ($thread->last_message_at ?? $thread->updated_at)->translatedFormat('d M, H:i') }}</small>
+                                </span>
+                                <span class="pb-help-conversation__chevron" aria-hidden="true"></span>
                             </a>
                         @empty
                             <p class="pb-help-support-card__intro">{{ $conversationFilter === 'archived' ? 'Belum ada percakapan di arsip.' : 'Belum ada percakapan tersimpan.' }}</p>

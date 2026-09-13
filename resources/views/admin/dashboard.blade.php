@@ -35,10 +35,12 @@
         </div>
     </section>
 
+    <div id="dashboard-priority-position" class="bd-phone-operation"></div>
     <div class="bd-admin-operational-grid">
+        <div id="dashboard-recent-position" class="bd-phone-operation"></div>
         <livewire:admin.activity-chart :period="$period" :periods="$periods" :activity="$activity" />
 
-        <section class="bd-admin-surface bd-admin-recent-activity" aria-labelledby="recent-activity-title">
+        <section class="bd-admin-surface bd-admin-recent-activity" data-phone-move-to="#dashboard-recent-position" aria-labelledby="recent-activity-title">
             <div class="bd-admin-surface__header">
                 <div>
                     <p class="bd-admin-kicker">AKTIVITAS TERBARU</p>
@@ -66,7 +68,7 @@
         </section>
     </div>
 
-    <section class="bd-admin-surface bd-admin-priority-queue" aria-labelledby="priority-queue-title">
+    <section class="bd-admin-surface bd-admin-priority-queue" data-phone-move-to="#dashboard-priority-position" aria-labelledby="priority-queue-title">
         <div class="bd-admin-surface__header">
             <div>
                 <h2 id="priority-queue-title">Antrian prioritas</h2>
@@ -77,19 +79,19 @@
 
         @if($priorityQueue->isNotEmpty())
             <div class="bd-admin-table-wrap">
-                <table class="bd-admin-table bd-admin-priority-queue__table">
+                <table class="bd-admin-table bd-admin-priority-queue__table bd-phone-records bd-phone-records--priority" role="table">
                     <thead>
-                        <tr><th>Pengajuan</th><th>Klien</th><th>Status / kebutuhan</th><th>Diperbarui</th><th><span class="sr-only">Tindakan</span></th></tr>
+                        <tr><th scope="col">Pengajuan</th><th scope="col">Klien</th><th scope="col">Status / kebutuhan</th><th scope="col">Diperbarui</th><th scope="col"><span class="sr-only">Tindakan</span></th></tr>
                     </thead>
                     <tbody>
                         @foreach($priorityQueue as $application)
                             @php($nextAction = \App\Support\AdminApplicationPresenter::nextAction($application->status))
-                            <tr>
-                                <td><strong>{{ $application->service->name }}</strong><small>ID ...{{ strtoupper(substr($application->public_id, -6)) }}</small></td>
-                                <td>{{ $application->user->name }}</td>
-                                <td><x-admin.status-badge :status="$application->status" /><small>{{ $nextAction['description'] }}</small></td>
-                                <td>{{ $application->updated_at->translatedFormat('d M, H:i') }}</td>
-                                <td><a class="bd-admin-table-link" href="{{ route('admin.applications.show', $application->public_id) }}">Tinjau</a></td>
+                            <tr role="row">
+                                <td role="cell" data-label="Pengajuan"><strong>{{ $application->service->name }}</strong><small>ID ...{{ strtoupper(substr($application->public_id, -6)) }}</small></td>
+                                <td role="cell" data-label="Klien">{{ $application->user->name }}</td>
+                                <td role="cell" data-label="Status / kebutuhan"><x-admin.status-badge :status="$application->status" /><small>{{ $nextAction['description'] }}</small></td>
+                                <td role="cell" data-label="Diperbarui">{{ $application->updated_at->translatedFormat('d M, H:i') }}</td>
+                                <td role="cell"><a class="bd-admin-table-link" href="{{ route('admin.applications.show', $application->public_id) }}">Tinjau</a></td>
                             </tr>
                         @endforeach
                     </tbody>

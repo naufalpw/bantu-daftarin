@@ -1,11 +1,11 @@
 @php
     $navigation = [
-        ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'dashboard.svg', 'active' => request()->routeIs('admin.dashboard')],
-        ['label' => 'Pengajuan', 'route' => 'admin.applications.index', 'icon' => 'applications.svg', 'active' => request()->routeIs('admin.applications.*', 'admin.results.*')],
-        ['label' => 'Dokumen', 'route' => 'admin.documents.index', 'icon' => 'document.svg', 'active' => request()->routeIs('admin.documents.*')],
-        ['label' => 'Dukungan', 'route' => 'admin.support.index', 'icon' => 'support.svg', 'active' => request()->routeIs('admin.support.*', 'admin.chat.*')],
-        ['label' => 'Aktivitas', 'route' => 'admin.activity.index', 'icon' => 'activity.svg', 'active' => request()->routeIs('admin.activity.*')],
-        ['label' => 'Pengguna', 'route' => 'admin.users.index', 'icon' => 'users.svg', 'active' => request()->routeIs('admin.users.*')],
+        ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'dashboard.svg', 'shared_icon' => 'dashboard', 'active' => request()->routeIs('admin.dashboard')],
+        ['label' => 'Pengajuan', 'route' => 'admin.applications.index', 'icon' => 'applications.svg', 'shared_icon' => 'application', 'active' => request()->routeIs('admin.applications.*', 'admin.results.*')],
+        ['label' => 'Dokumen', 'route' => 'admin.documents.index', 'icon' => 'document.svg', 'shared_icon' => 'documents', 'active' => request()->routeIs('admin.documents.*')],
+        ['label' => 'Dukungan', 'route' => 'admin.support.index', 'icon' => 'support.svg', 'shared_icon' => 'support', 'active' => request()->routeIs('admin.support.*', 'admin.chat.*')],
+        ['label' => 'Aktivitas', 'route' => 'admin.activity.index', 'icon' => 'activity.svg', 'shared_icon' => 'activity', 'active' => request()->routeIs('admin.activity.*')],
+        ['label' => 'Pengguna', 'route' => 'admin.users.index', 'icon' => 'users.svg', 'shared_icon' => 'users', 'active' => request()->routeIs('admin.users.*')],
     ];
 @endphp
 
@@ -25,7 +25,8 @@
             @foreach($navigation as $item)
                 <li>
                     <a href="{{ route($item['route']) }}" @class(['bd-admin-nav-link', 'is-active' => $item['active']]) @if($item['active']) aria-current="page" @endif>
-                        <img class="bd-admin-nav-link__icon" src="{{ asset('images/figma/admin/sidebar/'.$item['icon']) }}" alt="" aria-hidden="true">
+                        <img class="bd-admin-nav-link__icon bd-admin-nav-link__icon--legacy" src="{{ asset('images/figma/admin/sidebar/'.$item['icon']) }}" alt="" aria-hidden="true">
+                        <x-ui-icon class="bd-admin-nav-link__icon bd-admin-nav-link__icon--shared" :name="$item['shared_icon']" :size="19" />
                         <span>{{ $item['label'] }}@if($item['route'] === 'admin.support.index') <livewire:global-chat-notifier /> @endif</span>
                     </a>
                 </li>

@@ -78,7 +78,7 @@
                 <h2 id="latest-update-title">Aktivitas pengajuan</h2>
                 @forelse($recentUpdates as $update)
                     @php($updatePresentation = \App\Support\ApplicationStatusPresenter::forStatus($update['history']->to_status))
-                    <div class="pb-latest__item">
+                    <div class="pb-latest__item" data-update-tone="{{ $updatePresentation['tone'] }}">
                         <time datetime="{{ $update['history']->created_at->toAtomString() }}">{{ $update['history']->created_at->translatedFormat('d M Y, H:i') }}</time>
                         <strong>{{ $updatePresentation['label'] }}</strong>
                         <p>{{ $update['application']->service->name }}</p>

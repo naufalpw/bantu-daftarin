@@ -24,7 +24,7 @@
             @foreach($threads as $thread)
                 @php($isUnread = $thread->unread_client_messages_count > 0)
                 <div class="bd-admin-support-item">
-                    <a href="{{ route('admin.chat.show', $thread->public_id) }}" @class(['bd-admin-support-row', 'is-unread' => $isUnread]) aria-label="Percakapan dengan {{ $thread->client?->name ?? 'klien' }}">
+                    <a href="{{ route('admin.chat.show', $thread->public_id) }}" data-support-thread @class(['bd-admin-support-row', 'is-unread' => $isUnread]) aria-label="Percakapan dengan {{ $thread->client?->name ?? 'klien' }}">
                         <span class="bd-admin-service-mark" aria-hidden="true">{{ strtoupper(mb_substr($thread->client?->name ?? 'K', 0, 1)) }}</span>
                         <span class="bd-admin-support-row__body">
                             <span class="bd-admin-support-row__heading"><strong>{{ $thread->client?->name ?? 'Klien' }}</strong><x-admin.status-badge :label="$thread->isGeneralSupport() ? 'Bantuan Umum' : 'Pengajuan'" :tone="$thread->isGeneralSupport() ? 'neutral' : 'info'" />@if($filter === 'archived')<em>Diarsipkan</em>@endif</span>

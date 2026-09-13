@@ -42,6 +42,76 @@ document.addEventListener('click', async (event) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+    const phoneViewport = window.matchMedia('(max-width: 430px)');
+    // Move the existing presentation node, never clone forms or Livewire controls.
+    document.querySelectorAll('[data-phone-move-to]').forEach((element) => {
+        const destination = document.querySelector(element.dataset.phoneMoveTo);
+        if (!destination) return;
+        const home = document.createComment('presentation-home');
+        element.before(home);
+        const syncPosition = () => {
+            if (phoneViewport.matches) destination.append(element);
+            else home.after(element);
+        };
+        syncPosition();
+        phoneViewport.addEventListener('change', syncPosition);
+    });
+    document.querySelectorAll('[data-phone-disclosure]').forEach((details) => {
+        const syncDisclosure = () => {
+            details.open = !phoneViewport.matches || details.hasAttribute('data-keep-open') || details.querySelector('[aria-invalid="true"]') !== null;
+        };
+        syncDisclosure();
+        phoneViewport.addEventListener('change', syncDisclosure);
+    });
+
+    const revealAnchor = (hash = location.hash) => {
+        let target;
+        try { target = document.getElementById(decodeURIComponent(hash.slice(1))); } catch { return; }
+        if (!target) return;
+        for (let node = target; node; node = node.parentElement) {
+            if (node instanceof HTMLDetailsElement) node.open = true;
+        }
+    };
+    revealAnchor();
+    window.addEventListener('hashchange', () => revealAnchor());
+    document.addEventListener('click', (event) => {
+        const link = event.target.closest('a[href]');
+        if (!link) return;
+        const destination = new URL(link.href, location.href);
+        if (destination.origin === location.origin && destination.pathname === location.pathname && destination.search === location.search && destination.hash) revealAnchor(destination.hash);
+    });
+    // Keep only the existing inbox URL, scoped to this tab; never accept an external return URL.
+    document.addEventListener('click', (event) => {
+        if (!phoneViewport.matches || !event.target.closest('[data-support-thread]')) return;
+        try { sessionStorage.setItem('bd-support-return', location.pathname + location.search); } catch { /* Storage may be unavailable. */ }
+    });
+    const supportReturn = document.querySelector('[data-support-return]');
+    if (supportReturn) {
+        const original = new URL(supportReturn.href);
+        const syncSupportReturn = () => {
+            supportReturn.href = original.href;
+            if (!phoneViewport.matches) return;
+            try {
+                const stored = sessionStorage.getItem('bd-support-return');
+                const destination = stored ? new URL(stored, location.origin) : null;
+                if (destination?.origin === location.origin && destination.pathname === original.pathname) supportReturn.href = destination.href;
+            } catch { /* The original safe link remains available. */ }
+        };
+        syncSupportReturn();
+        phoneViewport.addEventListener('change', syncSupportReturn);
+    }
+    if (phoneViewport.matches) {
+        const error = document.querySelector('[data-phone-form-error]');
+        if (error) {
+            for (let node = error.parentElement; node; node = node.parentElement) {
+                if (node instanceof HTMLDetailsElement) node.open = true;
+            }
+            error.tabIndex = -1;
+            error.focus({ preventScroll: true });
+            error.scrollIntoView({ block: 'center' });
+        }
+    }
+
     document.querySelectorAll('[data-otp-resend]').forEach((container) => {
         const button = container.querySelector('[data-otp-resend-button]');
         const countdown = container.querySelector('[data-otp-countdown]');
@@ -162,13 +232,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cancellationDialog.dataset.openOnLoad === 'true') cancellationDialog.showModal();
     }
 
+    const showUploadPending = (form) => {
+        if (!form || !phoneViewport.matches) return;
+        form.setAttribute('aria-busy', 'true');
+        const status = form.querySelector('[data-upload-status]');
+        if (status) status.hidden = false;
+    };
+    window.addEventListener('pageshow', () => {
+        document.querySelectorAll('[data-upload-status]').forEach((status) => {
+            status.hidden = true;
+            status.closest('form')?.removeAttribute('aria-busy');
+        });
+    });
     document.querySelectorAll('[data-file-input]').forEach((input) => {
         input.addEventListener('change', () => {
             const target = input.dataset.fileNameTarget
                 ? document.getElementById(input.dataset.fileNameTarget)
                 : null;
             if (target) target.textContent = input.files?.[0]?.name || 'Belum ada file dipilih.';
-            if (input.files?.length && input.dataset.autoSubmit !== undefined) input.form?.submit();
+            if (input.files?.length && input.dataset.autoSubmit !== undefined) {
+                showUploadPending(input.form);
+                input.form?.submit();
+            }
         });
     });
 
@@ -180,6 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const guide = surface.querySelector('[data-face-guide]');
         const start = surface.querySelector('[data-face-start]');
         const capture = surface.querySelector('[data-face-capture]');
+        const cancel = surface.querySelector('[data-face-cancel]');
         const message = surface.querySelector('[data-face-message]');
         if (!form || !cameraInput || !fileInput || !preview || !guide || !start || !capture || !message) return;
 
@@ -188,13 +274,25 @@ document.addEventListener('DOMContentLoaded', () => {
             stream?.getTracks().forEach((track) => track.stop());
             stream = null;
         };
+        cancel?.addEventListener('click', () => {
+            stopCamera();
+            preview.srcObject = null;
+            preview.hidden = true;
+            guide.hidden = false;
+            capture.hidden = true;
+            cancel.hidden = true;
+            start.focus();
+        });
 
         fileInput.addEventListener('change', () => {
             const target = fileInput.dataset.fileNameTarget
                 ? document.getElementById(fileInput.dataset.fileNameTarget)
                 : null;
             if (target) target.textContent = fileInput.files?.[0]?.name || 'Belum ada file dipilih.';
-            if (fileInput.files?.length) form.submit();
+            if (fileInput.files?.length) {
+                showUploadPending(form);
+                form.submit();
+            }
         });
 
         start.addEventListener('click', async () => {
@@ -210,6 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 preview.hidden = false;
                 guide.hidden = true;
                 capture.hidden = false;
+                if (cancel) cancel.hidden = false;
                 message.textContent = '';
                 await preview.play();
             } catch {
@@ -231,6 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cameraInput.name = 'file';
                 fileInput.removeAttribute('name');
                 stopCamera();
+                showUploadPending(form);
                 form.submit();
             }, 'image/jpeg', 0.9);
         });
@@ -358,12 +458,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
         let returnFocus = null;
+        const drawerViewport = window.matchMedia('(max-width: 1023px)');
+        const syncDrawerAccess = () => {
+            drawer.inert = drawerViewport.matches && !drawer.classList.contains('is-open');
+        };
+        syncDrawerAccess();
+        drawerViewport.addEventListener('change', syncDrawerAccess);
 
         const closeDrawer = ({ restoreFocus = true } = {}) => {
             drawer.classList.remove('is-open');
             document.body.classList.remove('is-admin-drawer-open');
             openButton.setAttribute('aria-expanded', 'false');
             backdrop.hidden = true;
+            syncDrawerAccess();
 
             if (restoreFocus && returnFocus instanceof HTMLElement) {
                 returnFocus.focus();
@@ -376,6 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('is-admin-drawer-open');
             openButton.setAttribute('aria-expanded', 'true');
             backdrop.hidden = false;
+            syncDrawerAccess();
 
             const firstFocusable = drawer.querySelector(focusableSelector);
             if (firstFocusable instanceof HTMLElement) {

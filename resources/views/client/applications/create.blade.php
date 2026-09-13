@@ -38,6 +38,8 @@
                 <div>
                     <dt>Dokumen yang disiapkan</dt>
                     <dd>
+                        <details open data-phone-disclosure class="pb-start-requirements">
+                        <summary>Lihat persyaratan dokumen</summary>
                         <ul>
                             @foreach($service->requirements as $requirement)
                                 <li>
@@ -46,6 +48,7 @@
                                 </li>
                             @endforeach
                         </ul>
+                        </details>
                     </dd>
                 </div>
             </dl>

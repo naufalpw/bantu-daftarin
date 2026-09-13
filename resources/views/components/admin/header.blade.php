@@ -1,5 +1,5 @@
 <header class="bd-admin-header">
-    <button class="bd-admin-menu-button" type="button" data-admin-drawer-open aria-controls="admin-navigation" aria-expanded="false">
+    <button class="bd-admin-menu-button" type="button" data-admin-drawer-open aria-controls="admin-navigation" aria-expanded="false" aria-label="Buka menu administrasi">
         <span class="bd-admin-menu-button__icon" aria-hidden="true"><i></i><i></i><i></i></span>
         <span>Menu</span>
     </button>

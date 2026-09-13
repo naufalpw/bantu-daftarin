@@ -16,15 +16,26 @@
                         @if($isCounterpartOnline)<i class="bd-chat-presence__dot" aria-hidden="true"></i>@endif
                         {{ $presenceLabel }}
                     </span>
-                    <span class="bd-chat-card__context">{{ $isAdmin ? ($isGeneralSupport ? 'Bantuan Umum' : 'Percakapan dengan klien') : ($isGeneralSupport ? 'Bantuan umum' : ($thread->application?->service?->name ?? 'Layanan pengajuan')) }}</span>
+                    <span class="bd-chat-card__context">
+                        {{ $isAdmin ? ($isGeneralSupport ? 'Bantuan Umum' : 'Percakapan dengan klien') : ($isGeneralSupport ? 'Bantuan umum' : ($thread->application?->service?->name ?? 'Layanan pengajuan')) }}
+                        @if(! $isAdmin && ! $isGeneralSupport && $thread->application)
+                            <span class="bd-chat-card__phone-reference"> · ID …{{ strtoupper(substr($thread->application->public_id, -4)) }}</span>
+                        @endif
+                    </span>
                 </div>
             </div>
         </div>
         <div class="bd-chat-card__thread-actions">
             @if($isArchived)
-                <button type="button" wire:click="unarchiveConversation">Keluarkan dari arsip</button>
+                <button class="bd-chat-thread-action" type="button" wire:click="unarchiveConversation" aria-label="Keluarkan percakapan dari arsip">
+                    @unless($isAdmin)<span class="bd-chat-thread-action__icon" aria-hidden="true"><x-ui-icon name="archive-restore" :size="18" /></span>@endunless
+                    <span class="bd-chat-thread-action__label">Keluarkan dari arsip</span>
+                </button>
             @else
-                <button type="button" wire:click="archiveConversation">Arsipkan</button>
+                <button class="bd-chat-thread-action" type="button" wire:click="archiveConversation" aria-label="Arsipkan percakapan">
+                    @unless($isAdmin)<span class="bd-chat-thread-action__icon" aria-hidden="true"><x-ui-icon name="archive" :size="18" /></span>@endunless
+                    <span class="bd-chat-thread-action__label">Arsipkan</span>
+                </button>
             @endif
         </div>
     </header>
@@ -82,6 +93,7 @@
             @endforeach
         @empty
             <div class="bd-chat-empty">
+                @unless($isAdmin)<span class="bd-chat-empty__icon" aria-hidden="true"><x-ui-icon name="support" :size="21" /></span>@endunless
                 <strong>Belum ada percakapan</strong>
                 <span>
                     @if($isAdmin)
@@ -103,7 +115,36 @@
     @endif
 
     @if($deletingMessageId !== null)
-        <div class="bd-chat-delete-confirmation" role="dialog" aria-modal="true" aria-labelledby="chat-delete-title" x-data x-init="$nextTick(() => $refs.cancelDelete.focus())" @keydown.escape.window="$wire.cancelDelete()">
+        <div class="bd-chat-delete-confirmation" role="dialog" aria-modal="true" aria-labelledby="chat-delete-title"
+            x-data="{
+                previous: null, outside: [],
+                init() {
+                    this.previous = document.activeElement;
+                    if (window.matchMedia('(max-width: 430px)').matches) {
+                        for (let node = this.$el; node.parentElement; node = node.parentElement) {
+                            for (const sibling of node.parentElement.children) {
+                                if (sibling !== node) { this.outside.push([sibling, sibling.inert]); sibling.inert = true; }
+                            }
+                        }
+                    }
+                    this.$nextTick(() => this.$refs.cancelDelete.focus());
+                },
+                destroy() {
+                    this.outside.forEach(([node, inert]) => node.inert = inert);
+                    if (window.matchMedia('(max-width: 430px)').matches) {
+                        const target = this.previous?.isConnected ? this.previous : document.querySelector('.bd-chat-composer textarea');
+                        target?.focus({ preventScroll: true });
+                    }
+                },
+                trap(event) {
+                    if (event.key !== 'Tab' || !window.matchMedia('(max-width: 430px)').matches) return;
+                    const buttons = [...this.$el.querySelectorAll('button:not([disabled])')];
+                    const first = buttons[0], last = buttons[buttons.length - 1];
+                    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+                }
+            }"
+            @keydown="trap($event)" @keydown.escape.window="$wire.cancelDelete()">
             <div>
                 <strong id="chat-delete-title">Hapus pesan?</strong>
                 <p>Pesan ini akan ditarik dari percakapan dan tidak lagi ditampilkan kepada Anda maupun penerima.</p>
@@ -130,7 +171,7 @@
 
     <form wire:submit="send" class="bd-chat-composer">
         <label class="sr-only" for="chat-message-{{ $thread->public_id }}">Tulis pesan</label>
-        <textarea id="chat-message-{{ $thread->public_id }}" wire:model.live="body" rows="1" placeholder="Tulis pesan..." aria-label="Tulis pesan" x-on:keydown="
+        <textarea id="chat-message-{{ $thread->public_id }}" wire:model.live="body" rows="1" placeholder="Tulis pesan..." aria-label="Tulis pesan" aria-invalid="{{ $errors->has('body') ? 'true' : 'false' }}" @error('body') aria-describedby="chat-body-error" @enderror x-on:keydown="
             if ($event.key !== 'Enter' || $event.shiftKey || $event.isComposing) {
                 return;
             }
@@ -147,6 +188,6 @@
         </button>
     </form>
     @error('body')
-        <p class="bd-chat-error">{{ $message }}</p>
+        <p id="chat-body-error" class="bd-chat-error">{{ $message }}</p>
     @enderror
 </section>

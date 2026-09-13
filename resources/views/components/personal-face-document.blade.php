@@ -13,7 +13,7 @@
     $maxMegabytes = $requirement->max_size_bytes ? (int) round($requirement->max_size_bytes / 1024 / 1024) : null;
 @endphp
 
-<section class="pb-personal-face" aria-labelledby="{{ $id }}-title" data-face-upload>
+<section class="pb-personal-face" aria-labelledby="{{ $id }}-title" data-face-upload data-document-state="{{ $activeDocument ? 'uploaded' : 'empty' }}" data-document-tone="{{ $documentStatus[1] }}">
     <div class="pb-personal-face__header">
         <div class="pb-personal-face__identity">
             <span class="pb-personal-face__camera"><img src="{{ asset('images/figma/registration/personal/face-camera.svg') }}" alt=""></span>
@@ -37,13 +37,16 @@
             @if($canUpload)
                 <form method="post" enctype="multipart/form-data" action="{{ route('client.documents.store', [$application->public_id, $requirement->public_id]) }}" class="pb-personal-face__form" data-face-form>
                     @csrf
+                    <x-mobile-form-feedback :form-key="$id" />
                     <input class="pb-visually-hidden-file" type="file" accept="image/jpeg,image/png" data-face-camera-input>
-                    <input id="{{ $id }}-file" class="pb-visually-hidden-file" type="file" name="file" required accept="{{ $extensions }}" data-face-file-input data-file-name-target="{{ $id }}-name">
+                    <input id="{{ $id }}-file" class="pb-visually-hidden-file" type="file" name="file" required accept="{{ $extensions }}" data-face-file-input data-file-name-target="{{ $id }}-name" @if(old('_ui_form') === $id && $errors->any()) aria-invalid="true" aria-describedby="feedback-{{ $id }}" @endif>
                     <div class="pb-personal-face__buttons">
                         <button class="pb-button pb-button--primary" type="button" data-face-start><img src="{{ asset('images/figma/registration/personal/camera-button.svg') }}" alt="">Ambil foto wajah</button>
                         <label class="pb-button pb-button--secondary" for="{{ $id }}-file">Unggah foto</label>
                     </div>
                     <button class="pb-button pb-button--primary pb-personal-face__capture" type="button" hidden data-face-capture>Gunakan foto ini</button>
+                    <button class="pb-button pb-button--secondary" type="button" hidden data-face-cancel>Batal mengambil foto</button>
+                    <span class="pb-upload-status" role="status" data-upload-status hidden>Mengunggah dokumen...</span>
                     <p id="{{ $id }}-name" class="pb-personal-upload-form__filename" aria-live="polite">{{ $activeDocument ? 'Pilih file untuk mengganti foto.' : 'Belum ada file dipilih.' }}</p>
                 </form>
             @endif
