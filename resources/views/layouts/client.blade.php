@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#031a5a">
+    @include('components.favicon')
     <title>{{ $title ?? 'Bantu Daftarin' }}</title>
     @vite(['resources/css/app.css', 'resources/css/phase-b.css', 'resources/js/app.js'])
     @livewireStyles

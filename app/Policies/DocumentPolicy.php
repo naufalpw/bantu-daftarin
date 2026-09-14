@@ -14,7 +14,11 @@ class DocumentPolicy
 
     public function download(User $user, Document $document): bool
     {
-        return $this->view($user, $document) && $document->scan_status->value === 'PASSED' && ($document->active || $user->isAdmin()) && $document->deleted_at === null;
+        return $this->view($user, $document)
+            && $document->scan_status->value === 'PASSED'
+            && ($document->active || $user->isAdmin())
+            && $document->deletion_scheduled_at === null
+            && $document->deleted_at === null;
     }
 
     public function upload(User $user, Document $document): bool

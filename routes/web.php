@@ -47,7 +47,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 
 Route::post('/presence/heartbeat', PresenceHeartbeatController::class)
     ->withoutMiddleware(StartSession::class)
-    ->middleware([ReadOnlySession::class, 'auth'])
+    ->middleware([ReadOnlySession::class, 'auth', 'throttle:presence-heartbeat'])
     ->name('presence.heartbeat');
 
 Route::middleware(['auth', 'verified', 'client'])->group(function (): void {

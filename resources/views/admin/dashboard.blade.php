@@ -11,34 +11,51 @@
 
     @php
         $attentionItems = [
-            ['key' => 'review', 'label' => 'Pengajuan perlu ditinjau', 'action' => 'Buka pengajuan', 'href' => route('admin.applications.index', ['filter' => 'review'])],
-            ['key' => 'revision', 'label' => 'Revisi masuk', 'action' => 'Tinjau dokumen', 'href' => route('admin.documents.index', ['filter' => 'revision'])],
-            ['key' => 'result', 'label' => 'Hasil perlu diverifikasi', 'action' => 'Tinjau hasil', 'href' => route('admin.applications.index', ['filter' => 'result'])],
-            ['key' => 'support', 'label' => 'Pesan belum dibaca', 'action' => 'Buka dukungan', 'href' => route('admin.support.index', ['filter' => 'unread'])],
+            ['key' => 'review', 'label' => 'Pengajuan perlu ditinjau', 'description' => 'Menunggu keputusan admin', 'action' => 'Buka pengajuan', 'href' => route('admin.applications.index', ['filter' => 'review'])],
+            ['key' => 'revision', 'label' => 'Revisi masuk', 'description' => 'Dokumen perlu diperiksa', 'action' => 'Tinjau dokumen', 'href' => route('admin.documents.index', ['filter' => 'revision'])],
+            ['key' => 'result', 'label' => 'Hasil perlu diverifikasi', 'description' => 'Menunggu pemeriksaan admin', 'action' => 'Tinjau hasil', 'href' => route('admin.applications.index', ['filter' => 'result'])],
+            ['key' => 'support', 'label' => 'Pesan belum dibaca', 'description' => 'Percakapan membutuhkan respons', 'action' => 'Buka dukungan', 'href' => route('admin.support.index', ['filter' => 'unread'])],
         ];
+        $hasPriorityAttention = collect($attention)->contains(fn ($count) => $count > 0);
     @endphp
 
-    <section class="bd-admin-surface bd-admin-attention-panel" aria-labelledby="attention-title">
-        <div class="bd-admin-surface__header">
-            <div><h2 id="attention-title">Perlu ditindaklanjuti</h2></div>
+    <section class="bd-admin-surface bd-admin-attention-panel" data-admin-command-board aria-labelledby="attention-title">
+        <div class="bd-admin-attention-panel__summary">
+            <p class="bd-admin-kicker">Perlu ditindaklanjuti</p>
+            <h2 id="attention-title">
+                {{ $hasPriorityAttention ? 'Ada pekerjaan yang perlu ditindaklanjuti' : 'Tidak ada antrean prioritas' }}
+            </h2>
+            <p>
+                {{ $hasPriorityAttention ? 'Buka area dengan antrean untuk melanjutkan pekerjaan.' : 'Semua area operasional sedang terkendali.' }}
+            </p>
         </div>
         <div class="bd-admin-attention-panel__items">
             @foreach($attentionItems as $item)
-                <article class="bd-admin-attention-item" data-admin-attention="{{ $item['key'] }}">
-                    <strong>{{ $attention[$item['key']] }}</strong>
-                    <div>
-                        <h3>{{ $item['label'] }}</h3>
-                        <a href="{{ $item['href'] }}">{{ $item['action'] }} <span aria-hidden="true">&rarr;</span></a>
-                    </div>
-                </article>
+                <a
+                    class="bd-admin-attention-item {{ $attention[$item['key']] > 0 ? 'has-attention' : '' }}"
+                    data-admin-attention="{{ $item['key'] }}"
+                    data-admin-attention-count="{{ $attention[$item['key']] }}"
+                    href="{{ $item['href'] }}"
+                >
+                    <span class="bd-admin-attention-item__marker" aria-hidden="true"></span>
+                    <span class="bd-admin-attention-item__content">
+                        <span class="bd-admin-attention-item__title">{{ $item['label'] }}</span>
+                        <span class="bd-admin-attention-item__description">{{ $item['description'] }}</span>
+                        <span class="bd-admin-attention-item__action">{{ $item['action'] }}</span>
+                    </span>
+                    <strong class="bd-admin-attention-item__count">{{ $attention[$item['key']] }}</strong>
+                    <x-ui-icon class="bd-admin-attention-item__arrow" name="arrow-right" :size="18" />
+                </a>
             @endforeach
         </div>
     </section>
 
+    <div id="dashboard-priority-position" class="bd-phone-operation"></div>
     <div class="bd-admin-operational-grid">
+        <div id="dashboard-recent-position" class="bd-phone-operation"></div>
         <livewire:admin.activity-chart :period="$period" :periods="$periods" :activity="$activity" />
 
-        <section class="bd-admin-surface bd-admin-recent-activity" aria-labelledby="recent-activity-title">
+        <section class="bd-admin-surface bd-admin-recent-activity" data-phone-move-to="#dashboard-recent-position" aria-labelledby="recent-activity-title">
             <div class="bd-admin-surface__header">
                 <div>
                     <p class="bd-admin-kicker">AKTIVITAS TERBARU</p>
@@ -66,7 +83,7 @@
         </section>
     </div>
 
-    <section class="bd-admin-surface bd-admin-priority-queue" aria-labelledby="priority-queue-title">
+    <section class="bd-admin-surface bd-admin-priority-queue" data-phone-move-to="#dashboard-priority-position" aria-labelledby="priority-queue-title">
         <div class="bd-admin-surface__header">
             <div>
                 <h2 id="priority-queue-title">Antrian prioritas</h2>
@@ -77,19 +94,19 @@
 
         @if($priorityQueue->isNotEmpty())
             <div class="bd-admin-table-wrap">
-                <table class="bd-admin-table bd-admin-priority-queue__table">
+                <table class="bd-admin-table bd-admin-priority-queue__table bd-phone-records bd-phone-records--priority" role="table">
                     <thead>
-                        <tr><th>Pengajuan</th><th>Klien</th><th>Status / kebutuhan</th><th>Diperbarui</th><th><span class="sr-only">Tindakan</span></th></tr>
+                        <tr><th scope="col">Pengajuan</th><th scope="col">Klien</th><th scope="col">Status / kebutuhan</th><th scope="col">Diperbarui</th><th scope="col"><span class="sr-only">Tindakan</span></th></tr>
                     </thead>
                     <tbody>
                         @foreach($priorityQueue as $application)
                             @php($nextAction = \App\Support\AdminApplicationPresenter::nextAction($application->status))
-                            <tr>
-                                <td><strong>{{ $application->service->name }}</strong><small>ID ...{{ strtoupper(substr($application->public_id, -6)) }}</small></td>
-                                <td>{{ $application->user->name }}</td>
-                                <td><x-admin.status-badge :status="$application->status" /><small>{{ $nextAction['description'] }}</small></td>
-                                <td>{{ $application->updated_at->translatedFormat('d M, H:i') }}</td>
-                                <td><a class="bd-admin-table-link" href="{{ route('admin.applications.show', $application->public_id) }}">Tinjau</a></td>
+                            <tr role="row">
+                                <td role="cell" data-label="Pengajuan"><strong>{{ $application->service->name }}</strong><small>ID ...{{ strtoupper(substr($application->public_id, -6)) }}</small></td>
+                                <td role="cell" data-label="Klien">{{ $application->user->name }}</td>
+                                <td role="cell" data-label="Status / kebutuhan"><x-admin.status-badge :status="$application->status" /><small>{{ $nextAction['description'] }}</small></td>
+                                <td role="cell" data-label="Diperbarui">{{ $application->updated_at->translatedFormat('d M, H:i') }}</td>
+                                <td role="cell"><a class="bd-admin-table-link" href="{{ route('admin.applications.show', $application->public_id) }}">Tinjau</a></td>
                             </tr>
                         @endforeach
                     </tbody>

@@ -7,11 +7,11 @@
             <input type="hidden" name="filter" value="{{ $filter }}">
         </form>
     </div>
-    <nav class="bd-admin-filter-bar" aria-label="Filter dukungan">
+    <div class="bd-admin-filter-bar" role="group" aria-label="Filter dukungan">
         @foreach($filters as $key => $label)
-            <a href="{{ route('admin.support.index', array_filter(['filter' => $key === 'all' ? null : $key, 'q' => $search ?: null])) }}" wire:click.prevent="setFilter('{{ $key }}')" @class(['is-active' => $filter === $key]) @if($filter === $key) aria-current="page" @endif>{{ $label }}</a>
+            <x-admin.filter-control action="setFilter" :value="$key" :active="$filter === $key">{{ $label }}</x-admin.filter-control>
         @endforeach
-    </nav>
+    </div>
     @error('archive')<p class="bd-admin-alert bd-admin-alert--danger" role="alert">{{ $message }}</p>@enderror
     <div class="bd-admin-reactive-results" wire:loading.class="bd-admin-reactive-results--loading" wire:loading.attr="aria-busy" wire:target="setFilter,search,applySearch,archive,unarchive,setPage,gotoPage,previousPage,nextPage">
         <div class="bd-admin-reactive-loading" wire:loading.delay.flex style="display: none" wire:target="setFilter,search,applySearch,archive,unarchive,setPage,gotoPage,previousPage,nextPage" role="status" aria-live="polite">
@@ -24,7 +24,7 @@
             @foreach($threads as $thread)
                 @php($isUnread = $thread->unread_client_messages_count > 0)
                 <div class="bd-admin-support-item">
-                    <a href="{{ route('admin.chat.show', $thread->public_id) }}" @class(['bd-admin-support-row', 'is-unread' => $isUnread]) aria-label="Percakapan dengan {{ $thread->client?->name ?? 'klien' }}">
+                    <a href="{{ route('admin.chat.show', $thread->public_id) }}" data-support-thread @class(['bd-admin-support-row', 'is-unread' => $isUnread]) aria-label="Percakapan dengan {{ $thread->client?->name ?? 'klien' }}">
                         <span class="bd-admin-service-mark" aria-hidden="true">{{ strtoupper(mb_substr($thread->client?->name ?? 'K', 0, 1)) }}</span>
                         <span class="bd-admin-support-row__body">
                             <span class="bd-admin-support-row__heading"><strong>{{ $thread->client?->name ?? 'Klien' }}</strong><x-admin.status-badge :label="$thread->isGeneralSupport() ? 'Bantuan Umum' : 'Pengajuan'" :tone="$thread->isGeneralSupport() ? 'neutral' : 'info'" />@if($filter === 'archived')<em>Diarsipkan</em>@endif</span>

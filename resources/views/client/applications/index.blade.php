@@ -13,9 +13,11 @@
 
     @if($counts->sum() === 0)
         <section class="pb-empty" aria-labelledby="empty-applications-title">
-            <h2 id="empty-applications-title">Belum ada pengajuan</h2>
-            <p>Mulai dengan memilih layanan yang sesuai kebutuhan Anda.</p>
-            <a class="pb-button pb-button--primary" href="{{ route('client.services.index') }}">Lihat layanan</a>
+            <div class="pb-empty__content">
+                <h2 id="empty-applications-title">Belum ada pengajuan</h2>
+                <p>Mulai dengan memilih layanan yang sesuai kebutuhan Anda.</p>
+                <a class="pb-button pb-button--primary" href="{{ route('client.services.index') }}">Lihat layanan</a>
+            </div>
         </section>
     @else
         @php($filters = ['all' => 'Semua', 'action' => 'Perlu tindakan', 'processing' => 'Diproses', 'completed' => 'Selesai', 'cancelled' => 'Dibatalkan'])

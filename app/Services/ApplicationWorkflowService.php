@@ -8,10 +8,12 @@ use App\Enums\BusinessType;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\ServiceStatus;
+use App\Exceptions\PaymentGatewayDefinitiveException;
 use App\Exceptions\PaymentGatewayException;
 use App\Models\Application;
 use App\Models\ApplicationConsent;
 use App\Models\ApplicationStatusHistory;
+use App\Models\AuditLog;
 use App\Models\Payment;
 use App\Models\Service;
 use App\Models\User;
@@ -24,6 +26,7 @@ class ApplicationWorkflowService
         private readonly ApplicationTransitionService $transitions,
         private readonly PaymentGateway $paymentGateway,
         private readonly AuditService $audit,
+        private readonly PaymentPayloadMinimizer $paymentPayloads,
     ) {}
 
     public function createDraft(User $user, Service $service, array $details, ?array $representative = null, ?array $additionalRepresentative = null): Application
@@ -163,25 +166,47 @@ class ApplicationWorkflowService
 
     public function submitForDocuments(Application $application, User $actor): Application
     {
-        $application->loadMissing(['service', 'personalDetails', 'businessDetails', 'representatives']);
-        if ($application->service->code === 'NPWP_PERSONAL') {
-            if (! $application->personalDetails || blank($application->personalDetails->name) || blank($application->personalDetails->nik) || blank($application->personalDetails->family_card_number)) {
-                throw new \DomainException('Nama, NIK, dan Nomor KK wajib diisi sebelum konfirmasi.');
+        return DB::transaction(function () use ($application, $actor): Application {
+            $application = Application::query()
+                ->with(['service', 'personalDetails', 'businessDetails', 'representatives'])
+                ->lockForUpdate()
+                ->findOrFail($application->getKey());
+
+            if (! in_array($application->status, [ApplicationStatus::DRAFT, ApplicationStatus::AWAITING_DOCUMENTS], true)) {
+                throw new \DomainException('Pengajuan tidak dapat dikirim pada tahap ini.');
             }
-        } elseif (! $application->businessDetails || ! $application->representatives->firstWhere('is_primary', true)) {
-            throw new \DomainException('Lengkapi data pengajuan terlebih dahulu.');
-        }
 
-        if ($application->service->code === 'NPWP_BUSINESS') {
-            $businessType = $application->businessDetails->business_type;
-            if (blank($businessType) || ($businessType === BusinessType::OTHER->value && blank($application->businessDetails->business_type_other))) {
-                throw new \DomainException('Jenis badan usaha wajib dilengkapi sebelum konfirmasi.');
+            if ($application->service->code === 'NPWP_PERSONAL') {
+                if (! $application->personalDetails || blank($application->personalDetails->name) || blank($application->personalDetails->nik) || blank($application->personalDetails->family_card_number)) {
+                    throw new \DomainException('Nama, NIK, dan Nomor KK wajib diisi sebelum konfirmasi.');
+                }
+            } elseif (! $application->businessDetails || ! $application->representatives->firstWhere('is_primary', true)) {
+                throw new \DomainException('Lengkapi data pengajuan terlebih dahulu.');
             }
-        }
 
-        $application->forceFill(['submitted_at' => now()])->save();
+            if ($application->service->code === 'NPWP_BUSINESS') {
+                $businessType = $application->businessDetails->business_type;
+                if (blank($businessType) || ($businessType === BusinessType::OTHER->value && blank($application->businessDetails->business_type_other))) {
+                    throw new \DomainException('Jenis badan usaha wajib dilengkapi sebelum konfirmasi.');
+                }
+            }
 
-        return $this->transitions->transition($application, ApplicationStatus::AWAITING_DOCUMENTS, $actor);
+            $application->forceFill(['submitted_at' => now()])->save();
+            if ($application->status === ApplicationStatus::DRAFT) {
+                $application = $this->transitions->transition($application, ApplicationStatus::AWAITING_DOCUMENTS, $actor);
+            }
+
+            if ($application->hasAllRequiredDocuments()) {
+                return $this->transitions->transition(
+                    $application,
+                    ApplicationStatus::DOCUMENTS_READY_FOR_PAYMENT,
+                    $actor,
+                    'Data dan dokumen wajib telah lengkap.'
+                );
+            }
+
+            return $application;
+        });
     }
 
     public function createPayment(Application $application, User $actor, PaymentMethod|string|null $method = null): Payment
@@ -191,10 +216,11 @@ class ApplicationWorkflowService
             : PaymentMethod::tryFrom(strtoupper((string) ($method ?: PaymentMethod::BCA->value))) ?? throw new \DomainException('Metode pembayaran tidak didukung.');
 
         if (! $selectedMethod->isAvailable()) {
-            throw new PaymentGatewayException('PayPal belum tersedia.');
+            throw new PaymentGatewayDefinitiveException('PayPal belum tersedia.');
         }
 
-        return DB::transaction(function () use ($application, $actor, $selectedMethod): Payment {
+        // PHASE 1 — LOCAL INTENT (DURABLE COMMIT)
+        $payment = DB::transaction(function () use ($application, $actor, $selectedMethod): Payment {
             $application = Application::query()
                 ->with(['service', 'user'])
                 ->lockForUpdate()
@@ -255,23 +281,161 @@ class ApplicationWorkflowService
                 $this->audit->record('payment.created', $payment, ['application_id' => $application->public_id, 'amount' => (string) $payment->amount, 'currency' => $payment->currency, 'method' => $selectedMethod->value], $actor);
             }
 
-            try {
-                $invoice = $this->paymentGateway->createInvoice($application->load(['user', 'service']), $payment, $selectedMethod);
-                $payment->forceFill([
-                    'external_id' => $invoice['external_id'],
-                    'checkout_url' => $invoice['checkout_url'],
-                    'expires_at' => $invoice['expires_at'] ?? $payment->expires_at,
-                    'provider_payload' => $invoice['payload'],
-                ])->save();
-                $this->audit->record('payment.checkout_created', $payment, ['application_id' => $application->public_id, 'method' => $selectedMethod->value], $actor);
-            } catch (PaymentGatewayException $exception) {
-                $payment->forceFill(['status' => PaymentStatus::FAILED, 'failed_at' => now()])->save();
-                $this->audit->record('payment.state_changed', $payment, ['to' => PaymentStatus::FAILED->value], $actor);
-                throw $exception;
-            }
-
             return $payment->fresh();
         });
+
+        if ($payment->checkout_url || filled($payment->external_id)) {
+            return $payment;
+        }
+
+        // PHASE 2 — PROVIDER CALL (OUTSIDE LOCAL TRANSACTION)
+        try {
+            $invoice = $this->paymentGateway->createInvoice($application->load(['user', 'service']), $payment, $selectedMethod);
+        } catch (PaymentGatewayDefinitiveException $exception) {
+            $this->finalizeDefinitiveCheckoutFailure($payment, $actor);
+            throw $exception;
+        } catch (PaymentGatewayException $exception) {
+            $this->recordAmbiguousCheckoutFailure($payment, $actor);
+            throw $exception;
+        }
+
+        // PHASE 3 — RECONCILE (COMMITTED LOCAL UPDATE)
+        return $this->persistPaymentCheckout($payment, $application, $invoice, $selectedMethod, $actor);
+    }
+
+    public function reconcilePayment(Payment $payment, ?User $actor = null): Payment
+    {
+        $payment = DB::transaction(function () use ($payment): Payment {
+            return Payment::query()->lockForUpdate()->findOrFail($payment->getKey())->fresh();
+        });
+
+        if ($payment->status !== PaymentStatus::PENDING || (filled($payment->external_id) && filled($payment->checkout_url))) {
+            return $payment;
+        }
+
+        $application = $payment->application()->with(['user', 'service'])->firstOrFail();
+        $selectedMethod = $payment->payment_method;
+
+        try {
+            $invoice = $this->paymentGateway->createInvoice($application, $payment, $selectedMethod);
+        } catch (PaymentGatewayDefinitiveException $exception) {
+            $this->finalizeDefinitiveCheckoutFailure($payment, $actor);
+            throw $exception;
+        } catch (PaymentGatewayException $exception) {
+            $this->recordAmbiguousCheckoutFailure($payment, $actor);
+            throw $exception;
+        }
+
+        return $this->persistPaymentCheckout($payment, $application, $invoice, $selectedMethod, $actor);
+    }
+
+    /** @param array{external_id:string, checkout_url:string|null, expires_at:\DateTimeInterface|null, payload:array} $invoice */
+    private function persistPaymentCheckout(Payment $payment, Application $application, array $invoice, PaymentMethod $selectedMethod, ?User $actor): Payment
+    {
+        $providerPayload = $this->paymentPayloads->checkout($invoice['payload']);
+
+        return DB::transaction(function () use ($payment, $application, $invoice, $providerPayload, $selectedMethod, $actor): Payment {
+            $locked = Payment::query()->lockForUpdate()->findOrFail($payment->getKey());
+
+            if ($locked->status === PaymentStatus::FAILED && $this->canSupersedeLocalDefinitiveFailure($locked, $payment, $invoice)) {
+                $locked->forceFill([
+                    'status' => PaymentStatus::PENDING,
+                    'failed_at' => null,
+                ]);
+                $this->audit->record('payment.checkout_definitive_failure_superseded', $locked, [
+                    'reference_id' => $locked->reference_id,
+                ], $actor);
+            } elseif ($locked->status !== PaymentStatus::PENDING) {
+                return $locked->fresh();
+            }
+
+            if (filled($locked->external_id) && ! hash_equals((string) $locked->external_id, (string) $invoice['external_id'])) {
+                throw new \DomainException('Identitas pembayaran provider tidak sesuai dengan pembayaran yang tersimpan.');
+            }
+
+            if (filled($locked->external_id) && filled($locked->checkout_url)) {
+                return $locked->fresh();
+            }
+
+            $locked->forceFill([
+                'external_id' => $invoice['external_id'],
+                'checkout_url' => $invoice['checkout_url'],
+                'expires_at' => $invoice['expires_at'] ?? $locked->expires_at,
+                'provider_payload' => $providerPayload,
+                'failed_at' => null,
+            ])->save();
+            $this->audit->record('payment.checkout_created', $locked, ['application_id' => $application->public_id, 'method' => $selectedMethod->value], $actor);
+
+            return $locked->fresh();
+        });
+    }
+
+    private function finalizeDefinitiveCheckoutFailure(Payment $payment, ?User $actor): void
+    {
+        DB::transaction(function () use ($payment, $actor): void {
+            $locked = Payment::query()->lockForUpdate()->find($payment->getKey());
+            if (! $locked
+                || $locked->status !== PaymentStatus::PENDING
+                || ! hash_equals((string) $locked->reference_id, (string) $payment->reference_id)
+                || filled($locked->external_id)
+                || filled($locked->checkout_url)
+                || filled($locked->provider_payload)) {
+                return;
+            }
+
+            $locked->forceFill([
+                'status' => PaymentStatus::FAILED,
+                'failed_at' => now(),
+            ])->save();
+            $this->audit->record('payment.checkout_definitive_failed', $locked, [
+                'reference_id' => $locked->reference_id,
+                'classification' => 'definitive',
+            ], $actor);
+            $this->audit->record('payment.state_changed', $locked, [
+                'from' => PaymentStatus::PENDING->value,
+                'to' => PaymentStatus::FAILED->value,
+                'reason' => 'provider_checkout_definitive_failure',
+            ], $actor);
+        });
+    }
+
+    private function recordAmbiguousCheckoutFailure(Payment $payment, ?User $actor): void
+    {
+        DB::transaction(function () use ($payment, $actor): void {
+            $locked = Payment::query()->lockForUpdate()->find($payment->getKey());
+            if ($locked
+                && $locked->status === PaymentStatus::PENDING
+                && hash_equals((string) $locked->reference_id, (string) $payment->reference_id)
+                && blank($locked->external_id)
+                && blank($locked->checkout_url)) {
+                $this->audit->record('payment.checkout_attempt_failed', $locked, [
+                    'recoverable' => true,
+                    'classification' => 'ambiguous',
+                ], $actor);
+            }
+        });
+    }
+
+    /** @param array{external_id:string, checkout_url:string|null, expires_at:\DateTimeInterface|null, payload:array} $invoice */
+    private function canSupersedeLocalDefinitiveFailure(Payment $locked, Payment $payment, array $invoice): bool
+    {
+        if (filled($locked->external_id)
+            || filled($locked->checkout_url)
+            || filled($locked->provider_payload)
+            || ! hash_equals((string) $locked->reference_id, (string) $payment->reference_id)) {
+            return false;
+        }
+
+        $providerReference = (string) ($invoice['payload']['reference_id'] ?? '');
+        if ($providerReference !== '' && ! hash_equals((string) $locked->reference_id, $providerReference)) {
+            return false;
+        }
+
+        return AuditLog::query()
+            ->where('event', 'payment.checkout_definitive_failed')
+            ->where('auditable_type', $locked->getMorphClass())
+            ->where('auditable_id', $locked->getKey())
+            ->exists();
     }
 
     public function submitDocuments(Application $application, User $actor): Application

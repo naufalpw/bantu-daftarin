@@ -7,11 +7,11 @@
             <input type="hidden" name="filter" value="{{ $filter }}">
         </form>
     </div>
-    <nav class="bd-admin-filter-bar" aria-label="Filter antrian dokumen">
+    <div class="bd-admin-filter-bar" role="group" aria-label="Filter antrian dokumen">
         @foreach($filters as $key => $label)
-            <a href="{{ route('admin.documents.index', array_filter(['filter' => $key === 'review' ? null : $key, 'q' => $search ?: null])) }}" wire:click.prevent="setFilter('{{ $key }}')" @class(['is-active' => $filter === $key]) @if($filter === $key) aria-current="page" @endif>{{ $label }}</a>
+            <x-admin.filter-control action="setFilter" :value="$key" :active="$filter === $key">{{ $label }}</x-admin.filter-control>
         @endforeach
-    </nav>
+    </div>
     <div class="bd-admin-reactive-results" wire:loading.class="bd-admin-reactive-results--loading" wire:loading.attr="aria-busy" wire:target="setFilter,search,applySearch,setPage,gotoPage,previousPage,nextPage">
         <div class="bd-admin-reactive-loading" wire:loading.delay.flex style="display: none" wire:target="setFilter,search,applySearch,setPage,gotoPage,previousPage,nextPage" role="status" aria-live="polite">
             <span class="bd-admin-reactive-loading__spinner" aria-hidden="true"></span>
@@ -19,16 +19,16 @@
         </div>
         <div class="bd-admin-reactive-content">
     @if($applications->isNotEmpty())
-        <div class="bd-admin-table-wrap"><table class="bd-admin-table bd-admin-document-queue-table"><thead><tr><th>Pengajuan</th><th>Dokumen</th><th>Status pemeriksaan</th><th>Diperbarui</th><th><span class="sr-only">Tindakan</span></th></tr></thead><tbody>
+        <div class="bd-admin-table-wrap"><table class="bd-admin-table bd-admin-document-queue-table bd-phone-records bd-phone-records--documents" role="table"><thead><tr><th scope="col">Pengajuan</th><th scope="col">Dokumen</th><th scope="col">Status pemeriksaan</th><th scope="col">Diperbarui</th><th scope="col"><span class="sr-only">Tindakan</span></th></tr></thead><tbody>
             @foreach($applications as $application)
                 @php($queueTone = $application->revision_required_count > 0 || $application->status->value === 'REVISION_REQUIRED' ? 'danger' : ($application->pending_review_count > 0 ? 'attention' : 'success'))
                     @php($queueLabel = $application->revision_required_count > 0 || $application->status->value === 'REVISION_REQUIRED' ? 'Perlu perbaikan' : ($application->pending_review_count > 0 ? $application->pending_review_count.' menunggu pemeriksaan' : 'Pemeriksaan selesai'))
-                <tr>
-                    <td><strong>{{ $application->service->name }}</strong><small>{{ $application->user->name }} · ID …{{ strtoupper(substr($application->public_id, -6)) }}</small></td>
-                    <td><strong>{{ $application->available_documents_count }} dari {{ $application->document_requirements_count }} dokumen tersedia</strong><small>{{ $application->revision_required_count ? $application->revision_required_count.' dokumen perlu ditindaklanjuti' : 'Dokumen dikelompokkan per pengajuan.' }}</small></td>
-                    <td><x-admin.status-badge :label="$queueLabel" :tone="$queueTone" /><small>{{ $application->status->label() }}</small></td>
-                    <td>{{ $application->latest_document_uploaded_at?->translatedFormat('d M Y, H:i') ?? $application->updated_at->translatedFormat('d M Y, H:i') }}</td>
-                    <td><a class="bd-admin-table-link" href="{{ route('admin.applications.show', $application->public_id) }}#documents-title">Tinjau</a></td>
+                <tr role="row">
+                    <td role="cell" data-label="Pengajuan"><span class="bd-phone-record-icon"><x-mobile-icon name="review" :size="19" /></span><strong>{{ $application->service->name }}</strong><small>{{ $application->user->name }} · ID …{{ strtoupper(substr($application->public_id, -6)) }}</small></td>
+                    <td role="cell" data-label="Dokumen"><strong>{{ $application->available_documents_count }} dari {{ $application->document_requirements_count }} dokumen tersedia</strong><small>{{ $application->revision_required_count ? $application->revision_required_count.' dokumen perlu ditindaklanjuti' : 'Dokumen dikelompokkan per pengajuan.' }}</small></td>
+                    <td role="cell" data-label="Status pemeriksaan"><x-admin.status-badge :label="$queueLabel" :tone="$queueTone" /><small>{{ $application->status->label() }}</small></td>
+                    <td role="cell" data-label="Diperbarui">{{ $application->latest_document_uploaded_at?->translatedFormat('d M Y, H:i') ?? $application->updated_at->translatedFormat('d M Y, H:i') }}</td>
+                    <td role="cell"><a class="bd-admin-table-link" href="{{ route('admin.applications.show', $application->public_id) }}#documents-title">Tinjau</a></td>
                 </tr>
             @endforeach
         </tbody></table></div>

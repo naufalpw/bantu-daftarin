@@ -8,7 +8,9 @@ use App\Models\Application;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\RateLimiter;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Tests\TestCase;
 
 class SecurityRegressionTest extends TestCase
@@ -63,7 +65,7 @@ class SecurityRegressionTest extends TestCase
 
         for ($attempt = 0; $attempt < 5; $attempt++) {
             $this->post(route('login.store'), ['email' => 'attacker@example.test', 'password' => 'invalid'])
-                ->assertSessionHasErrors('email');
+                ->assertSessionHasErrorsIn('auth', 'authentication');
         }
 
         $this->post(route('login.store'), ['email' => 'attacker@example.test', 'password' => 'invalid'])
@@ -81,8 +83,49 @@ class SecurityRegressionTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertHeader('Content-Security-Policy');
+        $response->assertHeader(
+            'Content-Security-Policy',
+            "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+        );
+        $this->assertStringNotContainsString("script-src 'self' 'unsafe-inline'", (string) $response->headers->get('Content-Security-Policy'));
+        $response->assertHeader('X-Content-Type-Options', 'nosniff');
+        $response->assertHeader('X-Frame-Options', 'DENY');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->assertHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
+        $response->assertHeaderMissing('Strict-Transport-Security');
+    }
+
+    public function test_livewire_uses_the_csp_safe_client_without_weakening_the_script_policy(): void
+    {
+        $response = $this->get('/');
+
+        $this->assertTrue(config('livewire.csp_safe'));
+        preg_match('/<script src="([^"]+\/livewire\.csp\.js\?id=[^"]+)"/', $response->getContent(), $scriptMatch);
+
+        $this->assertArrayHasKey(1, $scriptMatch);
+        $this->assertStringContainsString('/livewire.csp.js?', $scriptMatch[1]);
+        $scriptResponse = $this->get(parse_url($scriptMatch[1], PHP_URL_PATH));
+        $scriptResponse->assertOk();
+        $this->assertInstanceOf(BinaryFileResponse::class, $scriptResponse->baseResponse);
+        $this->assertSame(
+            realpath(base_path('vendor/livewire/livewire/dist/livewire.csp.js')),
+            realpath($scriptResponse->baseResponse->getFile()->getPathname()),
+        );
+        $this->assertStringNotContainsString(
+            "'unsafe-eval'",
+            (string) $response->headers->get('Content-Security-Policy'),
+        );
+    }
+
+    public function test_blade_sources_do_not_embed_executable_inline_scripts_or_dom_event_handlers(): void
+    {
+        $bladeFiles = File::allFiles(resource_path('views'));
+
+        foreach ($bladeFiles as $bladeFile) {
+            $source = $bladeFile->getContents();
+
+            $this->assertDoesNotMatchRegularExpression('/<script\b/i', $source, $bladeFile->getRelativePathname().' contains an inline script element.');
+            $this->assertDoesNotMatchRegularExpression('/\son(?:click|change|submit|load|error|input|keyup|keydown)\s*=/i', $source, $bladeFile->getRelativePathname().' contains an inline DOM event handler.');
+        }
     }
 }

@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    @include('components.favicon')
     <title>{{ trim($__env->yieldContent('title')) ?: 'Panel Admin' }} | Bantu Daftarin</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles

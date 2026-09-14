@@ -11,7 +11,8 @@
         @csrf
         <label class="bd-admin-field bd-admin-field--otp">
             <span>Kode OTP</span>
-            <input class="bd-otp-input" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus autocomplete="one-time-code">
+            <input class="bd-otp-input" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus autocomplete="one-time-code" aria-invalid="{{ $errors->has('code') ? 'true' : 'false' }}" @error('code') aria-describedby="otp-code-error" @enderror>
+            @error('code')<span id="otp-code-error" class="bd-admin-field__error">{{ $message }}</span>@enderror
         </label>
         <button class="bd-admin-button bd-admin-button--primary bd-admin-button--wide" type="submit">Verifikasi kode</button>
     </form>
@@ -35,7 +36,7 @@
 <p class="mt-2 text-sm text-slate-600">Masukkan 6 digit OTP yang dikirim ke email terdaftar. Satu OTP hanya dapat dipakai sekali.</p>
 <form method="post" action="{{ route('auth.otp.verify') }}" class="mt-6 space-y-4 pb-auth-form">
     @csrf
-    <label class="block text-sm font-medium">Kode OTP<input class="bd-otp-input mt-1" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus></label>
+    <label class="block text-sm font-medium">Kode OTP<input class="bd-otp-input mt-1" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus autocomplete="one-time-code" aria-invalid="{{ $errors->has('code') ? 'true' : 'false' }}" @error('code') aria-describedby="otp-code-error" @enderror>@error('code')<span id="otp-code-error" class="pb-field__error">{{ $message }}</span>@enderror</label>
     <button class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white pb-button pb-button--primary pb-button--wide">Verifikasi kode</button>
 </form>
 <div class="mt-4 text-center text-sm text-slate-600" data-otp-resend data-otp-resend-remaining="{{ $resendCooldownSeconds }}">
@@ -52,37 +53,4 @@
 </div>
 </div>
 @endif
-<script>
-    (() => {
-        const container = document.querySelector('[data-otp-resend]');
-        if (!container) return;
-
-        const button = container.querySelector('[data-otp-resend-button]');
-        const countdown = container.querySelector('[data-otp-countdown]');
-        const waiting = container.querySelector('[data-otp-resend-waiting]');
-        const ready = container.querySelector('[data-otp-resend-ready]');
-        let remaining = Math.max(0, Number.parseInt(container.dataset.otpResendRemaining || '0', 10));
-
-        const render = () => {
-            const isWaiting = remaining > 0;
-            countdown.textContent = String(remaining);
-            waiting.hidden = !isWaiting;
-            ready.hidden = isWaiting;
-            button.disabled = isWaiting;
-            button.setAttribute('aria-disabled', isWaiting ? 'true' : 'false');
-        };
-
-        render();
-        if (remaining === 0) return;
-
-        const timer = window.setInterval(() => {
-            remaining -= 1;
-            render();
-
-            if (remaining === 0) {
-                window.clearInterval(timer);
-            }
-        }, 1000);
-    })();
-</script>
 @endsection

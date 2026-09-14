@@ -1,4 +1,9 @@
 <span class="bd-chat-notifier" wire:poll.12s="poll">
+    @if(! $isAdmin)
+        @teleport('#client-help-unread')
+            <span class="pb-phone-unread">@if($unreadThreadCount > 0)<span class="bd-chat-unread-badge" aria-label="{{ $unreadThreadCount }} percakapan belum dibaca">{{ $unreadThreadCount }}</span>@endif</span>
+        @endteleport
+    @endif
     @if($unreadThreadCount > 0)
         <span class="bd-chat-unread-badge" aria-label="{{ $unreadThreadCount }} percakapan belum dibaca">{{ $unreadThreadCount }}</span>
     @endif

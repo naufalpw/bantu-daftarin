@@ -11,13 +11,17 @@ use App\Models\Document;
 use App\Models\DocumentAccessLog;
 use App\Services\AuditService;
 use App\Services\DocumentWorkflowService;
+use App\Services\PrivateFileReader;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
-    public function __construct(private readonly DocumentWorkflowService $documents, private readonly AuditService $audit) {}
+    public function __construct(
+        private readonly DocumentWorkflowService $documents,
+        private readonly AuditService $audit,
+        private readonly PrivateFileReader $files,
+    ) {}
 
     public function store(UploadDocumentRequest $request, string $applicationId, string $requirementId): RedirectResponse
     {
@@ -37,28 +41,14 @@ class DocumentController extends Controller
     {
         $document = Document::where('public_id', $documentId)->firstOrFail();
         $this->authorize('delete', $document);
-        abort_unless($document->active, 404);
-        if (! $this->documents->canClientUpload($document->application, $document->requirement)) {
-            abort(403, 'Dokumen terkunci.');
-        }
-
-        if (! Storage::disk($document->storage_disk)->delete($document->storage_path)) {
-            throw new \DomainException('Dokumen belum dapat dihapus. Silakan coba lagi.');
-        }
-        $document->forceFill(['active' => false, 'deleted_at' => now(), 'deletion_reason' => 'client_deleted_before_payment'])->save();
-        $this->audit->record('document.deleted', $document, ['reason' => 'client_deleted_before_payment'], $request->user(), $request);
+        $this->documents->destroy($document, $request->user(), $request);
 
         return back()->with('status', 'Dokumen dihapus dari versi aktif.');
     }
 
     public function download(Request $request, string $documentId)
     {
-        $document = Document::where('public_id', $documentId)->firstOrFail();
-        $this->authorize('download', $document);
-        $disk = Storage::disk($document->storage_disk);
-        abort_unless($disk->exists($document->storage_path), 404);
-        $stream = $disk->readStream($document->storage_path);
-        abort_unless(is_resource($stream), 404);
+        [$document, $stream] = $this->files->openDocument($documentId, $request->user());
         $this->recordAccess($document, $request, 'DOWNLOAD');
         $downloadName = $this->downloadName($document->original_filename, $document->extension, 'document');
 
@@ -67,12 +57,7 @@ class DocumentController extends Controller
 
     public function preview(Request $request, string $documentId)
     {
-        $document = Document::where('public_id', $documentId)->firstOrFail();
-        $this->authorize('download', $document);
-        $disk = Storage::disk($document->storage_disk);
-        abort_unless($disk->exists($document->storage_path), 404);
-        $stream = $disk->readStream($document->storage_path);
-        abort_unless(is_resource($stream), 404);
+        [$document, $stream] = $this->files->openDocument($documentId, $request->user());
         $this->recordAccess($document, $request, 'VIEW');
         $downloadName = $this->downloadName($document->original_filename, $document->extension, 'document');
 

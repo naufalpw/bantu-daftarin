@@ -11,6 +11,7 @@ use App\Models\WebhookEvent;
 use App\Services\ApplicationTransitionService;
 use App\Services\AuditService;
 use App\Services\NotificationService;
+use App\Services\PaymentPayloadMinimizer;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,10 +19,21 @@ use Illuminate\Support\Facades\DB;
 
 class XenditWebhookController extends Controller
 {
+    private const ERROR_PERMANENT_VALIDATION = 'permanent_validation_failed';
+
+    private const ERROR_TRANSIENT_PROCESSING = 'transient_processing_failed';
+
+    private const OUTCOME_ALREADY_PROCESSED = 'already_processed';
+
+    private const OUTCOME_PERMANENTLY_REJECTED = 'permanently_rejected';
+
+    private const OUTCOME_PROCESSED = 'processed';
+
     public function __construct(
         private readonly ApplicationTransitionService $transitions,
         private readonly AuditService $audit,
         private readonly NotificationService $notifications,
+        private readonly PaymentPayloadMinimizer $paymentPayloads,
     ) {}
 
     public function handle(Request $request): JsonResponse
@@ -33,32 +45,82 @@ class XenditWebhookController extends Controller
         }
 
         $payload = $request->json()->all();
+        $storedPayload = $this->paymentPayloads->webhookEvent($payload);
         $eventId = $this->eventId($request, $payload);
 
-        if (WebhookEvent::query()->where('provider', 'xendit')->where('event_id', $eventId)->exists()) {
-            return response()->json(['message' => 'Event sudah diproses.']);
+        try {
+            WebhookEvent::query()->firstOrCreate(
+                ['provider' => 'xendit', 'event_id' => $eventId],
+                [
+                    'event_type' => $this->eventType($payload),
+                    'payload' => $storedPayload,
+                    'received_at' => now(),
+                    'status' => 'RECEIVED',
+                ],
+            );
+        } catch (QueryException $exception) {
+            if (! WebhookEvent::query()->where('provider', 'xendit')->where('event_id', $eventId)->exists()) {
+                logger()->error('xendit_webhook_ledger_write_failed', ['exception_class' => $exception::class, 'event_id' => $eventId]);
+
+                return response()->json(['message' => 'Webhook tidak dapat diproses.'], 500);
+            }
         }
 
         try {
-            $event = WebhookEvent::create([
-                'provider' => 'xendit',
-                'event_id' => $eventId,
-                'event_type' => $this->eventType($payload),
-                'payload' => $payload,
-                'received_at' => now(),
-                'status' => 'RECEIVED',
-            ]);
-        } catch (QueryException $exception) {
-            if (WebhookEvent::query()->where('provider', 'xendit')->where('event_id', $eventId)->exists()) {
-                return response()->json(['message' => 'Event sudah diproses.']);
-            }
-            logger()->error('xendit_webhook_ledger_write_failed', ['exception_class' => $exception::class, 'event_id' => $eventId]);
+            $outcome = $this->processEvent($eventId);
+        } catch (\Throwable $exception) {
+            WebhookEvent::query()
+                ->where('provider', 'xendit')
+                ->where('event_id', $eventId)
+                ->where('status', 'RECEIVED')
+                ->update(['error_message' => self::ERROR_TRANSIENT_PROCESSING]);
+            logger()->error('xendit_webhook_processing_failed', ['exception_class' => $exception::class, 'event_id' => $eventId]);
 
             return response()->json(['message' => 'Webhook tidak dapat diproses.'], 500);
         }
 
-        try {
-            DB::transaction(function () use ($payload, $event): void {
+        if ($outcome === self::OUTCOME_ALREADY_PROCESSED) {
+            return response()->json(['message' => 'Event sudah diproses.']);
+        }
+
+        if ($outcome === self::OUTCOME_PERMANENTLY_REJECTED) {
+            return response()->json(['message' => 'Webhook tidak dapat diproses.'], 422);
+        }
+
+        return response()->json(['message' => 'Webhook diterima.']);
+    }
+
+    private function processEvent(string $eventId): string
+    {
+        return DB::transaction(function () use ($eventId): string {
+            $event = WebhookEvent::query()
+                ->where('provider', 'xendit')
+                ->where('event_id', $eventId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($event->status === 'PROCESSED') {
+                return self::OUTCOME_ALREADY_PROCESSED;
+            }
+
+            if ($event->status === 'REJECTED' && $event->error_message === self::ERROR_PERMANENT_VALIDATION) {
+                return self::OUTCOME_PERMANENTLY_REJECTED;
+            }
+
+            // Rows rejected by the former status-blind handler did not distinguish
+            // validation failures from transient processing failures. Reconcile them
+            // once using the original ledger payload, then persist an explicit result.
+            if ($event->status === 'REJECTED') {
+                $event->forceFill([
+                    'status' => 'RECEIVED',
+                    'error_message' => null,
+                    'processed_at' => null,
+                ])->save();
+            }
+
+            $payload = $event->payload;
+
+            try {
                 $normalized = $this->normalize($payload);
                 $reference = $normalized['reference'];
                 $status = $normalized['status'];
@@ -92,16 +154,17 @@ class XenditWebhookController extends Controller
                 }
 
                 $targetStatus = $this->targetStatus($normalized['event'], $status, $normalized['is_v3']);
+                $paymentPayload = $this->paymentPayloads->paymentFromWebhook($payload, $payment->provider_payload);
                 if ($targetStatus !== null && $payment->status !== $targetStatus && $payment->status->canTransitionTo($targetStatus)) {
                     if ($targetStatus === PaymentStatus::PAID) {
-                        $payment->forceFill(['status' => PaymentStatus::PAID, 'paid_at' => now(), 'provider_payload' => $payload])->save();
+                        $payment->forceFill(['status' => PaymentStatus::PAID, 'paid_at' => now(), 'provider_payload' => $paymentPayload])->save();
                     } else {
-                        $payment->forceFill(['status' => $targetStatus, 'failed_at' => now(), 'provider_payload' => $payload])->save();
+                        $payment->forceFill(['status' => $targetStatus, 'failed_at' => now(), 'provider_payload' => $paymentPayload])->save();
                     }
                 } elseif ($targetStatus !== null && $payment->status !== $targetStatus) {
                     $this->audit->record('payment.webhook_ignored', $payment, ['event_id' => $event->event_id, 'current_status' => $payment->status->value, 'incoming_status' => $targetStatus->value]);
-                } elseif ($targetStatus === null) {
-                    $payment->forceFill(['provider_payload' => $payload])->save();
+                } else {
+                    $payment->forceFill(['provider_payload' => $paymentPayload])->save();
                 }
 
                 if ($targetStatus === PaymentStatus::PAID && $payment->status === PaymentStatus::PAID) {
@@ -116,17 +179,25 @@ class XenditWebhookController extends Controller
                     }
                 }
 
-                $event->forceFill(['status' => 'PROCESSED', 'processed_at' => now()])->save();
+                $event->forceFill([
+                    'status' => 'PROCESSED',
+                    'error_message' => null,
+                    'processed_at' => now(),
+                ])->save();
                 $this->audit->record('payment.webhook_processed', $payment, ['event_id' => $event->event_id, 'status' => $status]);
-            });
-        } catch (\Throwable $exception) {
-            $event->forceFill(['status' => 'REJECTED', 'error_message' => 'validation_or_processing_failed'])->save();
-            logger()->error('xendit_webhook_processing_failed', ['exception_class' => $exception::class, 'event_id' => $eventId]);
+            } catch (\DomainException $exception) {
+                $event->forceFill([
+                    'status' => 'REJECTED',
+                    'error_message' => self::ERROR_PERMANENT_VALIDATION,
+                    'processed_at' => now(),
+                ])->save();
+                logger()->warning('xendit_webhook_validation_failed', ['exception_class' => $exception::class, 'event_id' => $eventId]);
 
-            return response()->json(['message' => 'Webhook tidak dapat diproses.'], 422);
-        }
+                return self::OUTCOME_PERMANENTLY_REJECTED;
+            }
 
-        return response()->json(['message' => 'Webhook diterima.']);
+            return self::OUTCOME_PROCESSED;
+        });
     }
 
     private function eventId(Request $request, array $payload): string

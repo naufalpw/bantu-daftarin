@@ -4,12 +4,20 @@ namespace Tests\Feature\Webhooks;
 
 use App\Enums\ApplicationStatus;
 use App\Enums\PaymentStatus;
+use App\Http\Controllers\Webhooks\XenditWebhookController;
 use App\Models\Application;
+use App\Models\AuditLog;
 use App\Models\Payment;
 use App\Models\Service;
 use App\Models\User;
+use App\Models\WebhookEvent;
+use App\Services\ApplicationTransitionService;
 use App\Services\ApplicationWorkflowService;
+use App\Services\AuditService;
+use App\Services\NotificationService;
+use App\Services\PaymentPayloadMinimizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -38,7 +46,119 @@ class XenditWebhookTest extends TestCase
 
         $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => PaymentStatus::PAID->value]);
         $this->assertDatabaseHas('applications', ['id' => $application->id, 'status' => ApplicationStatus::PAYMENT_CONFIRMED->value]);
+        $this->assertDatabaseHas('webhook_events', ['provider' => 'xendit', 'event_id' => 'event-1', 'status' => 'PROCESSED']);
         $this->assertDatabaseCount('webhook_events', 1);
+        $this->assertDatabaseCount('application_status_histories', 1);
+        $this->assertSame(1, AuditLog::query()->where('event', 'payment.webhook_processed')->count());
+    }
+
+    public function test_existing_received_event_is_resumed_from_its_ledger_payload(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $service = Service::factory()->create();
+        $application = Application::create(['user_id' => $user->id, 'service_id' => $service->id, 'status' => ApplicationStatus::AWAITING_PAYMENT, 'price_amount_snapshot' => 100000, 'currency' => 'IDR']);
+        $payment = Payment::create(['application_id' => $application->id, 'provider' => 'xendit', 'external_id' => 'invoice-received', 'reference_id' => 'BD-received', 'amount' => 100000, 'currency' => 'IDR', 'status' => PaymentStatus::PENDING]);
+        $payload = ['id' => 'invoice-received', 'external_id' => $payment->reference_id, 'status' => 'PAID', 'amount' => 100000, 'currency' => 'IDR', 'payer_email' => $user->email];
+
+        WebhookEvent::create([
+            'provider' => 'xendit',
+            'event_id' => 'event-received',
+            'event_type' => 'PAID',
+            'payload' => $payload,
+            'received_at' => now(),
+            'status' => 'RECEIVED',
+        ]);
+
+        $this->postJson(route('webhooks.xendit'), ['id' => 'replacement-must-not-be-used'], [
+            'x-callback-token' => 'testing-callback-token',
+            'x-event-id' => 'event-received',
+        ])->assertOk();
+
+        $this->assertSame(PaymentStatus::PAID, $payment->fresh()->status);
+        $this->assertSame(ApplicationStatus::PAYMENT_CONFIRMED, $application->fresh()->status);
+        $this->assertDatabaseHas('webhook_events', ['event_id' => 'event-received', 'status' => 'PROCESSED', 'error_message' => null]);
+        $this->assertDatabaseCount('application_status_histories', 1);
+    }
+
+    public function test_legacy_retryable_rejected_event_is_reconciled_once(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $service = Service::factory()->create();
+        $application = Application::create(['user_id' => $user->id, 'service_id' => $service->id, 'status' => ApplicationStatus::AWAITING_PAYMENT, 'price_amount_snapshot' => 100000, 'currency' => 'IDR']);
+        $payment = Payment::create(['application_id' => $application->id, 'provider' => 'xendit', 'external_id' => 'invoice-retry', 'reference_id' => 'BD-retry', 'amount' => 100000, 'currency' => 'IDR', 'status' => PaymentStatus::PENDING]);
+        $payload = ['id' => 'invoice-retry', 'external_id' => $payment->reference_id, 'status' => 'PAID', 'amount' => 100000, 'currency' => 'IDR', 'payer_email' => $user->email];
+
+        WebhookEvent::create([
+            'provider' => 'xendit',
+            'event_id' => 'event-legacy-rejected',
+            'event_type' => 'PAID',
+            'payload' => $payload,
+            'received_at' => now(),
+            'status' => 'REJECTED',
+            'error_message' => 'validation_or_processing_failed',
+        ]);
+
+        $headers = ['x-callback-token' => 'testing-callback-token', 'x-event-id' => 'event-legacy-rejected'];
+        $this->postJson(route('webhooks.xendit'), $payload, $headers)->assertOk();
+        $this->postJson(route('webhooks.xendit'), $payload, $headers)->assertOk();
+
+        $this->assertSame(PaymentStatus::PAID, $payment->fresh()->status);
+        $this->assertSame(ApplicationStatus::PAYMENT_CONFIRMED, $application->fresh()->status);
+        $this->assertDatabaseHas('webhook_events', ['event_id' => 'event-legacy-rejected', 'status' => 'PROCESSED', 'error_message' => null]);
+        $this->assertDatabaseCount('application_status_histories', 1);
+    }
+
+    public function test_transient_internal_failure_remains_received_and_succeeds_on_retry(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $service = Service::factory()->create();
+        $application = Application::create(['user_id' => $user->id, 'service_id' => $service->id, 'status' => ApplicationStatus::AWAITING_PAYMENT, 'price_amount_snapshot' => 100000, 'currency' => 'IDR']);
+        $payment = Payment::create(['application_id' => $application->id, 'provider' => 'xendit', 'external_id' => 'invoice-transient', 'reference_id' => 'BD-transient', 'amount' => 100000, 'currency' => 'IDR', 'status' => PaymentStatus::PENDING]);
+        $payload = ['id' => 'invoice-transient', 'external_id' => $payment->reference_id, 'status' => 'PAID', 'amount' => 100000, 'currency' => 'IDR', 'payer_email' => $user->email];
+        $notifications = \Mockery::mock(NotificationService::class);
+        $notifications->shouldReceive('applicationStatus')->once();
+        $notifications->shouldReceive('paymentConfirmed')->once()->andThrow(new \RuntimeException('Synthetic transient failure.'));
+        $audit = app(AuditService::class);
+        $controller = new XenditWebhookController(
+            new ApplicationTransitionService($audit, $notifications),
+            $audit,
+            $notifications,
+            app(PaymentPayloadMinimizer::class),
+        );
+        $request = Request::create(
+            '/webhooks/xendit',
+            'POST',
+            server: [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_ACCEPT' => 'application/json',
+                'HTTP_X_CALLBACK_TOKEN' => 'testing-callback-token',
+                'HTTP_X_EVENT_ID' => 'event-transient',
+            ],
+            content: json_encode($payload, JSON_THROW_ON_ERROR),
+        );
+
+        $this->assertSame(500, $controller->handle($request)->getStatusCode());
+        $this->assertSame(PaymentStatus::PENDING, $payment->fresh()->status);
+        $this->assertSame(ApplicationStatus::AWAITING_PAYMENT, $application->fresh()->status);
+        $this->assertDatabaseHas('webhook_events', [
+            'event_id' => 'event-transient',
+            'status' => 'RECEIVED',
+            'error_message' => 'transient_processing_failed',
+        ]);
+        $this->assertDatabaseCount('application_status_histories', 0);
+
+        $this->postJson(route('webhooks.xendit'), $payload, [
+            'x-callback-token' => 'testing-callback-token',
+            'x-event-id' => 'event-transient',
+        ])->assertOk();
+
+        $this->assertSame(PaymentStatus::PAID, $payment->fresh()->status);
+        $this->assertSame(ApplicationStatus::PAYMENT_CONFIRMED, $application->fresh()->status);
+        $this->assertDatabaseHas('webhook_events', ['event_id' => 'event-transient', 'status' => 'PROCESSED', 'error_message' => null]);
+        $this->assertDatabaseCount('application_status_histories', 1);
     }
 
     public function test_client_payment_creation_does_not_mark_application_paid(): void
@@ -135,6 +255,46 @@ class XenditWebhookTest extends TestCase
         $this->assertDatabaseCount('audit_logs', 0);
     }
 
+    public function test_same_status_failed_webhook_cannot_replace_existing_provider_identity(): void
+    {
+        $user = User::factory()->create(['email' => 'payer@example.test']);
+        $service = Service::factory()->create();
+        $application = Application::create(['user_id' => $user->id, 'service_id' => $service->id, 'status' => ApplicationStatus::AWAITING_PAYMENT, 'price_amount_snapshot' => 100000, 'currency' => 'IDR']);
+        $providerPayload = ['id' => 'invoice-existing', 'reference_id' => 'BD-identity-conflict', 'status' => 'FAILED'];
+        $payment = Payment::create([
+            'application_id' => $application->id,
+            'provider' => 'xendit',
+            'external_id' => 'invoice-existing',
+            'reference_id' => 'BD-identity-conflict',
+            'amount' => 100000,
+            'currency' => 'IDR',
+            'status' => PaymentStatus::FAILED,
+            'provider_payload' => $providerPayload,
+        ]);
+
+        $this->postJson(route('webhooks.xendit'), [
+            'id' => 'invoice-other',
+            'external_id' => $payment->reference_id,
+            'status' => 'FAILED',
+            'amount' => 100000,
+            'currency' => 'IDR',
+            'payer_email' => $user->email,
+        ], [
+            'x-callback-token' => 'testing-callback-token',
+            'x-event-id' => 'event-failed-identity-conflict',
+        ])->assertUnprocessable();
+
+        $payment->refresh();
+        $this->assertSame(PaymentStatus::FAILED, $payment->status);
+        $this->assertSame('invoice-existing', $payment->external_id);
+        $this->assertSame($providerPayload, $payment->provider_payload);
+        $this->assertDatabaseHas('webhook_events', [
+            'event_id' => 'event-failed-identity-conflict',
+            'status' => 'REJECTED',
+        ]);
+        $this->assertDatabaseCount('audit_logs', 0);
+    }
+
     public function test_failed_and_expired_webhooks_transition_only_pending_payment(): void
     {
         $user = User::factory()->create();
@@ -177,7 +337,37 @@ class XenditWebhookTest extends TestCase
         ]);
 
         $response->assertUnprocessable();
-        $this->assertDatabaseHas('webhook_events', ['provider' => 'xendit', 'event_id' => 'event-malformed', 'status' => 'REJECTED']);
+        $this->assertDatabaseHas('webhook_events', [
+            'provider' => 'xendit',
+            'event_id' => 'event-malformed',
+            'status' => 'REJECTED',
+            'error_message' => 'permanent_validation_failed',
+        ]);
         $this->assertDatabaseMissing('payments', ['status' => PaymentStatus::PAID->value]);
+    }
+
+    public function test_permanently_rejected_event_is_not_reprocessed_with_replacement_payload(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $service = Service::factory()->create();
+        $application = Application::create(['user_id' => $user->id, 'service_id' => $service->id, 'status' => ApplicationStatus::AWAITING_PAYMENT, 'price_amount_snapshot' => 100000, 'currency' => 'IDR']);
+        $payment = Payment::create(['application_id' => $application->id, 'provider' => 'xendit', 'external_id' => 'invoice-permanent', 'reference_id' => 'BD-permanent', 'amount' => 100000, 'currency' => 'IDR', 'status' => PaymentStatus::PENDING]);
+        $invalidPayload = ['id' => 'invoice-permanent', 'external_id' => $payment->reference_id, 'status' => 'PAID', 'amount' => 99999, 'currency' => 'IDR', 'payer_email' => $user->email];
+        $validReplacement = [...$invalidPayload, 'amount' => 100000];
+        $headers = ['x-callback-token' => 'testing-callback-token', 'x-event-id' => 'event-permanent'];
+
+        $this->postJson(route('webhooks.xendit'), $invalidPayload, $headers)->assertUnprocessable();
+        $this->postJson(route('webhooks.xendit'), $validReplacement, $headers)->assertUnprocessable();
+
+        $this->assertSame(PaymentStatus::PENDING, $payment->fresh()->status);
+        $this->assertSame(ApplicationStatus::AWAITING_PAYMENT, $application->fresh()->status);
+        $this->assertDatabaseHas('webhook_events', [
+            'provider' => 'xendit',
+            'event_id' => 'event-permanent',
+            'status' => 'REJECTED',
+            'error_message' => 'permanent_validation_failed',
+        ]);
+        $this->assertDatabaseCount('application_status_histories', 0);
     }
 }

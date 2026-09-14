@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Contracts\MalwareScanner;
 use App\Contracts\PaymentGateway;
+use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureClient;
 use App\Models\Application;
 use App\Models\ChatThread;
 use App\Models\Document;
@@ -20,10 +22,15 @@ use App\Services\PaymentGatewayRouter;
 use App\Services\PayPalPaymentProvider;
 use App\Services\TestingMalwareScanner;
 use App\Services\XenditPaymentProvider;
+use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
+use Livewire\Mechanisms\HandleRequests\EndpointResolver;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -38,7 +45,19 @@ class AppServiceProvider extends ServiceProvider
                 new XenditPaymentProvider,
                 new PayPalPaymentProvider,
             ]));
-        $this->app->bind(MalwareScanner::class, fn () => config('files.malware_scan_driver') === 'testing' ? new TestingMalwareScanner : new ClamAvMalwareScanner);
+        $this->app->bind(MalwareScanner::class, function (): MalwareScanner {
+            $driver = (string) config('files.malware_scan_driver');
+
+            if (config('app.env') === 'production' && $driver === 'testing') {
+                throw new RuntimeException('The testing malware scanner cannot be used in production.');
+            }
+
+            return match ($driver) {
+                'clamav' => new ClamAvMalwareScanner,
+                'testing' => new TestingMalwareScanner,
+                default => throw new RuntimeException('Unsupported malware scanner driver.'),
+            };
+        });
     }
 
     /**
@@ -46,15 +65,29 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (config('livewire.csp_safe')) {
+            Livewire::setScriptRoute(fn ($handle) => Route::get(
+                EndpointResolver::prefix().'/livewire.csp.js',
+                $handle,
+            ));
+        }
+
         Gate::policy(Application::class, ApplicationPolicy::class);
         Gate::policy(Document::class, DocumentPolicy::class);
         Gate::policy(Payment::class, PaymentPolicy::class);
         Gate::policy(ResultDocument::class, ResultDocumentPolicy::class);
         Gate::policy(ChatThread::class, ChatThreadPolicy::class);
 
+        Livewire::addPersistentMiddleware([
+            EnsureAdmin::class,
+            EnsureClient::class,
+            EnsureEmailIsVerified::class,
+        ]);
+
         RateLimiter::for('auth-login', fn ($request) => Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip()));
         RateLimiter::for('auth-otp', fn ($request) => Limit::perMinute(10)->by($request->session()->get('pending_auth_user_id', 'guest').'|'.$request->ip()));
         RateLimiter::for('auth-otp-resend', fn ($request) => Limit::perMinute(3)->by($request->session()->get('pending_auth_user_id', 'guest').'|'.$request->ip()));
         RateLimiter::for('webhook', fn ($request) => Limit::perMinute(120)->by($request->ip()));
+        RateLimiter::for('presence-heartbeat', fn ($request) => Limit::perMinute(60)->by($request->user()?->id ? (string) $request->user()->id : $request->ip()));
     }
 }

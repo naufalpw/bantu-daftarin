@@ -19,7 +19,7 @@
     $requirementLabel = $requirement->is_required ? 'Wajib' : ($requirement->condition_snapshot ? 'Kondisional' : 'Opsional');
 @endphp
 
-<article class="pb-personal-document-card{{ $activeDocument ? ' pb-personal-document-card--uploaded' : '' }}" data-requirement-code="{{ $requirement->code }}">
+<article class="pb-personal-document-card{{ $activeDocument ? ' pb-personal-document-card--uploaded' : '' }}" data-requirement-code="{{ $requirement->code }}" data-document-state="{{ $activeDocument ? 'uploaded' : 'empty' }}" data-document-tone="{{ $documentStatus[1] }}">
     <div class="pb-personal-document-card__top">
         <div class="pb-personal-document-card__icon"><img src="{{ asset($icon) }}" alt=""></div>
         <span class="pb-status pb-document-status pb-status--{{ $documentStatus[1] }}">{{ $documentStatus[0] }}</span>
@@ -34,6 +34,7 @@
     @endif
 
     @if($activeDocument)
+        <p class="bd-phone-only pb-personal-document-card__filename">{{ $activeDocument->original_filename }}</p>
         <p class="pb-personal-document-card__file">Versi {{ $activeDocument->version_number }} &middot; {{ $activeDocument->review_status->label() }}</p>
         @if($activeDocument->rejection_reason || $activeDocument->revision_instruction)
             <div class="pb-personal-document-card__revision" role="note">
@@ -48,16 +49,18 @@
         @if($canUpload)
             <form method="post" enctype="multipart/form-data" action="{{ route('client.documents.store', [$application->public_id, $requirement->public_id]) }}" class="pb-personal-upload-form">
                 @csrf
-                <input id="{{ $inputId }}" class="pb-visually-hidden-file" type="file" name="file" required accept="{{ $extensions }}" data-file-input data-auto-submit data-file-name-target="{{ $inputId }}-name">
+                <x-mobile-form-feedback :form-key="$inputId" />
+                <input id="{{ $inputId }}" class="pb-visually-hidden-file" type="file" name="file" required accept="{{ $extensions }}" data-file-input data-auto-submit data-file-name-target="{{ $inputId }}-name" @if(old('_ui_form') === $inputId && $errors->any()) aria-invalid="true" aria-describedby="feedback-{{ $inputId }}" @endif>
                 <label class="pb-button pb-button--primary" for="{{ $inputId }}">{{ $activeDocument ? 'Ganti dokumen' : $actionLabel }}</label>
                 <span id="{{ $inputId }}-name" class="pb-personal-upload-form__filename" aria-live="polite">{{ $activeDocument ? 'Pilih file untuk mengganti dokumen.' : 'Belum ada file dipilih.' }}</span>
+                <span class="pb-upload-status" role="status" data-upload-status hidden>Mengunggah dokumen...</span>
             </form>
         @endif
 
         @if($canAccessFile)
             <div class="pb-file-actions pb-personal-document-card__actions">
-                <a href="{{ route('client.documents.view', $activeDocument->public_id) }}" target="_blank" rel="noopener">Lihat</a>
-                <a href="{{ route('client.documents.download', $activeDocument->public_id) }}">Unduh</a>
+                <a href="{{ route('client.documents.view', $activeDocument->public_id) }}" target="_blank" rel="noopener"><x-ui-icon class="bd-desktop-action-icon" name="open" :size="15" />Lihat</a>
+                <a href="{{ route('client.documents.download', $activeDocument->public_id) }}"><x-ui-icon class="bd-desktop-action-icon" name="download" :size="15" />Unduh</a>
                 @if($canUpload)
                     <form method="post" action="{{ route('client.documents.destroy', $activeDocument->public_id) }}" data-confirm="Hapus versi aktif dokumen ini?">
                         @csrf @method('DELETE')

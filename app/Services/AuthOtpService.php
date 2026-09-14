@@ -36,27 +36,34 @@ class AuthOtpService
 
     public function issue(User $user, AuthChallengeType $type): AuthChallenge
     {
-        $cooldownRemaining = $this->resendCooldownRemaining($user, $type);
-        if ($cooldownRemaining > 0) {
-            throw OtpChallengeException::cooldown($cooldownRemaining);
-        }
+        return DB::transaction(function () use ($user, $type): AuthChallenge {
+            $lockedUser = User::query()->lockForUpdate()->findOrFail($user->getKey());
 
-        $issuedAt = now();
-        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $user->authChallenges()->where('type', $type->value)->whereNull('used_at')->update(['used_at' => now()]);
-        $challenge = $user->authChallenges()->create([
-            'type' => $type->value,
-            'code_hash' => Hash::make($code),
-            'expires_at' => $issuedAt->copy()->addMinutes((int) config('auth_otp.expire_minutes')),
-            'max_attempts' => (int) config('auth_otp.max_attempts'),
-            'last_sent_at' => $issuedAt,
-            'request_ip' => request()?->ip(),
-        ]);
+            $cooldownRemaining = $this->resendCooldownRemaining($lockedUser, $type);
+            if ($cooldownRemaining > 0) {
+                throw OtpChallengeException::cooldown($cooldownRemaining);
+            }
 
-        $user->notify(new LoginOtpNotification($code));
-        $this->audit->record('authentication.otp_issued', $user, ['type' => $type->value], $user);
+            $issuedAt = now();
+            $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $lockedUser->authChallenges()->where('type', $type->value)->whereNull('used_at')->update(['used_at' => now()]);
+            $challenge = $lockedUser->authChallenges()->create([
+                'type' => $type->value,
+                'code_hash' => Hash::make($code),
+                'expires_at' => $issuedAt->copy()->addMinutes((int) config('auth_otp.expire_minutes')),
+                'max_attempts' => (int) config('auth_otp.max_attempts'),
+                'last_sent_at' => $issuedAt,
+                'request_ip' => request()?->ip(),
+            ]);
 
-        return $challenge;
+            $this->audit->record('authentication.otp_issued', $lockedUser, ['type' => $type->value], $lockedUser);
+
+            DB::afterCommit(function () use ($lockedUser, $code) {
+                $lockedUser->notify(new LoginOtpNotification($code));
+            });
+
+            return $challenge;
+        });
     }
 
     public function verify(User $user, AuthChallenge $challenge, string $code): void
@@ -96,8 +103,10 @@ class AuthOtpService
         if ($user->isAdmin()) {
             $user->admin?->forceFill(['last_login_at' => now()])->save();
         }
-        request()->session()->regenerate();
-        request()->session()->forget(['pending_auth_user_id', 'pending_auth_challenge_id', 'pending_auth_type']);
+        if (request()->hasSession()) {
+            request()->session()->regenerate();
+            request()->session()->forget(['pending_auth_user_id', 'pending_auth_challenge_id', 'pending_auth_type']);
+        }
     }
 
     public function resend(User $user, AuthChallengeType $type): AuthChallenge

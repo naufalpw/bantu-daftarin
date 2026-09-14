@@ -13,7 +13,7 @@
 
     @if($applications->isEmpty())
         <section class="pb-empty pb-empty--dashboard" aria-labelledby="empty-dashboard-title">
-            <div>
+            <div class="pb-empty__content">
                 <p class="pb-kicker">Mulai pengajuan</p>
                 <h2 id="empty-dashboard-title">Belum ada pengajuan</h2>
                 <p>Pilih layanan untuk memulai pengajuan pertama Anda.</p>
@@ -38,7 +38,7 @@
                 <div class="pb-priority__action">
                     @if($priorityPresentation['cta_label'])
                         @if($priorityPresentation['cta_method'] === 'post')
-                            <form method="post" action="{{ route('client.applications.documents.submit', $priorityApplication->public_id) }}">
+                            <form method="post" action="{{ $priorityPresentation['cta_url'] }}">
                                 @csrf
                                 <button class="pb-button pb-button--light" type="submit">{{ $priorityPresentation['cta_label'] }}</button>
                             </form>
@@ -78,7 +78,7 @@
                 <h2 id="latest-update-title">Aktivitas pengajuan</h2>
                 @forelse($recentUpdates as $update)
                     @php($updatePresentation = \App\Support\ApplicationStatusPresenter::forStatus($update['history']->to_status))
-                    <div class="pb-latest__item">
+                    <div class="pb-latest__item" data-update-tone="{{ $updatePresentation['tone'] }}">
                         <time datetime="{{ $update['history']->created_at->toAtomString() }}">{{ $update['history']->created_at->translatedFormat('d M Y, H:i') }}</time>
                         <strong>{{ $updatePresentation['label'] }}</strong>
                         <p>{{ $update['application']->service->name }}</p>

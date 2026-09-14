@@ -6,6 +6,7 @@ use App\Enums\ApplicationStatus;
 use App\Enums\BusinessRelationship;
 use App\Enums\DocumentReviewStatus;
 use App\Enums\DocumentScanStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\ServiceStatus;
 use App\Exceptions\InvalidApplicationTransition;
@@ -317,7 +318,10 @@ class ApplicationWorkflowTest extends TestCase
         $this->assertSame(ApplicationStatus::AWAITING_DOCUMENTS, $application->fresh()->status);
 
         $this->actingAs($user)->post(route('client.applications.payment', $application->public_id))
-            ->assertSessionHasErrors('error');
+            ->assertSessionHasErrors('payment_method');
+        $this->actingAs($user)->post(route('client.applications.payment', $application->public_id), [
+            'payment_method' => PaymentMethod::BCA->value,
+        ])->assertSessionHasErrors('error');
         $this->assertSame(ApplicationStatus::AWAITING_DOCUMENTS, $application->fresh()->status);
 
         $requirement = $application->requirements()->where('code', 'KTP')->firstOrFail();
@@ -337,8 +341,86 @@ class ApplicationWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('Lanjut ke pembayaran');
         $this->actingAs($user)->post(route('client.applications.payment', $application->public_id))->assertRedirect();
+        $this->actingAs($user)->post(route('client.applications.payment', $application->public_id), [
+            'payment_method' => PaymentMethod::BCA->value,
+        ])->assertRedirect();
         $this->assertSame(ApplicationStatus::AWAITING_PAYMENT, $application->fresh()->status);
         $this->assertSame(PaymentStatus::PENDING, $application->fresh()->payments()->latest('id')->first()->status);
+    }
+
+    public function test_client_submission_rechecks_documents_uploaded_while_draft_and_keeps_optional_npwp_optional(): void
+    {
+        Notification::fake();
+        Storage::fake('private');
+        Storage::fake('quarantine');
+        $user = User::factory()->create();
+        $service = Service::factory()->create(['code' => 'NPWP_PERSONAL', 'status' => ServiceStatus::ACTIVE, 'price_amount' => 100000]);
+        ServiceRequirement::factory()->create(['service_id' => $service->id, 'code' => 'KTP', 'is_required' => true]);
+        ServiceRequirement::factory()->create(['service_id' => $service->id, 'code' => 'KK', 'is_required' => true]);
+        ServiceRequirement::factory()->create(['service_id' => $service->id, 'code' => 'NPWP', 'is_required' => false]);
+
+        $this->actingAs($user)->post(route('client.applications.store'), [
+            'service_public_id' => $service->public_id,
+            'kind' => 'NPWP_PERSONAL',
+            'consent' => 1,
+            'name' => 'Synthetic Draft Upload Client',
+            'nik' => '3173055501010001',
+            'family_card_number' => '3173055501010002',
+        ])->assertRedirect();
+        $application = Application::query()->where('user_id', $user->id)->latest('id')->firstOrFail();
+
+        foreach (['KTP' => 'ktp.pdf', 'KK' => 'kk.pdf'] as $code => $filename) {
+            $requirement = $application->requirements()->where('code', $code)->firstOrFail();
+            $this->actingAs($user)->post(route('client.documents.store', [$application->public_id, $requirement->public_id]), [
+                'file' => UploadedFile::fake()->createWithContent($filename, "%PDF-1.4\n%%EOF"),
+            ])->assertRedirect();
+        }
+
+        $this->assertSame(ApplicationStatus::DRAFT, $application->fresh()->status);
+        $this->actingAs($user)->get(route('client.applications.show', $application->public_id))
+            ->assertOk()
+            ->assertSee('Kirim pengajuan');
+
+        $this->actingAs($user)->post(route('client.applications.submit', $application->public_id))
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Data dan dokumen lengkap. Silakan lanjut ke pembayaran.');
+        $this->assertSame(ApplicationStatus::DOCUMENTS_READY_FOR_PAYMENT, $application->fresh()->status);
+        $this->assertDatabaseCount('application_status_histories', 3);
+        $this->assertDatabaseMissing('documents', ['application_id' => $application->id, 'application_requirement_id' => $application->requirements()->where('code', 'NPWP')->value('id')]);
+
+        $this->actingAs($user)->post(route('client.applications.submit', $application->public_id))
+            ->assertSessionHasErrors('error');
+        $this->assertDatabaseCount('application_status_histories', 3);
+    }
+
+    public function test_completed_awaiting_documents_state_exposes_send_submission_cta(): void
+    {
+        $user = User::factory()->create();
+        $service = Service::factory()->create(['code' => 'NPWP_PERSONAL']);
+        $application = Application::factory()->create([
+            'user_id' => $user->id,
+            'service_id' => $service->id,
+            'status' => ApplicationStatus::AWAITING_DOCUMENTS,
+        ]);
+        $requirement = ApplicationRequirement::factory()->create([
+            'application_id' => $application->id,
+            'code' => 'KTP',
+            'is_required' => true,
+        ]);
+        Document::factory()->create([
+            'application_id' => $application->id,
+            'application_requirement_id' => $requirement->id,
+            'uploaded_by_user_id' => $user->id,
+            'active' => true,
+            'scan_status' => DocumentScanStatus::PASSED,
+        ]);
+
+        $this->actingAs($user)->get(route('client.applications.show', $application->public_id))
+            ->assertOk()
+            ->assertSee('Siap dikirim')
+            ->assertSee('Kirim pengajuan')
+            ->assertSee('Setelah dikirim, Anda akan melanjutkan ke tahap pembayaran.', false)
+            ->assertDontSee('Dokumen wajib belum lengkap');
     }
 
     public function test_revision_submission_requires_targeted_documents_then_returns_to_review(): void

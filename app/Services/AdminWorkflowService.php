@@ -28,14 +28,25 @@ class AdminWorkflowService
 
     public function beginReview(Application $application, Admin $admin): Application
     {
-        if (! in_array($application->status, [ApplicationStatus::DOCUMENTS_SUBMITTED, ApplicationStatus::REVISION_SUBMITTED], true)) {
-            throw new \DomainException('Aplikasi belum siap untuk pemeriksaan.');
-        }
+        return DB::transaction(function () use ($application, $admin): Application {
+            $locked = Application::query()
+                ->lockForUpdate()
+                ->findOrFail($application->getKey());
 
-        $application->forceFill(['assigned_admin_id' => $admin->getKey()])->save();
-        $application->chatThread()->update(['assigned_admin_id' => $admin->getKey()]);
+            if ($locked->status === ApplicationStatus::UNDER_REVIEW
+                && (int) $locked->assigned_admin_id === (int) $admin->getKey()) {
+                return $locked->load(['user', 'service']);
+            }
 
-        return $this->transitions->transition($application, ApplicationStatus::UNDER_REVIEW, $admin);
+            if (! in_array($locked->status, [ApplicationStatus::DOCUMENTS_SUBMITTED, ApplicationStatus::REVISION_SUBMITTED], true)) {
+                throw new \DomainException('Aplikasi belum siap untuk pemeriksaan.');
+            }
+
+            $locked->forceFill(['assigned_admin_id' => $admin->getKey()])->save();
+            $locked->chatThread()->update(['assigned_admin_id' => $admin->getKey()]);
+
+            return $this->transitions->transition($locked, ApplicationStatus::UNDER_REVIEW, $admin);
+        });
     }
 
     public function reviewDocument($document, Admin $admin, DocumentReviewAction $action, ?string $reason, ?string $instruction): Application
@@ -173,41 +184,81 @@ class AdminWorkflowService
 
     public function verifyResult(ResultDocument $result, Admin $admin, bool $verified, ?string $reason = null): ResultDocument
     {
-        if ($result->application->status !== ApplicationStatus::RESULT_REVIEW || $result->scan_status->value !== 'PASSED' || $result->deleted_at !== null) {
-            throw new \DomainException('Hasil belum dapat diverifikasi.');
-        }
         if (! $verified && blank($reason)) {
             throw new \DomainException('Berikan alasan jika hasil tidak diverifikasi.');
         }
 
-        $result->forceFill([
-            'verification_status' => $verified ? ResultVerificationStatus::VERIFIED : ResultVerificationStatus::REJECTED,
-            'verified_by_admin_id' => $admin->getKey(),
-            'verified_at' => now(),
-            'rejection_reason' => $verified ? null : $reason,
-        ])->save();
-        $this->audit->record('result.verification_changed', $result, ['verified' => $verified, 'reason' => $reason], $admin);
+        return DB::transaction(function () use ($result, $admin, $verified, $reason): ResultDocument {
+            $application = Application::query()
+                ->lockForUpdate()
+                ->findOrFail($result->application_id);
 
-        if ($verified && $result->type === ResultDocumentType::PRIMARY_RESULT) {
-            try {
-                $this->notifications->resultAvailable($result);
-            } catch (\Throwable $exception) {
-                logger()->warning('result_available_notification_failed', [
-                    'exception_class' => $exception::class,
-                ]);
+            $lockedResult = ResultDocument::query()
+                ->lockForUpdate()
+                ->findOrFail($result->getKey());
+
+            if ($application->status !== ApplicationStatus::RESULT_REVIEW
+                || $lockedResult->scan_status->value !== 'PASSED'
+                || $lockedResult->deletion_scheduled_at !== null
+                || $lockedResult->deleted_at !== null) {
+                throw new \DomainException('Hasil belum dapat diverifikasi.');
             }
-        }
 
-        return $result->fresh();
+            $lockedResult->forceFill([
+                'verification_status' => $verified ? ResultVerificationStatus::VERIFIED : ResultVerificationStatus::REJECTED,
+                'verified_by_admin_id' => $admin->getKey(),
+                'verified_at' => now(),
+                'rejection_reason' => $verified ? null : $reason,
+            ])->save();
+            $this->audit->record('result.verification_changed', $lockedResult, ['verified' => $verified, 'reason' => $reason], $admin);
+
+            if ($verified && $lockedResult->type === ResultDocumentType::PRIMARY_RESULT) {
+                try {
+                    $this->notifications->resultAvailable($lockedResult);
+                } catch (\Throwable $exception) {
+                    logger()->warning('result_available_notification_failed', [
+                        'exception_class' => $exception::class,
+                    ]);
+                }
+            }
+
+            return $lockedResult->fresh();
+        });
     }
 
     public function complete(Application $application, Admin $admin): Application
     {
-        if ($application->status !== ApplicationStatus::RESULT_REVIEW || ! $application->hasVerifiedPrimaryResult()) {
-            throw new \DomainException('Aplikasi belum memiliki hasil utama yang diverifikasi.');
-        }
+        return DB::transaction(function () use ($application, $admin): Application {
+            $lockedApp = Application::query()
+                ->lockForUpdate()
+                ->findOrFail($application->getKey());
 
-        return $this->transitions->transition($application, ApplicationStatus::COMPLETED, $admin);
+            if ($lockedApp->status === ApplicationStatus::COMPLETED) {
+                return $lockedApp->load(['user', 'service']);
+            }
+
+            if ($lockedApp->status !== ApplicationStatus::RESULT_REVIEW) {
+                throw new \DomainException('Aplikasi belum memiliki hasil utama yang diverifikasi.');
+            }
+
+            $primaryResults = $lockedApp->resultDocuments()
+                ->where('type', ResultDocumentType::PRIMARY_RESULT)
+                ->whereNull('deletion_scheduled_at')
+                ->whereNull('deleted_at')
+                ->where('scan_status', 'PASSED')
+                ->lockForUpdate()
+                ->get();
+
+            $hasVerified = $primaryResults->contains(
+                fn (ResultDocument $doc): bool => $doc->verification_status === ResultVerificationStatus::VERIFIED
+            );
+
+            if (! $hasVerified) {
+                throw new \DomainException('Aplikasi belum memiliki hasil utama yang diverifikasi.');
+            }
+
+            return $this->transitions->transition($lockedApp, ApplicationStatus::COMPLETED, $admin);
+        });
     }
 
     public function archive(Application $application, Admin $admin): Application

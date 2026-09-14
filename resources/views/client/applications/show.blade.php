@@ -8,7 +8,7 @@
     $canEditDetails = in_array($application->status->value, ['DRAFT', 'AWAITING_DOCUMENTS'], true);
     $canUploadGenerally = in_array($application->status->value, ['DRAFT', 'AWAITING_DOCUMENTS', 'DOCUMENTS_READY_FOR_PAYMENT', 'AWAITING_PAYMENT'], true);
     $requiredRequirements = $application->requirements->where('active', true)->where('is_required', true);
-    $completeRequired = $requiredRequirements->filter(fn ($requirement) => $requirement->documents->contains(fn ($document) => $document->active && $document->scan_status->value === 'PASSED'));
+    $completeRequired = $requiredRequirements->filter(fn ($requirement) => $requirement->documents->contains(fn ($document) => $document->active && $document->scan_status->value === 'PASSED' && $document->deletion_scheduled_at === null && $document->deleted_at === null));
     $latestPayment = $application->payments->sortByDesc('id')->first();
     $paymentPresentation = \App\Support\PaymentStatusPresenter::for($latestPayment?->status, $latestPayment?->status?->value === 'PENDING' && $latestPayment?->expires_at?->isPast());
     $verifiedResults = $application->resultDocuments->filter(fn ($result) => $result->deleted_at === null && $result->verification_status->value === 'VERIFIED');
@@ -57,7 +57,7 @@
             <strong>{{ $statusPresentation['next_action'] }}</strong>
             @if($statusPresentation['cta_label'])
                 @if($statusPresentation['cta_method'] === 'post')
-                    <form method="post" action="{{ route('client.applications.documents.submit', $application->public_id) }}">
+                    <form method="post" action="{{ $statusPresentation['cta_url'] }}">
                         @csrf
                         <button class="pb-button pb-button--light" type="submit">{{ $statusPresentation['cta_label'] }}</button>
                     </form>
@@ -161,7 +161,13 @@
                     </section>
                 @endif
 
-                @if($application->status->value === 'DRAFT')
+                @if($application->status->value === 'DRAFT' && $requiredRequirements->isNotEmpty() && $completeRequired->count() === $requiredRequirements->count())
+                    <form class="pb-section-submit" method="post" action="{{ route('client.applications.submit', $application->public_id) }}">
+                        @csrf
+                        <div><strong>Data dan dokumen sudah lengkap?</strong><p>Setelah dikirim, Anda akan melanjutkan ke tahap pembayaran. Pemeriksaan dilakukan setelah pembayaran terkonfirmasi.</p></div>
+                        <button class="pb-button pb-button--primary" type="submit">Kirim pengajuan</button>
+                    </form>
+                @elseif($application->status->value === 'DRAFT')
                     <form class="pb-section-submit" method="post" action="{{ route('client.applications.submit', $application->public_id) }}">
                         @csrf
                         <div><strong>Data awal sudah lengkap?</strong><p>Lanjutkan untuk membuka tahap pengumpulan dokumen.</p></div>
@@ -199,7 +205,8 @@
             @endif
 
             @if($showProcessSection)
-            <section id="proses" class="pb-workspace-section" tabindex="-1" aria-labelledby="process-title">
+            <details open data-phone-disclosure id="proses" class="pb-workspace-section" tabindex="-1" aria-labelledby="process-title">
+                <summary>Riwayat pengajuan @if($timeline->first())<small>{{ $timeline->first()['label'] }} · {{ $timeline->first()['timestamp']->translatedFormat('d M Y, H:i') }}</small>@endif</summary>
                 <div class="pb-section-heading"><div><p class="pb-kicker">Proses</p><h2 id="process-title">Riwayat pengajuan</h2></div></div>
                 <ol class="pb-timeline">
                     @forelse($timeline as $event)
@@ -215,7 +222,7 @@
                         <li class="pb-inline-empty">Belum ada riwayat proses.</li>
                     @endforelse
                 </ol>
-            </section>
+            </details>
             @endif
 
             @if($showResultSection)
@@ -240,7 +247,8 @@
         </div>
 
         <aside class="pb-workspace-aside" aria-label="Tindakan dan bantuan pengajuan">
-            <section class="pb-sidebar-summary" aria-labelledby="summary-title">
+            <details open data-phone-disclosure id="ringkasan" class="pb-sidebar-summary" aria-labelledby="summary-title">
+                <summary>Ringkasan pengajuan</summary>
                 <p class="pb-kicker">Ringkasan</p>
                 <h2 id="summary-title" class="sr-only">Ringkasan pengajuan</h2>
                 <dl>
@@ -262,7 +270,7 @@
                         <p>{{ $statusPresentation['description'] }}</p>
                     @endif
                 </div>
-            </section>
+            </details>
             <section class="pb-help-panel">
                 <h2>Butuh bantuan?</h2>
                 <p>Bantuan umum tersedia di Pusat Bantuan. Pertanyaan khusus pengajuan ini dapat dikirim melalui chat.</p>
@@ -300,7 +308,7 @@
 </div>
 
 @if($canCancel)
-    <dialog class="pb-cancellation-dialog" data-cancel-dialog aria-labelledby="cancel-dialog-title" aria-describedby="cancel-dialog-description">
+    <dialog class="pb-cancellation-dialog" data-cancel-dialog data-open-on-load="{{ $errors->has('reason') || $errors->has('reason_other') ? 'true' : 'false' }}" aria-labelledby="cancel-dialog-title" aria-describedby="cancel-dialog-description">
         <form method="post" action="{{ route('client.applications.cancel', $application->public_id) }}">
             @csrf
             @method('PATCH')
@@ -331,103 +339,3 @@
     </dialog>
 @endif
 @endsection
-
-@push('scripts')
-<script>
-(() => {
-    const cancellationDialog = document.querySelector('[data-cancel-dialog]');
-    const cancellationTrigger = document.querySelector('[data-cancel-dialog-open]');
-    const cancellationClose = document.querySelector('[data-cancel-dialog-close]');
-    const cancellationReason = document.querySelector('[data-cancellation-reason]');
-    const cancellationOther = document.querySelector('[data-cancellation-other]');
-    const updateCancellationOther = () => {
-        if (!cancellationOther || !cancellationReason) return;
-        cancellationOther.hidden = cancellationReason.value !== 'OTHER';
-        cancellationOther.querySelector('textarea')?.toggleAttribute('required', cancellationReason.value === 'OTHER');
-    };
-    cancellationTrigger?.addEventListener('click', () => cancellationDialog?.showModal());
-    cancellationClose?.addEventListener('click', () => cancellationDialog?.close());
-    cancellationReason?.addEventListener('change', updateCancellationOther);
-    cancellationDialog?.addEventListener('click', (event) => {
-        if (event.target === cancellationDialog) cancellationDialog.close();
-    });
-    updateCancellationOther();
-    @if($errors->has('reason') || $errors->has('reason_other'))
-        cancellationDialog?.showModal();
-    @endif
-
-    document.querySelectorAll('[data-file-input]').forEach((input) => {
-        input.addEventListener('change', () => {
-            const target = document.getElementById(input.dataset.fileNameTarget);
-            if (target) target.textContent = input.files?.[0]?.name || 'Belum ada file dipilih.';
-            if (input.files?.length && input.dataset.autoSubmit !== undefined) input.form?.submit();
-        });
-    });
-
-    document.querySelectorAll('[data-face-upload]').forEach((surface) => {
-        const form = surface.querySelector('[data-face-form]');
-        if (!form) return;
-
-        const cameraInput = surface.querySelector('[data-face-camera-input]');
-        const fileInput = surface.querySelector('[data-face-file-input]');
-        const preview = surface.querySelector('[data-face-preview]');
-        const guide = surface.querySelector('[data-face-guide]');
-        const start = surface.querySelector('[data-face-start]');
-        const capture = surface.querySelector('[data-face-capture]');
-        const message = surface.querySelector('[data-face-message]');
-        let stream = null;
-
-        const stopCamera = () => {
-            stream?.getTracks().forEach((track) => track.stop());
-            stream = null;
-        };
-
-        fileInput.addEventListener('change', () => {
-            const target = document.getElementById(fileInput.dataset.fileNameTarget);
-            if (target) target.textContent = fileInput.files?.[0]?.name || 'Belum ada file dipilih.';
-            if (fileInput.files?.length) form.submit();
-        });
-
-        start.addEventListener('click', async () => {
-            if (!navigator.mediaDevices?.getUserMedia) {
-                message.textContent = 'Kamera tidak tersedia di browser ini. Pilih file foto sebagai alternatif.';
-                fileInput.click();
-                return;
-            }
-
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-                preview.srcObject = stream;
-                preview.hidden = false;
-                guide.hidden = true;
-                capture.hidden = false;
-                message.textContent = '';
-                await preview.play();
-            } catch (error) {
-                message.textContent = 'Izin kamera tidak tersedia. Anda tetap dapat mengunggah file foto.';
-                fileInput.click();
-            }
-        });
-
-        capture.addEventListener('click', () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = preview.videoWidth || 640;
-            canvas.height = preview.videoHeight || 480;
-            canvas.getContext('2d').drawImage(preview, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob((blob) => {
-                if (!blob) return;
-                const transfer = new DataTransfer();
-                transfer.items.add(new File([blob], 'foto-wajah.jpg', { type: 'image/jpeg' }));
-                cameraInput.files = transfer.files;
-                cameraInput.name = 'file';
-                fileInput.removeAttribute('name');
-                stopCamera();
-                form.submit();
-            }, 'image/jpeg', 0.9);
-        });
-
-        window.addEventListener('pagehide', stopCamera);
-    });
-})();
-</script>
-@endpush

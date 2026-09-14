@@ -38,6 +38,8 @@
                 <div>
                     <dt>Dokumen yang disiapkan</dt>
                     <dd>
+                        <details open data-phone-disclosure class="pb-start-requirements">
+                        <summary>Lihat persyaratan dokumen</summary>
                         <ul>
                             @foreach($service->requirements as $requirement)
                                 <li>
@@ -46,6 +48,7 @@
                                 </li>
                             @endforeach
                         </ul>
+                        </details>
                     </dd>
                 </div>
             </dl>
@@ -146,22 +149,4 @@
     </div>
 </div>
 
-@if($service->code === 'NPWP_BUSINESS')
-<script>
-    (() => {
-        const type = document.getElementById('business-type');
-        const otherField = document.getElementById('business-type-other-field');
-        const otherInput = document.getElementById('business-type-other');
-        if (!type || !otherField || !otherInput) return;
-        const update = () => {
-            const isOther = type.value === 'OTHER';
-            otherField.hidden = !isOther;
-            otherInput.required = isOther;
-            if (!isOther) otherInput.value = '';
-        };
-        type.addEventListener('change', update);
-        update();
-    })();
-</script>
-@endif
 @endsection

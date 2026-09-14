@@ -26,8 +26,12 @@ class ChatPresenceTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('cache.presence_store', 'array');
         Cache::store('array')->clear();
+    }
+
+    public function test_testing_environment_uses_the_ephemeral_presence_store(): void
+    {
+        $this->assertSame('array', app(ChatPresence::class)->storeName());
     }
 
     public function test_authenticated_client_heartbeat_records_only_the_authenticated_user(): void
@@ -163,6 +167,7 @@ class ChatPresenceTest extends TestCase
         $middleware = app('router')->gatherRouteMiddleware($route);
 
         $this->assertContains(ReadOnlySession::class, $middleware);
+        $this->assertSame(1, collect($middleware)->filter(fn (string $item): bool => $item === ReadOnlySession::class)->count());
         $this->assertNotContains(StartSession::class, $middleware);
     }
 

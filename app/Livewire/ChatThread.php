@@ -14,6 +14,7 @@ use App\Support\ChatQuickReplyPresenter;
 use DomainException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
 
 class ChatThread extends Component
@@ -21,6 +22,14 @@ class ChatThread extends Component
     private const TYPING_TTL_SECONDS = 5;
 
     private const PRESENCE_REFRESH_SECONDS = 20;
+
+    private const SEND_RATE_LIMIT = 30;
+
+    private const SEND_RATE_DECAY_SECONDS = 60;
+
+    private const TYPING_RATE_LIMIT = 60;
+
+    private const TYPING_RATE_DECAY_SECONDS = 60;
 
     public string $threadId;
 
@@ -54,6 +63,18 @@ class ChatThread extends Component
         $this->body = trim($this->body);
         $this->validate(['body' => ['required', 'string', 'max:2000']]);
         $thread = $this->thread();
+        $userId = (int) auth()->id();
+        $limiterKey = "chat:send:{$userId}:{$thread->getKey()}";
+
+        if (RateLimiter::tooManyAttempts($limiterKey, self::SEND_RATE_LIMIT)) {
+            $seconds = RateLimiter::availableIn($limiterKey);
+            $this->addError('body', "Terlalu banyak pesan terkirim. Mohon tunggu {$seconds} detik.");
+
+            return;
+        }
+
+        RateLimiter::hit($limiterKey, self::SEND_RATE_DECAY_SECONDS);
+
         [$message, $recipient] = DB::transaction(function () use ($thread): array {
             $lockedThread = ChatThreadModel::query()
                 ->with(['client', 'assignedAdmin.user'])
@@ -87,11 +108,19 @@ class ChatThread extends Component
     public function typing(): void
     {
         $thread = $this->thread();
-        $key = $this->typingCacheKey($thread, (int) auth()->id());
+        $userId = (int) auth()->id();
+        $key = $this->typingCacheKey($thread, $userId);
 
         if (blank(trim($this->body))) {
             Cache::forget($key);
-        } else {
+            $this->syncTypingState($thread);
+
+            return;
+        }
+
+        $typingLimiterKey = "chat:typing:{$userId}:{$thread->getKey()}";
+        if (! RateLimiter::tooManyAttempts($typingLimiterKey, self::TYPING_RATE_LIMIT)) {
+            RateLimiter::hit($typingLimiterKey, self::TYPING_RATE_DECAY_SECONDS);
             Cache::put($key, true, now()->addSeconds(self::TYPING_TTL_SECONDS));
         }
 

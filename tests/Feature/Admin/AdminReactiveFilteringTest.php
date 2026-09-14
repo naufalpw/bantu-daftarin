@@ -30,7 +30,7 @@ class AdminReactiveFilteringTest extends TestCase
         $admin = $this->admin();
         $client = User::factory()->create(['name' => 'Klien Reactive']);
         $review = $this->application($client, ApplicationStatus::DOCUMENTS_SUBMITTED, 'NPWP Review Reactive');
-        $this->application($client, ApplicationStatus::COMPLETED, 'NPWP Selesai Reactive');
+        $completed = $this->application($client, ApplicationStatus::COMPLETED, 'NPWP Selesai Reactive');
 
         Livewire::withQueryParams(['filter' => 'review', 'q' => 'Reactive'])
             ->actingAs($admin->user)
@@ -38,9 +38,11 @@ class AdminReactiveFilteringTest extends TestCase
             ->assertSet('filter', 'review')
             ->assertSet('search', 'Reactive')
             ->assertSee($review->service->name)
+            ->assertDontSee($completed->service->name)
             ->call('setPage', 2)
             ->call('setFilter', 'all')
             ->assertSet('paginators.page', 1)
+            ->assertSee($completed->service->name)
             ->set('search', 'Klien')
             ->assertSet('paginators.page', 1);
     }
@@ -59,13 +61,25 @@ class AdminReactiveFilteringTest extends TestCase
         Livewire::withQueryParams(['category' => 'document'])
             ->actingAs($admin->user)
             ->test(ActivityFeed::class)
-            ->assertSet('category', 'document');
+            ->assertSet('category', 'document')
+            ->call('setCategory', 'payment')
+            ->assertSet('category', 'payment')
+            ->assertSet('paginators.page', 1);
 
         Livewire::withQueryParams(['filter' => 'inactive', 'q' => 'client'])
             ->actingAs($admin->user)
             ->test(UserDirectory::class)
             ->assertSet('filter', 'inactive')
-            ->assertSet('search', 'client');
+            ->assertSet('search', 'client')
+            ->call('setFilter', 'active')
+            ->assertSet('filter', 'active')
+            ->assertSet('paginators.page', 1);
+
+        Livewire::actingAs($admin->user)
+            ->test(SupportInbox::class)
+            ->call('setFilter', 'unread')
+            ->assertSet('filter', 'unread')
+            ->assertSet('paginators.page', 1);
     }
 
     public function test_dashboard_period_updates_only_chart_component_state(): void
@@ -107,7 +121,10 @@ class AdminReactiveFilteringTest extends TestCase
                 ->get(route($routeName))
                 ->assertOk()
                 ->assertSee('wire:model.live.debounce.350ms="search"', false)
-                ->assertSee('wire:click.prevent="setFilter(', false)
+                ->assertSee('type="button"', false)
+                ->assertSee('wire:click="setFilter(', false)
+                ->assertSee('aria-pressed=', false)
+                ->assertDontSee('wire:click.prevent="setFilter(', false)
                 ->assertSee('wire:loading.delay.flex', false)
                 ->assertSee('wire:target=', false)
                 ->assertSee('style="display: none"', false)
@@ -116,6 +133,14 @@ class AdminReactiveFilteringTest extends TestCase
                 ->assertDontSee('wire:loading.class="bd-admin-reactive-region--loading"', false)
                 ->assertDontSee('>Cari</button>', false);
         }
+
+        $this->actingAs($admin->user)
+            ->get(route('admin.activity.index'))
+            ->assertOk()
+            ->assertSee('type="button"', false)
+            ->assertSee('wire:click="setCategory(', false)
+            ->assertSee('aria-pressed=', false)
+            ->assertDontSee('wire:click.prevent="setCategory(', false);
 
         $this->actingAs($admin->user)
             ->get(route('admin.dashboard'))

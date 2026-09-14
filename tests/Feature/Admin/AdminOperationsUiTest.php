@@ -223,6 +223,55 @@ class AdminOperationsUiTest extends TestCase
             ->assertSee('Percakapan tidak ditemukan');
     }
 
+    public function test_support_layout_keeps_the_same_https_vite_assets_for_desktop_and_mobile_clients(): void
+    {
+        $admin = $this->admin();
+        $forwardedHost = 'public-preview.example.test';
+        $desktopUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36';
+        $mobileUserAgent = 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36';
+        $responses = [];
+
+        foreach (['desktop' => $desktopUserAgent, 'mobile' => $mobileUserAgent] as $client => $userAgent) {
+            $response = $this->actingAs($admin->user)
+                ->withServerVariables([
+                    'HTTP_HOST' => $forwardedHost,
+                    'HTTP_USER_AGENT' => $userAgent,
+                    'HTTP_X_FORWARDED_HOST' => $forwardedHost,
+                    'HTTP_X_FORWARDED_PROTO' => 'https',
+                    'REMOTE_ADDR' => '127.0.0.1',
+                ])
+                ->get('/admin/support');
+
+            $response
+                ->assertOk()
+                ->assertSee('bd-admin-body', false)
+                ->assertSee('bd-admin-shell', false);
+
+            $html = $response->getContent();
+
+            $this->assertMatchesRegularExpression(
+                '#href="https://'.preg_quote($forwardedHost, '#').'/build/assets/app-[^"]+\.css"#',
+                $html,
+                "The {$client} response must load the compiled stylesheet over the forwarded HTTPS origin.",
+            );
+            $this->assertMatchesRegularExpression(
+                '#src="https://'.preg_quote($forwardedHost, '#').'/build/assets/app-[^"]+\.js"#',
+                $html,
+                "The {$client} response must load the compiled script over the forwarded HTTPS origin.",
+            );
+
+            preg_match_all('#<(?:link|script)\b[^>]+(?:href|src)="[^"]+/build/assets/[^"]+"[^>]*>#', $html, $matches);
+            $responses[$client] = $matches[0];
+        }
+
+        $this->assertNotEmpty($responses['desktop']);
+        $this->assertSame(
+            $responses['desktop'],
+            $responses['mobile'],
+            'The support page must not omit or replace Vite assets based on the user agent.',
+        );
+    }
+
     public function test_admin_chat_uses_contextual_headers_without_fake_presence(): void
     {
         $admin = $this->admin();

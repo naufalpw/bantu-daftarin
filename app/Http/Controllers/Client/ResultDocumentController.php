@@ -5,19 +5,16 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use App\Models\ResultDocument;
 use App\Services\AuditService;
+use App\Services\PrivateFileReader;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class ResultDocumentController extends Controller
 {
+    public function __construct(private readonly PrivateFileReader $files) {}
+
     public function download(Request $request, string $resultId)
     {
-        $result = ResultDocument::where('public_id', $resultId)->firstOrFail();
-        $this->authorize('download', $result);
-        $disk = Storage::disk($result->storage_disk);
-        abort_unless($disk->exists($result->storage_path), 404);
-        $stream = $disk->readStream($result->storage_path);
-        abort_unless(is_resource($stream), 404);
+        [$result, $stream] = $this->files->openResult($resultId, $request->user());
         $this->recordAccess($result, $request, 'DOWNLOAD');
         $downloadName = $this->downloadName($result->original_filename, $result->extension, 'result');
 
@@ -26,12 +23,7 @@ class ResultDocumentController extends Controller
 
     public function preview(Request $request, string $resultId)
     {
-        $result = ResultDocument::where('public_id', $resultId)->firstOrFail();
-        $this->authorize('download', $result);
-        $disk = Storage::disk($result->storage_disk);
-        abort_unless($disk->exists($result->storage_path), 404);
-        $stream = $disk->readStream($result->storage_path);
-        abort_unless(is_resource($stream), 404);
+        [$result, $stream] = $this->files->openResult($resultId, $request->user());
         $this->recordAccess($result, $request, 'VIEW');
         $downloadName = $this->downloadName($result->original_filename, $result->extension, 'result');
 

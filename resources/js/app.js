@@ -42,6 +42,302 @@ document.addEventListener('click', async (event) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+    const phoneViewport = window.matchMedia('(max-width: 430px)');
+    // Move the existing presentation node, never clone forms or Livewire controls.
+    document.querySelectorAll('[data-phone-move-to]').forEach((element) => {
+        const destination = document.querySelector(element.dataset.phoneMoveTo);
+        if (!destination) return;
+        const home = document.createComment('presentation-home');
+        element.before(home);
+        const syncPosition = () => {
+            if (phoneViewport.matches) destination.append(element);
+            else home.after(element);
+        };
+        syncPosition();
+        phoneViewport.addEventListener('change', syncPosition);
+    });
+    document.querySelectorAll('[data-phone-disclosure]').forEach((details) => {
+        const syncDisclosure = () => {
+            details.open = !phoneViewport.matches || details.hasAttribute('data-keep-open') || details.querySelector('[aria-invalid="true"]') !== null;
+        };
+        syncDisclosure();
+        phoneViewport.addEventListener('change', syncDisclosure);
+    });
+
+    const revealAnchor = (hash = location.hash) => {
+        let target;
+        try { target = document.getElementById(decodeURIComponent(hash.slice(1))); } catch { return; }
+        if (!target) return;
+        for (let node = target; node; node = node.parentElement) {
+            if (node instanceof HTMLDetailsElement) node.open = true;
+        }
+    };
+    revealAnchor();
+    window.addEventListener('hashchange', () => revealAnchor());
+    document.addEventListener('click', (event) => {
+        const link = event.target.closest('a[href]');
+        if (!link) return;
+        const destination = new URL(link.href, location.href);
+        if (destination.origin === location.origin && destination.pathname === location.pathname && destination.search === location.search && destination.hash) revealAnchor(destination.hash);
+    });
+    // Keep only the existing inbox URL, scoped to this tab; never accept an external return URL.
+    document.addEventListener('click', (event) => {
+        if (!phoneViewport.matches || !event.target.closest('[data-support-thread]')) return;
+        try { sessionStorage.setItem('bd-support-return', location.pathname + location.search); } catch { /* Storage may be unavailable. */ }
+    });
+    const supportReturn = document.querySelector('[data-support-return]');
+    if (supportReturn) {
+        const original = new URL(supportReturn.href);
+        const syncSupportReturn = () => {
+            supportReturn.href = original.href;
+            if (!phoneViewport.matches) return;
+            try {
+                const stored = sessionStorage.getItem('bd-support-return');
+                const destination = stored ? new URL(stored, location.origin) : null;
+                if (destination?.origin === location.origin && destination.pathname === original.pathname) supportReturn.href = destination.href;
+            } catch { /* The original safe link remains available. */ }
+        };
+        syncSupportReturn();
+        phoneViewport.addEventListener('change', syncSupportReturn);
+    }
+    if (phoneViewport.matches) {
+        const error = document.querySelector('[data-phone-form-error]');
+        if (error) {
+            for (let node = error.parentElement; node; node = node.parentElement) {
+                if (node instanceof HTMLDetailsElement) node.open = true;
+            }
+            error.tabIndex = -1;
+            error.focus({ preventScroll: true });
+            error.scrollIntoView({ block: 'center' });
+        }
+    }
+
+    document.querySelectorAll('[data-otp-resend]').forEach((container) => {
+        const button = container.querySelector('[data-otp-resend-button]');
+        const countdown = container.querySelector('[data-otp-countdown]');
+        const waiting = container.querySelector('[data-otp-resend-waiting]');
+        const ready = container.querySelector('[data-otp-resend-ready]');
+        if (!button || !countdown || !waiting || !ready) return;
+
+        let remaining = Math.max(0, Number.parseInt(container.dataset.otpResendRemaining || '0', 10));
+        const render = () => {
+            const isWaiting = remaining > 0;
+            countdown.textContent = String(remaining);
+            waiting.hidden = !isWaiting;
+            ready.hidden = isWaiting;
+            button.disabled = isWaiting;
+            button.setAttribute('aria-disabled', isWaiting ? 'true' : 'false');
+        };
+
+        render();
+        if (remaining === 0) return;
+
+        const timer = window.setInterval(() => {
+            remaining -= 1;
+            render();
+
+            if (remaining === 0) window.clearInterval(timer);
+        }, 1000);
+    });
+
+    const businessType = document.getElementById('business-type');
+    const businessTypeOtherField = document.getElementById('business-type-other-field');
+    const businessTypeOtherInput = document.getElementById('business-type-other');
+    if (businessType && businessTypeOtherField && businessTypeOtherInput) {
+        const updateBusinessType = () => {
+            const isOther = businessType.value === 'OTHER';
+            businessTypeOtherField.hidden = !isOther;
+            businessTypeOtherInput.required = isOther;
+            if (!isOther) businessTypeOtherInput.value = '';
+        };
+        businessType.addEventListener('change', updateBusinessType);
+        updateBusinessType();
+    }
+
+    document.querySelectorAll('[data-registration-face-upload]').forEach((form) => {
+        const input = form.querySelector('#face-file');
+        const preview = document.getElementById('face-camera-preview');
+        const guide = document.getElementById('face-guide-image');
+        const startButton = document.getElementById('face-camera-button');
+        const captureButton = document.getElementById('face-capture-button');
+        const fileName = document.getElementById('face-file-name');
+        if (!input || !preview || !guide || !startButton || !captureButton || !fileName) return;
+
+        let stream = null;
+        const stopCamera = () => {
+            stream?.getTracks().forEach((track) => track.stop());
+            stream = null;
+        };
+        const submitFile = () => {
+            if (!input.files?.length) return;
+            fileName.textContent = input.files[0].name;
+            form.submit();
+        };
+
+        input.addEventListener('change', submitFile);
+        startButton.addEventListener('click', async () => {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                input.click();
+                return;
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                preview.srcObject = stream;
+                preview.hidden = false;
+                guide.hidden = true;
+                captureButton.hidden = false;
+                await preview.play();
+            } catch {
+                input.click();
+            }
+        });
+        captureButton.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = preview.videoWidth || 640;
+            canvas.height = preview.videoHeight || 480;
+            canvas.getContext('2d').drawImage(preview, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([blob], 'foto-wajah.jpg', { type: 'image/jpeg' }));
+                input.files = transfer.files;
+                stopCamera();
+                submitFile();
+            }, 'image/jpeg', 0.9);
+        });
+        window.addEventListener('pagehide', stopCamera);
+    });
+
+    const cancellationDialog = document.querySelector('[data-cancel-dialog]');
+    if (cancellationDialog) {
+        const cancellationTrigger = document.querySelector('[data-cancel-dialog-open]');
+        const cancellationClose = cancellationDialog.querySelector('[data-cancel-dialog-close]');
+        const cancellationReason = cancellationDialog.querySelector('[data-cancellation-reason]');
+        const cancellationOther = cancellationDialog.querySelector('[data-cancellation-other]');
+        const updateCancellationOther = () => {
+            if (!cancellationOther || !cancellationReason) return;
+            const isOther = cancellationReason.value === 'OTHER';
+            cancellationOther.hidden = !isOther;
+            cancellationOther.querySelector('textarea')?.toggleAttribute('required', isOther);
+        };
+
+        cancellationTrigger?.addEventListener('click', () => cancellationDialog.showModal());
+        cancellationClose?.addEventListener('click', () => cancellationDialog.close());
+        cancellationReason?.addEventListener('change', updateCancellationOther);
+        cancellationDialog.addEventListener('click', (event) => {
+            if (event.target === cancellationDialog) cancellationDialog.close();
+        });
+        updateCancellationOther();
+        if (cancellationDialog.dataset.openOnLoad === 'true') cancellationDialog.showModal();
+    }
+
+    const showUploadPending = (form) => {
+        if (!form || !phoneViewport.matches) return;
+        form.setAttribute('aria-busy', 'true');
+        const status = form.querySelector('[data-upload-status]');
+        if (status) status.hidden = false;
+    };
+    window.addEventListener('pageshow', () => {
+        document.querySelectorAll('[data-upload-status]').forEach((status) => {
+            status.hidden = true;
+            status.closest('form')?.removeAttribute('aria-busy');
+        });
+    });
+    document.querySelectorAll('[data-file-input]').forEach((input) => {
+        input.addEventListener('change', () => {
+            const target = input.dataset.fileNameTarget
+                ? document.getElementById(input.dataset.fileNameTarget)
+                : null;
+            if (target) target.textContent = input.files?.[0]?.name || 'Belum ada file dipilih.';
+            if (input.files?.length && input.dataset.autoSubmit !== undefined) {
+                showUploadPending(input.form);
+                input.form?.submit();
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-face-upload]').forEach((surface) => {
+        const form = surface.querySelector('[data-face-form]');
+        const cameraInput = surface.querySelector('[data-face-camera-input]');
+        const fileInput = surface.querySelector('[data-face-file-input]');
+        const preview = surface.querySelector('[data-face-preview]');
+        const guide = surface.querySelector('[data-face-guide]');
+        const start = surface.querySelector('[data-face-start]');
+        const capture = surface.querySelector('[data-face-capture]');
+        const cancel = surface.querySelector('[data-face-cancel]');
+        const message = surface.querySelector('[data-face-message]');
+        if (!form || !cameraInput || !fileInput || !preview || !guide || !start || !capture || !message) return;
+
+        let stream = null;
+        const stopCamera = () => {
+            stream?.getTracks().forEach((track) => track.stop());
+            stream = null;
+        };
+        cancel?.addEventListener('click', () => {
+            stopCamera();
+            preview.srcObject = null;
+            preview.hidden = true;
+            guide.hidden = false;
+            capture.hidden = true;
+            cancel.hidden = true;
+            start.focus();
+        });
+
+        fileInput.addEventListener('change', () => {
+            const target = fileInput.dataset.fileNameTarget
+                ? document.getElementById(fileInput.dataset.fileNameTarget)
+                : null;
+            if (target) target.textContent = fileInput.files?.[0]?.name || 'Belum ada file dipilih.';
+            if (fileInput.files?.length) {
+                showUploadPending(form);
+                form.submit();
+            }
+        });
+
+        start.addEventListener('click', async () => {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                message.textContent = 'Kamera tidak tersedia di browser ini. Pilih file foto sebagai alternatif.';
+                fileInput.click();
+                return;
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                preview.srcObject = stream;
+                preview.hidden = false;
+                guide.hidden = true;
+                capture.hidden = false;
+                if (cancel) cancel.hidden = false;
+                message.textContent = '';
+                await preview.play();
+            } catch {
+                message.textContent = 'Izin kamera tidak tersedia. Anda tetap dapat mengunggah file foto.';
+                fileInput.click();
+            }
+        });
+
+        capture.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = preview.videoWidth || 640;
+            canvas.height = preview.videoHeight || 480;
+            canvas.getContext('2d').drawImage(preview, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([blob], 'foto-wajah.jpg', { type: 'image/jpeg' }));
+                cameraInput.files = transfer.files;
+                cameraInput.name = 'file';
+                fileInput.removeAttribute('name');
+                stopCamera();
+                showUploadPending(form);
+                form.submit();
+            }, 'image/jpeg', 0.9);
+        });
+
+        window.addEventListener('pagehide', stopCamera);
+    });
+
     // ── Chat auto-scroll ──────────────────────────────────────────────────────
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const scrollBehavior = () => reducedMotion.matches ? 'instant' : 'smooth';
@@ -162,12 +458,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
         let returnFocus = null;
+        const drawerViewport = window.matchMedia('(max-width: 1023px)');
+        const syncDrawerAccess = () => {
+            drawer.inert = drawerViewport.matches && !drawer.classList.contains('is-open');
+        };
+        syncDrawerAccess();
+        drawerViewport.addEventListener('change', syncDrawerAccess);
 
         const closeDrawer = ({ restoreFocus = true } = {}) => {
             drawer.classList.remove('is-open');
             document.body.classList.remove('is-admin-drawer-open');
             openButton.setAttribute('aria-expanded', 'false');
             backdrop.hidden = true;
+            syncDrawerAccess();
 
             if (restoreFocus && returnFocus instanceof HTMLElement) {
                 returnFocus.focus();
@@ -180,6 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('is-admin-drawer-open');
             openButton.setAttribute('aria-expanded', 'true');
             backdrop.hidden = false;
+            syncDrawerAccess();
 
             const firstFocusable = drawer.querySelector(focusableSelector);
             if (firstFocusable instanceof HTMLElement) {
@@ -468,7 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let testimonials;
 
         try {
-            testimonials = JSON.parse(data.textContent || '[]');
+            testimonials = JSON.parse(data.content?.textContent || data.textContent || '[]');
         } catch {
             return;
         }

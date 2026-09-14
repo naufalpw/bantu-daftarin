@@ -42,8 +42,26 @@ final class ApplicationStatusPresenter
         $presentation['cta_url'] = match ($application->status) {
             ApplicationStatus::DOCUMENTS_READY_FOR_PAYMENT,
             ApplicationStatus::AWAITING_PAYMENT => route('client.payments.show', $application->public_id),
+            ApplicationStatus::PAYMENT_CONFIRMED => route('client.applications.documents.submit', $application->public_id),
+            ApplicationStatus::AWAITING_DOCUMENTS => $application->hasAllRequiredDocuments()
+                ? route('client.applications.submit', $application->public_id)
+                : route('client.applications.show', $application->public_id).'#'.$section,
             default => route('client.applications.show', $application->public_id).'#'.$section,
         };
+
+        if ($application->status === ApplicationStatus::AWAITING_DOCUMENTS && $application->hasAllRequiredDocuments()) {
+            $presentation = self::make(
+                'Siap dikirim',
+                'Data dan dokumen wajib telah lengkap.',
+                'action',
+                'Setelah dikirim, Anda akan melanjutkan ke tahap pembayaran. Pemeriksaan dilakukan setelah pembayaran terkonfirmasi.',
+                'Kirim pengajuan',
+                'post',
+                1,
+                'Data & dokumen',
+                'data-dokumen'
+            ) + ['cta_url' => route('client.applications.submit', $application->public_id)];
+        }
 
         if ($presentation['cta_label'] === null) {
             $presentation['cta_url'] = null;

@@ -21,9 +21,9 @@ class PasswordResetController extends Controller
     public function sendLink(Request $request): RedirectResponse
     {
         $request->validate(['email' => ['required', 'email:rfc']]);
-        $status = Password::sendResetLink($request->only('email'));
+        Password::sendResetLink($request->only('email'));
 
-        return back()->with('status', __($status));
+        return back()->with('status', __('passwords.sent_if_registered'));
     }
 
     public function resetForm(Request $request, string $token): View

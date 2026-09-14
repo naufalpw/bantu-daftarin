@@ -22,7 +22,7 @@
     @if($requirement)
         <form method="post" enctype="multipart/form-data" action="{{ route('client.documents.store', [$application->public_id, $requirement->public_id]) }}">
             @csrf
-            <input id="{{ $elementId }}" type="file" name="file" accept=".jpg,.jpeg,.png,.pdf" required hidden onchange="this.form.submit()">
+            <input id="{{ $elementId }}" type="file" name="file" accept=".jpg,.jpeg,.png,.pdf" required hidden data-file-input data-auto-submit>
             <label class="bd-registration-upload-button" for="{{ $elementId }}">
                 <img src="{{ asset('images/figma/registration/personal/upload.svg') }}" alt="">
                 <span>{{ $buttonLabel }}</span>

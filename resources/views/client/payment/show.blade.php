@@ -24,7 +24,7 @@
     </header>
 
     <div class="pb-payment-layout">
-        <aside class="pb-order-summary" aria-labelledby="order-summary-title">
+        <aside class="pb-order-summary" @if($state === 'waiting') data-phone-move-to="#payment-reference-position" @endif aria-labelledby="order-summary-title">
             <h2 id="order-summary-title">Ringkasan pembayaran</h2>
             <dl>
                 <div><dt>Layanan</dt><dd>{{ $application->service->name }}</dd></div>
@@ -43,6 +43,7 @@
                 <span class="pb-status pb-status--{{ $paymentPresentation['tone'] }}">{{ $paymentPresentation['label'] }}</span>
             </div>
 
+            @if($state === 'waiting')<p class="bd-phone-only pb-payment-total"><span>Total</span><strong>{{ $application->currency }} {{ $amount }}</strong></p>@endif
             @if($state === 'cancelled')
                 <div class="pb-payment-cancelled" data-payment-state="cancelled">
                     <strong>Pengajuan telah dibatalkan</strong>
@@ -56,7 +57,7 @@
                         <div class="pb-payment-code">
                             <span>Nomor Virtual Account {{ $payment->payment_method?->label() }}</span>
                             <strong>{{ $payment->virtualAccountNumber() }}</strong>
-                            <button type="button" data-copy-value="{{ $payment->virtualAccountNumber() }}">Salin nomor</button>
+                            <button type="button" data-copy-value="{{ $payment->virtualAccountNumber() }}"><x-ui-icon class="bd-desktop-action-icon" name="copy" :size="15" />Salin nomor</button>
                         </div>
                     @elseif($payment->qrString())
                         <div class="pb-payment-qr">
@@ -118,6 +119,7 @@
                 </form>
             @endif
         </section>
+        <div id="payment-reference-position" class="pb-payment-reference-slot"></div>
     </div>
 </div>
 @endsection

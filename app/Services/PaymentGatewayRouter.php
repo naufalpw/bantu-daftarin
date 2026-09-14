@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Contracts\PaymentGateway;
 use App\Contracts\PaymentProvider;
 use App\Enums\PaymentMethod;
-use App\Exceptions\PaymentGatewayException;
+use App\Exceptions\PaymentGatewayDefinitiveException;
 use App\Models\Application;
 use App\Models\Payment;
 
@@ -22,6 +22,6 @@ class PaymentGatewayRouter implements PaymentGateway
             }
         }
 
-        throw new PaymentGatewayException('Metode pembayaran belum tersedia.');
+        throw new PaymentGatewayDefinitiveException('Metode pembayaran belum tersedia.');
     }
 }

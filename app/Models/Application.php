@@ -96,13 +96,27 @@ class Application extends BaseModel
 
     public function hasAllRequiredDocuments(): bool
     {
-        return $this->requirements()->where('active', true)->where('is_required', true)->get()->every(function (ApplicationRequirement $requirement): bool {
-            return $this->documents()->where('application_requirement_id', $requirement->id)->where('active', true)->where('scan_status', 'PASSED')->exists();
+        $requiredRequirements = $this->requirements()->where('active', true)->where('is_required', true)->get();
+
+        return $requiredRequirements->isNotEmpty() && $requiredRequirements->every(function (ApplicationRequirement $requirement): bool {
+            return $this->documents()
+                ->where('application_requirement_id', $requirement->id)
+                ->where('active', true)
+                ->where('scan_status', 'PASSED')
+                ->whereNull('deletion_scheduled_at')
+                ->whereNull('deleted_at')
+                ->exists();
         });
     }
 
     public function hasVerifiedPrimaryResult(): bool
     {
-        return $this->resultDocuments()->where('type', 'PRIMARY_RESULT')->where('verification_status', 'VERIFIED')->exists();
+        return $this->resultDocuments()
+            ->where('type', 'PRIMARY_RESULT')
+            ->where('verification_status', 'VERIFIED')
+            ->where('scan_status', 'PASSED')
+            ->whereNull('deletion_scheduled_at')
+            ->whereNull('deleted_at')
+            ->exists();
     }
 }
