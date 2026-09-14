@@ -17,10 +17,10 @@
         @if(session('status'))
             <div class="bd-admin-alert bd-admin-alert--success" role="status">{{ session('status') }}</div>
         @endif
-        @if($errors->any())
-            <div class="bd-admin-alert bd-admin-alert--danger" role="alert">
+        @if($errors->auth->any())
+            <div class="bd-admin-alert bd-admin-alert--danger" role="alert" data-auth-feedback>
                 <ul>
-                    @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
+                    @foreach($errors->auth->all() as $error)<li>{{ $error }}</li>@endforeach
                 </ul>
             </div>
         @endif

@@ -62,7 +62,7 @@ class OtpTest extends TestCase
         Notification::fake();
         $user = User::factory()->create(['password' => 'strong-password-123']);
         $this->post(route('login.store'), ['email' => $user->email, 'password' => 'strong-password-123']);
-        $this->post(route('auth.otp.verify'), ['code' => '000000'])->assertSessionHasErrors('code');
+        $this->post(route('auth.otp.verify'), ['code' => '000000'])->assertSessionHasErrorsIn('auth', 'challenge');
         $this->assertDatabaseHas('auth_challenges', ['user_id' => $user->id, 'attempts' => 1]);
     }
 
@@ -102,7 +102,7 @@ class OtpTest extends TestCase
         $user = User::factory()->unverified()->create();
 
         $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
-            ->assertSessionHasErrors('email');
+            ->assertSessionHasErrorsIn('auth', 'authentication');
         $this->assertDatabaseMissing('auth_challenges', ['user_id' => $user->id]);
     }
 
@@ -113,7 +113,7 @@ class OtpTest extends TestCase
         Admin::create(['user_id' => $user->id, 'email' => $user->email, 'role' => UserRole::SUPER_ADMIN, 'is_active' => false]);
 
         $this->post(route('admin.login.store'), ['email' => $user->email, 'password' => 'password'])
-            ->assertSessionHasErrors('email');
+            ->assertSessionHasErrorsIn('auth', 'authentication');
         $this->assertDatabaseMissing('auth_challenges', ['user_id' => $user->id]);
     }
 
@@ -127,7 +127,7 @@ class OtpTest extends TestCase
         $challenge->forceFill(['expires_at' => now()->subSecond()])->save();
 
         $this->post(route('auth.otp.verify'), ['code' => '000000'])
-            ->assertSessionHasErrors('code');
+            ->assertSessionHasErrorsIn('auth', 'challenge');
         $this->assertGuest();
     }
 
@@ -154,7 +154,7 @@ class OtpTest extends TestCase
             'pending_auth_challenge_id' => $challenge->public_id,
             'pending_auth_type' => AuthChallengeType::CLIENT_LOGIN->value,
         ]);
-        $this->post(route('auth.otp.verify'), ['code' => $code])->assertSessionHasErrors('code');
+        $this->post(route('auth.otp.verify'), ['code' => $code])->assertSessionHasErrorsIn('auth', 'challenge');
         $this->assertGuest();
     }
 
@@ -270,10 +270,86 @@ class OtpTest extends TestCase
             ]);
 
             $response->assertRedirect(route('login'));
-            $this->assertStringContainsString('30 detik', session('errors')->get('email')[0]);
+            $this->assertStringContainsString('30 detik', session('errors')->getBag('auth')->first('challenge'));
         } finally {
             Carbon::setTestNow();
         }
+    }
+
+    public function test_client_auth_and_otp_errors_have_one_visual_owner(): void
+    {
+        Notification::fake();
+
+        $loginResponse = $this->from(route('login'))->followingRedirects()->post(route('login.store'), [
+            'email' => 'missing@example.test',
+            'password' => 'invalid-password',
+        ]);
+
+        $loginResponse->assertOk()->assertSee('data-auth-feedback', false);
+        $this->assertSame(1, substr_count(strip_tags($loginResponse->getContent()), 'Email atau password tidak sesuai.'));
+        $loginResponse->assertDontSee('id="auth-email-error"', false);
+
+        $user = User::factory()->create(['password' => 'strong-password-123']);
+        $this->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'strong-password-123',
+        ])->assertRedirect(route('auth.otp'));
+
+        $otpResponse = $this->from(route('auth.otp'))->followingRedirects()->post(route('auth.otp.verify'), ['code' => '000000']);
+
+        $otpResponse->assertOk()->assertSee('data-auth-feedback', false);
+        $this->assertSame(1, substr_count(strip_tags($otpResponse->getContent()), 'Kode OTP tidak valid atau sudah kedaluwarsa.'));
+        $otpResponse->assertDontSee('id="otp-code-error"', false);
+
+        $resendResponse = $this->from(route('auth.otp'))->followingRedirects()->post(route('auth.otp.resend'));
+
+        $resendResponse->assertOk()->assertSee('data-auth-feedback', false);
+        $this->assertSame(
+            1,
+            substr_count(strip_tags($resendResponse->getContent()), 'Kode OTP baru belum dapat dikirim.')
+        );
+        $resendResponse->assertDontSee('id="otp-code-error"', false);
+    }
+
+    public function test_auth_field_validation_remains_inline_without_form_level_duplication(): void
+    {
+        $loginResponse = $this->from(route('login'))->followingRedirects()->post(route('login.store'), [
+            'email' => 'bukan-email',
+            'password' => '',
+        ]);
+
+        $loginResponse->assertOk()
+            ->assertSee('id="auth-email-error"', false)
+            ->assertSee('id="auth-password-error"', false)
+            ->assertDontSee('data-auth-feedback', false);
+
+        Notification::fake();
+        $user = User::factory()->create();
+        $challenge = app(AuthOtpService::class)->issue($user, AuthChallengeType::CLIENT_LOGIN);
+
+        foreach (['', '12'] as $code) {
+            $otpResponse = $this->withSession([
+                'pending_auth_user_id' => $user->id,
+                'pending_auth_challenge_id' => $challenge->public_id,
+                'pending_auth_type' => AuthChallengeType::CLIENT_LOGIN->value,
+            ])->from(route('auth.otp'))->followingRedirects()->post(route('auth.otp.verify'), ['code' => $code]);
+
+            $otpResponse->assertOk()
+                ->assertSee('id="otp-code-error"', false)
+                ->assertDontSee('data-auth-feedback', false);
+        }
+    }
+
+    public function test_admin_auth_error_uses_the_shared_form_level_channel_once(): void
+    {
+        $response = $this->from(route('admin.login'))->followingRedirects()->post(route('admin.login.store'), [
+            'email' => 'missing-admin@example.test',
+            'password' => 'invalid-password',
+        ]);
+
+        $response->assertOk()->assertSee('data-auth-feedback', false);
+        $this->assertSame(1, substr_count(strip_tags($response->getContent()), 'Email atau password tidak sesuai.'));
+        $response->assertDontSee('id="auth-email-error"', false);
     }
 
     public function test_used_otp_does_not_block_a_new_login_after_logout(): void

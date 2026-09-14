@@ -921,31 +921,39 @@
 }
 
 .pb-empty {
-    padding: 32px;
-    border: 1px dashed #9bb2d0;
+    padding: 36px 32px;
+    border: 1px solid #b9c9dd;
     border-radius: 14px;
     background: rgba(255, 255, 255, 0.7);
+    text-align: center;
+}
+
+.pb-empty__content {
+    display: flex;
+    width: min(100%, 460px);
+    margin-inline: auto;
+    flex-direction: column;
+    align-items: center;
 }
 
 .pb-empty h2 {
-    margin-bottom: 6px;
+    margin: 0;
 }
 
 .pb-empty p {
+    max-width: 42ch;
+    margin: 8px 0 0;
     color: var(--pb-muted);
+    line-height: 1.6;
+}
+
+.pb-empty .pb-button {
+    min-width: 144px;
+    margin-top: 20px;
 }
 
 .pb-empty--dashboard {
-    display: grid;
     margin-bottom: 40px;
-    grid-template-columns: 180px minmax(0, 1fr);
-    align-items: center;
-    gap: 28px;
-}
-
-.pb-empty--dashboard > img {
-    max-height: 130px;
-    object-fit: contain;
 }
 
 .pb-inline-empty {
@@ -1203,7 +1211,21 @@
 }
 
 .pb-field__error {
+    display: block;
     color: var(--pb-danger) !important;
+    font-size: 12px;
+    font-weight: 540;
+    line-height: 1.45;
+}
+
+.pb-auth-form input[aria-invalid='true'],
+.pb-login-form .pb-field input[aria-invalid='true'] {
+    border-color: #ca6262;
+    background: #fffafa;
+}
+
+.pb-auth-form label:not(.pb-field) > .pb-field__error {
+    margin-top: 6px;
 }
 
 .pb-consent {
@@ -3051,14 +3073,6 @@
 
     .pb-service-shortcuts__actions {
         flex-direction: row;
-    }
-
-    .pb-empty--dashboard {
-        grid-template-columns: 1fr;
-    }
-
-    .pb-empty--dashboard > img {
-        display: none;
     }
 
     .pb-service-option {
@@ -9608,10 +9622,24 @@
 
     /* Empty states remain honest but no longer look like oversized blank panels. */
     .pb-empty {
-        padding: 24px 18px;
+        padding: 24px 16px;
         border-color: #a8c5eb;
         border-radius: 17px;
         background: var(--pb-phone-blue-soft);
+    }
+
+    .pb-empty h2 {
+        font-size: 22px;
+        line-height: 1.25;
+    }
+
+    .pb-empty p {
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    .pb-empty .pb-button {
+        margin-top: 18px;
     }
 }
 

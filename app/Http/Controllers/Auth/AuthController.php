@@ -51,20 +51,20 @@ class AuthController extends Controller
         if (! $user || ! Hash::check($request->string('password')->toString(), $user->password) || ! $user->is_active) {
             $this->audit->record('authentication.login_failed', null, ['reason' => 'invalid_credentials'], null, $request);
 
-            return back()->withErrors(['email' => 'Email atau password tidak sesuai.'])->onlyInput('email');
+            return back()->withErrors(['authentication' => 'Email atau password tidak sesuai.'], 'auth')->onlyInput('email');
         }
         if (! $user->hasVerifiedEmail()) {
-            return back()->withErrors(['email' => 'Verifikasi email Anda terlebih dahulu.'])->onlyInput('email');
+            return back()->withErrors(['authentication' => 'Verifikasi email Anda terlebih dahulu.'], 'auth')->onlyInput('email');
         }
         if ($user->isAdmin() && ! $user->admin?->is_active) {
-            return back()->withErrors(['email' => 'Akun admin tidak aktif.'])->onlyInput('email');
+            return back()->withErrors(['authentication' => 'Akun admin tidak aktif.'], 'auth')->onlyInput('email');
         }
 
         $type = $user->isAdmin() ? AuthChallengeType::ADMIN_LOGIN : AuthChallengeType::CLIENT_LOGIN;
         try {
             $challenge = $this->otp->issue($user, $type);
         } catch (OtpChallengeException $exception) {
-            return back()->withErrors(['email' => $exception->getMessage()])->onlyInput('email');
+            return back()->withErrors(['challenge' => $exception->getMessage()], 'auth')->onlyInput('email');
         }
 
         $request->session()->put([
@@ -101,7 +101,7 @@ class AuthController extends Controller
         try {
             $this->otp->verify($user, $challenge, $request->string('code')->toString());
         } catch (OtpChallengeException $exception) {
-            return back()->withErrors(['code' => $exception->getMessage()]);
+            return back()->withErrors(['challenge' => $exception->getMessage()], 'auth');
         }
 
         return $user->isAdmin() ? redirect()->route('admin.dashboard') : redirect()->route('client.dashboard');
@@ -116,7 +116,7 @@ class AuthController extends Controller
             $challenge = $this->otp->resend($user, $type);
             $request->session()->put('pending_auth_challenge_id', $challenge->public_id);
         } catch (OtpChallengeException $exception) {
-            return back()->withErrors(['code' => $exception->getMessage()]);
+            return back()->withErrors(['challenge' => $exception->getMessage()], 'auth');
         }
 
         return back()->with('status', 'Kode OTP baru telah dikirim.');

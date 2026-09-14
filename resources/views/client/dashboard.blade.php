@@ -13,7 +13,7 @@
 
     @if($applications->isEmpty())
         <section class="pb-empty pb-empty--dashboard" aria-labelledby="empty-dashboard-title">
-            <div>
+            <div class="pb-empty__content">
                 <p class="pb-kicker">Mulai pengajuan</p>
                 <h2 id="empty-dashboard-title">Belum ada pengajuan</h2>
                 <p>Pilih layanan untuk memulai pengajuan pertama Anda.</p>

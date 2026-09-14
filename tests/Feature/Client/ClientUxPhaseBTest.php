@@ -33,12 +33,26 @@ class ClientUxPhaseBTest extends TestCase
 
         $this->actingAs($user)->get(route('client.dashboard'))
             ->assertOk()
+            ->assertSee('class="pb-empty__content"', false)
             ->assertSee('Belum ada pengajuan')
+            ->assertSee('Pilih layanan untuk memulai pengajuan pertama Anda.')
             ->assertSee('Lihat layanan')
             ->assertDontSee('Langkah berikutnya')
             ->assertDontSee('Pembaruan terbaru')
             ->assertDontSee('Total pengajuan')
             ->assertDontSee('KPI');
+    }
+
+    public function test_applications_index_reuses_the_centered_empty_state_structure(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get(route('client.applications.index'))
+            ->assertOk()
+            ->assertSee('class="pb-empty__content"', false)
+            ->assertSee('Belum ada pengajuan')
+            ->assertSee('Mulai dengan memilih layanan yang sesuai kebutuhan Anda.')
+            ->assertSee('Lihat layanan');
     }
 
     public function test_dashboard_surfaces_the_most_important_real_next_action(): void

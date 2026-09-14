@@ -65,7 +65,7 @@ class SecurityRegressionTest extends TestCase
 
         for ($attempt = 0; $attempt < 5; $attempt++) {
             $this->post(route('login.store'), ['email' => 'attacker@example.test', 'password' => 'invalid'])
-                ->assertSessionHasErrors('email');
+                ->assertSessionHasErrorsIn('auth', 'authentication');
         }
 
         $this->post(route('login.store'), ['email' => 'attacker@example.test', 'password' => 'invalid'])

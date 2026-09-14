@@ -3632,6 +3632,18 @@
     width: 100%;
 }
 
+.bd-admin-field input[aria-invalid='true'] {
+    border-color: #c8645d;
+    background: #fffafa;
+}
+
+.bd-admin-field__error {
+    color: var(--admin-danger-text);
+    font-size: 12px;
+    font-weight: 540;
+    line-height: 1.45;
+}
+
 .bd-otp-input,
 .bd-admin-field input.bd-otp-input {
     background: #fbfdff;
@@ -3647,6 +3659,11 @@
     padding: 0 14px;
     text-align: center;
     width: 100%;
+}
+
+.bd-admin-field input.bd-otp-input[aria-invalid='true'] {
+    border-color: #c8645d;
+    background: #fffafa;
 }
 
 .bd-otp-input:focus-visible {
